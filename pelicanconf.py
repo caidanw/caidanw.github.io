@@ -2,34 +2,45 @@
 # -*- coding: utf-8 -*- #
 from __future__ import unicode_literals
 
+# Uncomment following line if you want document-relative URLs when developing
+RELATIVE_URLS = True
+PATH = 'content'
+DEFAULT_PAGINATION = 2
+
 AUTHOR = 'Caidan Williams'
 SITENAME = 'Coding Notebook'
 SITEURL = 'https://mildmelon.github.io'
-
-PATH = 'content'
-
 TIMEZONE = 'America/Denver'
 
 DEFAULT_LANG = 'English'
+DEFAULT_CATEGORY = 'Uncategorized'
+THEME = 'pelican-blueidea'
 
-# Feed generation is usually not desired when developing
-FEED_ALL_ATOM = None
-CATEGORY_FEED_ATOM = None
-TRANSLATION_FEED_ATOM = None
-AUTHOR_FEED_ATOM = None
-AUTHOR_FEED_RSS = None
+STATIC_PATHS = ['images', 'pages']
+
+# Display pages list on the top menu
+DISPLAY_PAGES_ON_MENU = True
+
+# Display categories list on the top menu
+DISPLAY_CATEGORIES_ON_MENU = False
+
+# Display categories list as a submenu of the top menu
+DISPLAY_CATEGORIES_ON_SUBMENU = True
+
+# Display the category in the article's info
+DISPLAY_CATEGORIES_ON_POSTINFO = True
+
+# Display the author in the article's info
+DISPLAY_AUTHOR_ON_POSTINFO = True
+
+# Display the search form
+DISPLAY_SEARCH_FORM = False
 
 # Blogroll
-LINKS = (('Pelican', 'http://getpelican.com/'),
-         ('Python.org', 'http://python.org/'),
-         ('Jinja2', 'http://jinja.pocoo.org/'),
-         ('You can modify those links in your config file', '#'),)
+LINKS = (('GitHub', 'https://github.com/mildmelon'),
+         ('GitLab', 'https://gitlab.com/caidanwilliams'),
+         ('BitBucket', 'https://bitbucket.org/caidanwilliams'),)
 
 # Social widget
 SOCIAL = (('Twitter', 'https://twitter.com/_mildmelon'),
-          ('BitBucket', 'https://bitbucket.org/caidanwilliams'),)
-
-DEFAULT_PAGINATION = False
-
-# Uncomment following line if you want document-relative URLs when developing
-# RELATIVE_URLS = True
+          ('LinkedIn', 'https://www.linkedin.com/in/caidan-williams/'),)

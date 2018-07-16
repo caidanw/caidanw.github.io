@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Coding Notebook - Clean Code</title><link href="https://mildmelon.github.io/" rel="alternate"></link><link href="https://mildmelon.github.io/feeds/clean-code.atom.xml" rel="self"></link><id>https://mildmelon.github.io/</id><updated>2017-11-23T04:27:00-07:00</updated><entry><title>Organizing Naming Rules &amp; Conventions</title><link href="https://mildmelon.github.io/organizing-naming-rules-conventions.html" rel="alternate"></link><published>2017-11-23T04:27:00-07:00</published><updated>2017-11-23T04:27:00-07:00</updated><author><name>Caidan Williams</name></author><id>tag:mildmelon.github.io,2017-11-23:/organizing-naming-rules-conventions.html</id><summary type="html">&lt;p&gt;When we write code, we must be conscious of our naming conventions, as they hold a lot of meaning and will be seen by others.&lt;/p&gt;</summary><content type="html">&lt;h3&gt;Note:&lt;/h3&gt;
+&lt;p&gt;Organize the names we give to our variables, methods, classes, arguments, and packages by following some simple rules
+(longer descriptions at the bottom). I refer to these coding objects that I give names as "entities" to keep it simple.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h3&gt;Rules:&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;The name should fully reveal the intent of its use.&lt;/li&gt;
+&lt;li&gt;Names should not misinform the reader.&lt;/li&gt;
+&lt;li&gt;Have meaningful distinctions in the name&lt;/li&gt;
+&lt;li&gt;Try to make the names pronounceable names when possible, this will help significantly once you start programming
+    with others.&lt;/li&gt;
+&lt;li&gt;Use names that are easy to find by search.&lt;/li&gt;
+&lt;li&gt;No encodings, it can be messy, misleading, and hard to find in a search.&lt;/li&gt;
+&lt;li&gt;It's a waste of time to prefix member variables.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h3&gt;Rules Explained:&lt;/h3&gt;
+&lt;p&gt;&lt;strong&gt;Names with intent&lt;/strong&gt;&lt;br&gt;
+Take time when trying to determine a name. Think about the variable,
+method, etc.  and the purpose of it being created, what use it serves
+(within the project's scope), and how it is used.  &lt;/p&gt;
+&lt;p&gt;PS: If it needs a comment (near its declaration to describe) what it is,
+then rename it.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Don't misinform&lt;/strong&gt;&lt;br&gt;
+Entities will be read by both yourself and possibly other people in the
+future. So a name that misinforms the reader about the entity will be
+hard to know it's purpose at a later date.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Meaningful Distinctions&lt;/strong&gt;&lt;br&gt;
+This is fairly simple, just don't use characters that look like others
+if they are not in a word/group. Here is an example of how the lowercase
+L can be confused with the number 1.  &lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="n"&gt;l&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mo"&gt;01&lt;/span&gt;
+&lt;span class="n"&gt;a&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;l&lt;/span&gt;
+&lt;span class="n"&gt;a&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;O1&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;&lt;strong&gt;Searchable name&lt;/strong&gt;&lt;br&gt;
+Avoid using names that contain single letters and single digits, as this
+is harder to search for across a project. If single letters must be
+used, say for temporary variables, then only use them as local variables
+in short methods.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;No encodings&lt;/strong&gt;&lt;br&gt;
+An example of bad encoding, which is illogical, confusing, and is not helpful
+for anyone other than the programmer that wrote it.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="n"&gt;var&lt;/span&gt; &lt;span class="n"&gt;Z7_DaysLeft&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mi"&gt;23&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;&lt;strong&gt;Prefix member variables&lt;/strong&gt;&lt;br&gt;
+There is no need to prefix variables that belong to a class because your
+classes (and functions) should be small enough that you wouldn't need to
+organize them. They are also easily ignored after a period of time
+working with them while making the code look really messy.&lt;br&gt;
+---&lt;br&gt;
+Example of a prefixed member variable&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="k"&gt;class&lt;/span&gt; &lt;span class="nc"&gt;Barrel&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="n"&gt;m_weightInLbs&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mi"&gt;23&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;hr&gt;
+&lt;h3&gt;Wise Words and Quotes:&lt;/h3&gt;
+&lt;blockquote&gt;
+&lt;p&gt;"Do not refer to a grouping of accounts as an accountList unless it’s
+actually a List. The word list means something specific to
+programmers. If the container holding the accounts is not actually a
+List, it may lead to false conclusions. So accountGroup or
+bunchOfAccounts or just plain accounts would be better."&lt;/p&gt;
+&lt;p&gt;- Robert C. Martin&lt;/p&gt;
+&lt;p&gt;"The length of a name should correspond to the size of its scope."&lt;/p&gt;
+&lt;p&gt;- Robert C. Martin&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;hr&gt;
+&lt;p&gt;&lt;img alt="comment_question" src="../images/comment_question.png"&gt;:&lt;/p&gt;</content></entry></feed>

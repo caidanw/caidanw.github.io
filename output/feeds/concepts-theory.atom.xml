@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Coding Notebook - Concepts &amp; Theory</title><link href="https://mildmelon.github.io/" rel="alternate"></link><link href="https://mildmelon.github.io/feeds/concepts-theory.atom.xml" rel="self"></link><id>https://mildmelon.github.io/</id><updated>2017-12-04T20:35:00-07:00</updated><entry><title>Programming Paradigms</title><link href="https://mildmelon.github.io/programming-paradigms.html" rel="alternate"></link><published>2017-12-04T20:35:00-07:00</published><updated>2017-12-04T20:35:00-07:00</updated><author><name>Caidan Williams</name></author><id>tag:mildmelon.github.io,2017-12-04:/programming-paradigms.html</id><summary type="html">&lt;p&gt;The basic paradigms are imperative programming, functional programming, and object-orientated programming.&lt;/p&gt;</summary><content type="html">&lt;h3&gt;Summary&lt;/h3&gt;
+&lt;p&gt;There are a lot of different programming paradigms, though it is
+non-essential to learn all of them right away. The basic paradigms are
+imperative programming, functional programming, and object-orientated
+programming. There is also the state of a program, which is the where
+and what of the variables of a program are at a given time when the
+program is being run. Different paradigms have different effects on a
+program's state. They also manipulate the way a program's state changes
+and how it changes those states.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h3&gt;Imperative Programming&lt;/h3&gt;
+&lt;p&gt;This paradigm is fairly easy to understand, though this should probably
+never be used professionally unless it's a simple one-off script. To sum
+up how this is implemented, "do this, then that". Imperative programs
+consist of a sequence of steps that ultimately get closer to a single
+solution. Each step is changing the program's state. There are no
+functions or classes that are being created and used, only variables are
+being created and altered (we only change a program's state when we
+modify, remove, introduce new variables to the program).&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;x&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mi"&gt;1&lt;/span&gt;
+&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;y&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mi"&gt;5&lt;/span&gt;
+&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;z&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mi"&gt;9&lt;/span&gt;
+&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;xyz&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;x&lt;/span&gt; &lt;span class="o"&gt;+&lt;/span&gt; &lt;span class="n"&gt;y&lt;/span&gt; &lt;span class="o"&gt;+&lt;/span&gt; &lt;span class="n"&gt;z&lt;/span&gt;
+&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class="k"&gt;print&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;xyz&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; 
+&lt;span class="mi"&gt;15&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;hr&gt;
+&lt;h3&gt;Functional Programming&lt;/h3&gt;
+&lt;p&gt;As the name suggests, functional programming only uses functions within
+the program (variables as well, no classes). More specifically, it
+involves functions that when given the same input will always return the
+same output. As Mary Rose Cook once said, &lt;em&gt;"Functional code is
+characterized by one thing: the absence of side effects. It doesn't rely
+on data outside the current function, and it doesn't change data that
+exists outside the current function."&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;This is an &lt;em&gt;unfunctional&lt;/em&gt; function:&lt;br&gt;
+&lt;code&gt;a = 0 def increment():   global a   a += 1&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Here is a &lt;em&gt;functional&lt;/em&gt; function:&lt;br&gt;
+&lt;code&gt;def increment(a):   return a + 1&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Notice that the unfunctional function pulls the variable &lt;code&gt;a&lt;/code&gt; from
+outside of the functions local scope, thus leading to unpredictable
+results and changing the state of the program. Whereas the functional
+function uses any variable that is passed through its argument, leaving
+out any room for unexpected results and not changing the state of the
+program.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h3&gt;Object-Orientated Programming&lt;/h3&gt;
+&lt;p&gt;This paradigm involves writing programs where you define and create
+objects that interact with each other. Strings, integers, and floats are
+all examples of objects. You can also define your own objects by using
+classes. Think of a class as a blueprint used to create objects. Methods
+are like functions, except they are defined in a class and belong to
+that class. We can only call a class' method if we first create an
+object from the desired class.&lt;/p&gt;
+&lt;p&gt;We create a class by using the &lt;em&gt;class&lt;/em&gt; keyword:&lt;br&gt;
+&lt;code&gt;class Orange:   print("Orange created!")&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;If we create an object based off the &lt;em&gt;Orange&lt;/em&gt; class then it will run any
+code inside class that is not a method:&lt;br&gt;
+`orange = Orange() print(type(orange)) print(orange) &amp;gt;&amp;gt; Orange created!&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;blockquote&gt;
+&lt;blockquote&gt;
+&lt;blockquote&gt;
+&lt;p&gt;`&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;/blockquote&gt;
+&lt;/blockquote&gt;
+&lt;/blockquote&gt;</content></entry></feed>
