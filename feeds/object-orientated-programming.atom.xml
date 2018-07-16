@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Coding Notebook - Object Orientated Programming</title><link href="https://mildmelon.github.io/" rel="alternate"></link><link href="https://mildmelon.github.io/feeds/object-orientated-programming.atom.xml" rel="self"></link><id>https://mildmelon.github.io/</id><updated>2017-12-06T21:23:00-07:00</updated><entry><title>Extending My OOP Understanding</title><link href="https://mildmelon.github.io/extending-my-oop-understanding.html" rel="alternate"></link><published>2017-12-06T21:23:00-07:00</published><updated>2017-12-06T21:23:00-07:00</updated><author><name>Caidan Williams</name></author><id>tag:mildmelon.github.io,2017-12-06:/extending-my-oop-understanding.html</id><summary type="html">&lt;p&gt;There is always more to learn, especially if that focus is on programming.&lt;/p&gt;</summary><content type="html">&lt;h3&gt;Summary&lt;/h3&gt;
+&lt;p&gt;There is always more to learn, especially if that focus is on
+programming. The focus of this section will be on Python specific OOP.
+This includes understanding how variables work, the "is" syntax, "None"
+syntax, "Super" syntax, classes are objects, class vs. instance
+variables, private variables, overriding methods, and overriding
+built-in methods.&lt;/p&gt;
+&lt;p&gt;“Commenting your code is like cleaning your bathroom - you never want to
+do it, but it really does create a more pleasant experience for you and
+your guests.”&lt;br&gt;
+—Ryan Campbel&lt;/p&gt;
+&lt;hr&gt;
+&lt;h3&gt;The Underlying Mechanics of Variables&lt;/h3&gt;
+&lt;p&gt;Every variable "points" to an object. For example, we can create a new
+variable  &lt;code&gt;j&lt;/code&gt;  which we will give an arbitrary value.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;&amp;gt;&amp;gt;&amp;gt; j = 20&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;The variable  &lt;code&gt;j&lt;/code&gt;  we created will now point to an integer object that
+holds the value of  &lt;code&gt;20&lt;/code&gt; .&lt;/p&gt;
+&lt;p&gt;If we now assign the variable  &lt;code&gt;j&lt;/code&gt;  to have a new value, we are telling
+the compiler we want to create a new integer object with our new desired
+value.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;&amp;gt;&amp;gt;&amp;gt; j = 15&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Now that our variable  &lt;code&gt;j&lt;/code&gt;  points to a new integer object with the
+value  &lt;code&gt;15&lt;/code&gt; . What happens to the old integer object with the value of 
+&lt;code&gt;20&lt;/code&gt; ? The old object is not being used, so it gets discarded. This, in
+essence, is Python's garbage collection.&lt;/p&gt;
+&lt;p&gt;To elaborate we can have two different variables point to the same
+object (int, str, etc.)&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;&amp;gt;&amp;gt;&amp;gt; j = 20 &amp;gt;&amp;gt;&amp;gt; k = j &amp;gt;&amp;gt;&amp;gt; print(j) 20 &amp;gt;&amp;gt;&amp;gt; print(k) 20&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Keep in mind that objects are not tied to the variable that originally
+created them. So if we delete  &lt;code&gt;j&lt;/code&gt;  after we have assigned  &lt;code&gt;k&lt;/code&gt;  the
+same integer object, we will still have the same object as it is still
+be used by part of the program. Both  &lt;code&gt;j&lt;/code&gt;  and  &lt;code&gt;k&lt;/code&gt;  point to the same
+integer object that holds the value of  &lt;code&gt;20&lt;/code&gt; .&lt;/p&gt;
+&lt;hr&gt;
+&lt;h3&gt;"Is"&lt;/h3&gt;
+&lt;p&gt;The keyword "is" compares two objects based on their location in memory.
+We will create a new class, and then initialize three new instance
+objects from the class.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;class Puppy:   def __init__(self):     self.name = "Alexander II"&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;`&amp;gt;&amp;gt;&amp;gt; pup = Puppy() &amp;gt;&amp;gt;&amp;gt; same_pup = pup &amp;gt;&amp;gt;&amp;gt; print(pup is same_pup) True&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;blockquote&gt;
+&lt;blockquote&gt;
+&lt;p&gt;another_pup = Puppy() &amp;gt;&amp;gt;&amp;gt; print(pup is another_pup) False`&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;/blockquote&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Though  &lt;code&gt;pup&lt;/code&gt;  and  &lt;code&gt;another_pup&lt;/code&gt;  are from the class they aren't stored
+in the same place in memory. We can see that  &lt;code&gt;pup&lt;/code&gt;  and  &lt;code&gt;same_pup&lt;/code&gt; 
+return True because they both point to the same  &lt;code&gt;Puppy&lt;/code&gt;  object in
+memory.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;&amp;gt;&amp;gt;&amp;gt; print(pup)&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;&gt;&gt;&gt; print(same_pup)&lt;/p&gt;
+&lt;p&gt;&gt;&gt;&gt; print(another_pup)&lt;/p&gt;
+&lt;p&gt;Here we can see the different locations in memory for the different
+objects. We have only initialized two  &lt;code&gt;Puppy&lt;/code&gt;  objects but we have
+three variables. Two variables that point to  &lt;code&gt;0x03890B90&lt;/code&gt;  and one
+pointing to  &lt;code&gt;0x060A7090&lt;/code&gt;.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h3&gt;"None"&lt;/h3&gt;
+&lt;p&gt;This is a built-in constant, it is used to represent the absence of a
+value.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;&amp;gt;&amp;gt;&amp;gt; x = None &amp;gt;&amp;gt;&amp;gt; print(x) None&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;This can be useful when you need to have a variable, but don't have a
+value for it yet. You can have your program logic deal with the variable
+properly.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h3&gt;"Super"&lt;/h3&gt;
+&lt;p&gt;This built-in function, lets us call a method a class has inherited from
+its parent. The basic syntax structure to use the "Super" keyword is
+below.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;super().[parent_method]([parameters])&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Replace the  &lt;code&gt;parent_method&lt;/code&gt;  with the desired method you wish to call,
+that can be found in the parent class. The  &lt;code&gt;parameters&lt;/code&gt;  is what the
+parent method takes as arguments.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h3&gt;Are Classes Objects?&lt;/h3&gt;
+&lt;p&gt;In Python, classes are objects. When you run a program that defines a
+class, Python will turn that class into an object, which can be used in
+your program.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;class Peanut:   pass&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;&amp;gt;&amp;gt;&amp;gt; print(Peanut)&lt;/code&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h3&gt;Class vs. Instance Variables&lt;/h3&gt;
+&lt;p&gt;A class can have two types of variables, class and instance. First, we
+will look at instance variables. Instance variables belong to the object
+that created them. They are created with the  &lt;code&gt;self&lt;/code&gt;  keyword.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;class Chicken:   def __init__(self, name):     self.name = name&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;&amp;gt;&amp;gt;&amp;gt; phil = Chicken("Phillip") &amp;gt;&amp;gt;&amp;gt; print(phil.name) Phillip&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Instance variables are unique to each object created from a class. Class
+variables are not unique, and every object of a certain class can use
+that same class's variables.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;class Chicken:   species = "Bird"   def __init__(self, name):
+    self.name = name&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;&amp;gt;&amp;gt;&amp;gt; chick = Chicken("Tim") &amp;gt;&amp;gt;&amp;gt; chick2 = Chicken("Jimbo")&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;&amp;gt;&amp;gt;&amp;gt; print(chick.name) Tim &amp;gt;&amp;gt;&amp;gt; print(chick2.name) Jimbo&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;&amp;gt;&amp;gt;&amp;gt; print(chick.species) Bird &amp;gt;&amp;gt;&amp;gt; print(chick2.species) Bird&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Class variables are useful when you want every object of a class to have
+access to a variable.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h3&gt;Private Variables&lt;/h3&gt;
+&lt;p&gt;A lot of languages have at least some concept of private variables and
+methods. Python is a little different, unlike other languages, Python
+does not have syntax specifically for making variables private.
+Therefore every variable in Python is public. Though there is a way to
+indicate that a variable would like to be kept private, by using a
+naming convention. If you have a variable or method the caller should
+not access, you should precede its name with an underscore. Python
+programmers know if a method or variable has a preceding underscore,
+they should not use it, although keep in mind they will still be able to
+use it at their own risk.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;class PublicPrivateExample:   def __init__(self):
+    self.public_variable = "callers know they can access this"
+    self._dontusethisvariable = "callers know they shouldn't access
+this"   def public_method(self):     # callers know they can use this
+method     pass   def _dont_use_this_method(self):     # callers know
+they shouldn't use this method     pass&lt;/code&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h3&gt;Overriding Methods&lt;/h3&gt;
+&lt;p&gt;When you create a class that inherits a method from a parent, we can
+then override the method to have child specific functionality. To
+override a parent method, redefine the method with the same arguments,
+then add your custom code to the body of the method.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;class Animal:   def __init__(self):     self.hunger = 100``   def
+eat(self, amount):     self.hunger += amount     print("Animal has
+eaten")&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;class Bird(Animal):   def eat(self, amount):     self.hunger += amount
+    print("Bird has eaten")&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;You do not need to use the same arguments when overriding a method but
+if you don't then calling the child class's method without the correct
+arguments, it may end up making a call to the parent's method.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h3&gt;Overriding Built-In Methods&lt;/h3&gt;
+&lt;p&gt;Every class in Python automatically inherits from a parent class called
+Object. All classes in Python inherit methods from this parent class.
+Python's built-in functions use these methods (often called magic
+methods) for different situations, such as printing an object.&lt;/p&gt;
+&lt;p&gt;We can manipulate how we print an object from a certain class by
+modifying the classes magic method  &lt;code&gt;__repr__&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;class Tree:   def __init__(self, age):     self.age = age   def
+__repr__(self):     return("The tree is {} years old".format(self.age))&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;&amp;gt;&amp;gt;&amp;gt; tree = Tree(12) &amp;gt;&amp;gt;&amp;gt; print(tree) The tree is 12 years old&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;There are many more built-in methods that are useful in helping keep a
+program clean and organized.&lt;/p&gt;
+&lt;p&gt;For more info on built-in methods and some clever tricks, check out &lt;a href="https://dbader.org/blog/python-dunder-methods"&gt;Dan
+Bader's Blog&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;The official &lt;a href="https://docs.python.org/3/reference/datamodel.html"&gt;Python 3
+Docs&lt;/a&gt; have great
+(although technical writing) on what they call "special methods".&lt;/p&gt;</content></entry><entry><title>The Four Pillars of Object-Orientated Programming</title><link href="https://mildmelon.github.io/the-four-pillars-of-object-orientated-programming.html" rel="alternate"></link><published>2017-12-06T00:24:00-07:00</published><updated>2017-12-06T00:24:00-07:00</updated><author><name>Caidan Williams</name></author><id>tag:mildmelon.github.io,2017-12-06:/the-four-pillars-of-object-orientated-programming.html</id><summary type="html">&lt;p&gt;For a programming language to be properly considered as OOP, it must contain these four main concepts.&lt;/p&gt;</summary><content type="html">&lt;h3&gt;Summary&lt;/h3&gt;
+&lt;p&gt;For a programming language to be properly considered as OOP, it must
+contain these four main concepts. The are four pillars of OOP:
+inheritance, polymorphism, abstraction, and encapsulation. Also,
+remember that for a programming language to be considered OOP it must be
+able to create classes that can interact with each other.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;OOP Languages: - Java - Python - Ruby Functional Languages: - PHP -
+Haskell - Lisp&lt;/code&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h3&gt;Inheritance&lt;/h3&gt;
+&lt;p&gt;When you create a class, you can &lt;em&gt;inherit&lt;/em&gt; another class (which will
+allow the new class to have access to the parent class's variables and
+methods).&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;class MotherDuck():   def __init__(self, name, weight, is_hungry):
+    # weight is in lbs.     self.name = name     self.weight =
+weight     self.is_hungry = is_hungry&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;class Duckling(MotherDuck):   def cry(self):     print("{name} is
+crying!".format(name=self.name))&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Now that we have defined both our parent class (MotherDuck) and our
+child class (Duckling) we can now observe how they interact with each
+other. Notice that when defining the Duckling class we pass it the
+argument MotherDuck, this keyword (the parent class name) tells the
+compiler that we want all of MotherDuck class variables and methods.&lt;/p&gt;
+&lt;p&gt;First, create a new duckling and call its cry method&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;&amp;gt;&amp;gt; duckling = Duckling("Jake", 2, False) &amp;gt;&amp;gt;&amp;gt; duckling.cry() Jake is
+crying!&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Now try to do the same with parent class (MotherDuck)&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;&amp;gt;&amp;gt;&amp;gt; mama = MotherDuck("Karen", 5, True) &amp;gt;&amp;gt;&amp;gt; mama.is_hungry True &amp;gt;&amp;gt;&amp;gt;
+mama.cry() Traceback (most recent call last):   File "", line 1, in
+    mama.cry() AttributeError: 'MotherDuck' object has no attribute
+'cry'&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Only the child class will be able to use the parent class's variables
+and methods, this makes for cleaner code, less redundancy, and more
+efficiency.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h3&gt;Polymorphism&lt;/h3&gt;
+&lt;p&gt;A great definition of pragmatic polymorphism is, "polymorphism is the
+ability (in programming) to present the same interface for different
+underlying forms (data types)." An interface refers to one or more
+functions or methods. Meaning a function or method that can achieve a
+similar result with different data types (eg. string, int, float, bool,
+etc.)&lt;/p&gt;
+&lt;p&gt;If we look at python's built-in function &lt;code&gt;print()&lt;/code&gt; we know that it will
+take any different data type (including classes) and determine what to
+appropriately print to the console depending on the used type of data.
+This is done without the need to call a seperate function for a specific
+data type. eg. &lt;code&gt;print_bool()&lt;/code&gt; &lt;code&gt;print_string()&lt;/code&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h3&gt;Abstraction&lt;/h3&gt;
+&lt;p&gt;Abstraction is used in OOP when we create a class and define its
+methods. When we define a class, and the methods that go with it, we are
+creating an &lt;em&gt;abstraction&lt;/em&gt;. When designing OO programs, we are creating
+&lt;em&gt;abstractions&lt;/em&gt; of different concepts that all work together to form our
+program. Abstraction allows us to model objects with clear boundaries,
+and have them interact with each other.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h3&gt;Encapsulation&lt;/h3&gt;
+&lt;p&gt;Encapsulation hides our codes internal data. When code and data have
+been encapsulated, it means when it is called, the caller cannot access
+the code's internal data. This concept plays a big role in security by
+denying access to certain pieces of data.&lt;/p&gt;
+&lt;p&gt;This also helps when trying to maintain code that is reliable, such as
+changing a data type from a list to a tuple. Trying to directly append
+to a tuple will give issues if we are expecting to append to a list. We
+can solve this issue by making a function that appends to our desired
+data type with a single function. This keeps the list/tuple data secret
+while still giving reliable functionality to a program or any clients
+that use the code.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h3&gt;Composition&lt;/h3&gt;
+&lt;p&gt;This is not one of the four pillars of OOP but it is an important
+concept that helps the rest. The composition of a program represents
+"has a" relationships, this occurs when one object stores another object
+as a variable.&lt;/p&gt;
+&lt;p&gt;Let's represent this with an example, we will show the relationship
+between a dog and it's owner. A dog "has a(n)" owner.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;class Dog():   def __init__(self, name, breed, owner):     self.name =
+name     self.breed = breed     self.owner = owner&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;class Person():   def __init__(self, name):     self.name = name&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;When we create a new dog object, we pass in a person object as the owner
+argument&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;&amp;gt;&amp;gt;&amp;gt; rob = Person("Dread Pirate Roberts") &amp;gt;&amp;gt;&amp;gt; dog = Dog("Kevin",
+"Pitbull", rob) &amp;gt;&amp;gt;&amp;gt; print(dog.owner.name) Dread Pirate Roberts&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Now the dog Kevin belongs to the Dread Pirate Roberts, and we can easily
+reference the dog's owner.&lt;/p&gt;</content></entry></feed>
