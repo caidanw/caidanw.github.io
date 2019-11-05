@@ -1,8 +1,9 @@
-Title: The Start of a Journey
-Date: 2017-11-21 03:51
-Category: Uncategorized
-Slug: the-start-of-a-journey
-Status: published
+---
+layout: post
+title: The Start of a Journey
+permalink: the-start-of-a-journey
+date: 2017-11-21 03:51:00
+---
 
 Hello, friend.
 
@@ -13,4 +14,4 @@ will be tracking my computer science learning, specifically programming
 and software development. Any being is welcome to learn and take away
 what they can from this blog.
 
-Goodbye for now and remember, *smile\!*
+Goodbye for now, and remember to _smile!_

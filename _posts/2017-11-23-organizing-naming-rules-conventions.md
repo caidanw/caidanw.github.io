@@ -1,14 +1,13 @@
-Title: Organizing Naming Rules & Conventions
-Date: 2017-11-23 04:27 
-Category: Clean Code
-Slug: organizing-naming-rules-conventions
-Status: published
-Summary: When we write code, we must be conscious of our naming conventions, as they hold a lot of meaning and will be seen by others.
+---
+layout: post
+title: Organizing Naming Rules & Conventions
+permalink: organizing-naming-rules-conventions
+date: 2017-11-23 04:27:00
+---
 
 ### Note:
 
-Organize the names we give to our variables, methods, classes, arguments, and packages by following some simple rules
-(longer descriptions at the bottom). I refer to these coding objects that I give names as "entities" to keep it simple.
+Organize the names we give to our variables, methods, classes, arguments, and packages by following some simple rules (longer descriptions at the bottom). I refer to these coding objects that I give names as "entities" to keep it simple.
 
 ---
 
@@ -17,8 +16,7 @@ Organize the names we give to our variables, methods, classes, arguments, and pa
   - The name should fully reveal the intent of its use.
   - Names should not misinform the reader.
   - Have meaningful distinctions in the name
-  - Try to make the names pronounceable names when possible, this will help significantly once you start programming
-    with others.
+  - Try to make the names pronounceable names when possible, this will help significantly once you start programming with others.
   - Use names that are easy to find by search.
   - No encodings, it can be messy, misleading, and hard to find in a search.
   - It's a waste of time to prefix member variables.
@@ -27,23 +25,16 @@ Organize the names we give to our variables, methods, classes, arguments, and pa
 
 ### Rules Explained:
 
-**Names with intent**  
-Take time when trying to determine a name. Think about the variable,
-method, etc.  and the purpose of it being created, what use it serves
-(within the project's scope), and how it is used.  
+**Name with intent**
+Take time when trying to determine a name. Think about the variable, method, etc.  and the purpose of it being created, what use it serves (within the project's scope), and how it is used.  
+PS: If it needs a comment (near its declaration) to describe what it is, then rename it.
 
-PS: If it needs a comment (near its declaration to describe) what it is,
-then rename it.
+**Don't misinform**
+Entities will be read by both yourself and possibly other people in the future. So a name that misinforms the reader about the entity will be hard to know it's purpose at a later date.
 
-**Don't misinform**  
-Entities will be read by both yourself and possibly other people in the
-future. So a name that misinforms the reader about the entity will be
-hard to know it's purpose at a later date.
+**Meaningful Distinctions**
+This is fairly simple, just don't use characters that look like others if they are not in a word/group. Here is an example of how the lowercase L can be confused with the number 1.
 
-**Meaningful Distinctions**  
-This is fairly simple, just don't use characters that look like others
-if they are not in a word/group. Here is an example of how the lowercase
-L can be confused with the number 1.  
 ```python
 l = 01
 a = l

@@ -1,9 +1,9 @@
-Title: The Four Pillars of Object-Orientated Programming
-Date: 2017-12-06 00:24
-Category: Object Orientated Programming
-Slug: the-four-pillars-of-object-orientated-programming
-Status: published
-Summary: For a programming language to be properly considered as OOP, it must contain these four main concepts.
+---
+layout: post
+title: The Four Pillars of Object-Orientated Programming
+permalink: the-four-pillars-of-object-orientated-programming
+date: 2017-12-06 00:24
+---
 
 ### Summary
 

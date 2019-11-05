@@ -1,9 +1,9 @@
-Title: Extending My OOP Understanding
-Date: 2017-12-06 21:23 
-Category: Object Orientated Programming
-Slug: extending-my-oop-understanding
-Status: published
-Summary: There is always more to learn, especially if that focus is on programming.
+---
+layout: post
+title: Extending My OOP Understanding
+permalink: extending-my-oop-understanding
+date: 2017-12-06 21:23:00
+---
 
 ### Summary
 

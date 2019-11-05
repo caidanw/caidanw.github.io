@@ -1,9 +1,9 @@
-Title: Programming Paradigms
-Date: 2017-12-04 20:35
-Category: Concepts & Theory
-Slug: programming-paradigms
-Status: published
-Summary: The basic paradigms are imperative programming, functional programming, and object-orientated programming.
+---
+layout: post
+title: Programming Paradigms
+permalink: programming-paradigms
+date: 2017-12-04 20:35:00
+---
 
 ### Summary
 
