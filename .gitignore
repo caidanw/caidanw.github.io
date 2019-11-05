@@ -1,3 +1,5 @@
-*.pid
-*.pyc
-*.swp
+*.gem
+.bundle
+.sass-cache
+_site
+Gemfile.lock
