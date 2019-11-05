@@ -1,7 +1,8 @@
-Title: About
-Slug: about-page
-Status: published
+---
+title: /about
+layout: page
+permalink: /about-page
+---
 
-Hello, thank you for taking the time to look at my notebook. You can also check out my LinkedIn profile for more
-information about how to contact me and the current status of my career. If you so feel inclined to dig through
-any of my projects I've worked on, there are links below to all of my hosted git repositories.
+Hello, this blog is a documentation of my progress in the tech world.  
+If you would like to see some of the projects I've worked on, follow the GitHub link in the footer.

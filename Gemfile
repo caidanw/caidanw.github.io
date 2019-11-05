@@ -9,7 +9,7 @@ source "https://rubygems.org"
 #     bundle exec jekyll serve
 
 gem "github-pages", group: :jekyll_plugins
-gem 'jekyll-theme-console', '> 0'
+gem "jekyll-theme-console", "> 0"
 
 group :jekyll_plugins do
     gem "jekyll-feed"
