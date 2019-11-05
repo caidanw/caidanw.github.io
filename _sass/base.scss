@@ -5,7 +5,7 @@
  * Style variables
  */
 $base-font-family:     'Source Code Pro', monospace !default;
-$base-font-size:       12.5px !default;
+$base-font-size:       14px !default;
 $mobile-font-size:     12px !default;
 $base-line-height:     1.5 !default;
 $container-width:      90% !default;
@@ -15,18 +15,19 @@ $container-max-width:  600px !default;
  * Global
  */
 body { background-color: var(--background-color);  margin: 0 auto;  padding: 0;  font-family: $base-font-family;  font-size: $base-font-size;  color: var(--text-color);  text-align: left;  line-height: $base-line-height !important; }
-h1, h2, h3, h4, h5, h6 { font-size: $base-font-size;  margin: 0px;  margin-top: 22px;  font-weight: bold;  color: var(--text-color); }
+h1, h2, h3, h4, h5, h6 { font-size: $base-font-size;  margin: 0px;  font-weight: bold;  color: var(--text-color); }
 p, ul, ol { margin: 0px;  color: var(--text-color); }
 a { text-decoration: underline;  color: var(--link-color); }
 a:hover { color: var(--background-color); background-color: var(--base-color); }
 .primary-text { color: var(--primary-color); }
 @media only screen and (max-device-width: 500px) { * { font-size: $mobile-font-size !important; } }
-/*h1:before { content: "#";  margin-right: 9px; }
-h2:before { content: "##";  margin-right: 9px; }
-h3:before { content: "###";  margin-right: 9px; }
-h4:before { content: "####";  margin-right: 9px; }
-h5:before { content: "#####";  margin-right: 9px; }
-h6:before { content: "######";  margin-right: 9px; }*/
+h1:before { content: "# "; }
+h2:before { content: "## "; }
+h3:before { content: "### "; }
+h4:before { content: "#### "; }
+h5:before { content: "##### "; }
+h6:before { content: "###### "; }
+hr { border: none;  height: 1px;  color: var(--text-color);  background-color: var(--text-color); }
 
 /**
  * Layout
@@ -54,7 +55,7 @@ footer { margin-bottom: 20px; }
 /**
  * Header/Navigation
  */
-.menu { border-top: var(--border);  border-bottom: var(--border);  margin-bottom: 25px; }
+.menu { border-top: var(--border);  border-bottom: var(--border);  margin-bottom: 20px; }
 .menu ul { margin-top: 12px;  margin-bottom: 12px;  padding-left: 0px;  list-style-type: none;  text-align: right; }
 .menu ul li { display: inline;  margin-left: 10px; }
 .menu ul li a { text-decoration: none;  color: var(--text-color); }
@@ -77,7 +78,7 @@ textarea { vertical-align: top; }
 /**
  * Code and syntax highlighting
  */
-pre { background-color: var(--background-color);  border: none;  padding: 0px;  overflow:auto;  font-size: $base-font-size;  color: rgba(255,255,255,0.65);  line-height: 1.7 !important; }
+pre { background-color: var(--background-code-color);  border: none;  padding: 5px 10px;  overflow: auto;  font-size: $base-font-size;  color: rgba(255,255,255,0.65);  line-height: 1.7 !important; }
 .highlight .c { color: #999988; font-style: italic } /* Comment */
 .highlight .err { color: #a61717; background-color: #e3d2d2 } /* Error */
 .highlight .k { font-weight: bold } /* Keyword */

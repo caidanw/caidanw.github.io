@@ -1,15 +1,33 @@
+title: "mildmelon.github.io"
+description: "Caidan Williams' Blog & Portfolio"
+
 google_analytics: UA-149931368-3
 
 header_pages:
   - index.md
   - about.md
+  - contact.md
 
-footer: 'follow me on <a href="https://twitter.com/_mildmelon">twitter</a>'
+footer: "<a href='https://github.com/mildmelon'>GitHub</a> <a href='https://twitter.com/_mildmelon'>Twitter</a> <a href='https://www.linkedin.com/in/caidan-williams/'>LinkedIn</a>"
 
 style: dark # dark (default) or light
-listen_for_clients_preferred_style: true # true or false (default)
+# listen_for_clients_preferred_style: true # true or false (default)
+
+markdown: kramdown
+kramdown:
+  input: GFM
+  hard_wrap: false
 
 theme: jekyll-theme-console
 
 plugins:
   - jekyll-seo-tag
+  - jekyll-feed
+
+defaults:
+  -
+    scope:
+      path: ""
+      type: "posts"
+    values:
+      author: Caidan Williams
