@@ -2,7 +2,7 @@
 layout: post
 title: The Four Pillars of Object-Orientated Programming
 permalink: the-four-pillars-of-object-orientated-programming
-date: 2017-12-06 00:24
+date: 2017-12-06 00:24:00
 ---
 
 ### Summary
