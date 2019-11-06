@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="english">
+<head>
+        <meta charset="utf-8" />
+        <title>Extending My OOP Understanding</title>
+        <link rel="stylesheet" href="./theme/css/main.css" />
+        <link href="https://mildmelon.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Coding Notebook Atom Feed" />
+
+        <!--[if IE]>
+            <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+        <![endif]-->
+</head>
+
+<body id="index" class="home">
+        <header id="banner" class="body">
+                <h1><a href="./">Coding Notebook </a></h1>
+                <nav><ul>
+    
+                        <li><a href="./pages/about-page.html">About</a></li>
+    
+                        <li><a href="./pages/contact-page.html">Contact</a></li>
+                </ul>
+                </nav>
+<div id="submenu">
+                    <ul>
+                            <li><a href="./category/clean-code.html">Clean Code</a></li>
+                            <li><a href="./category/concepts-theory.html">Concepts & Theory</a></li>
+                            <li class="active"><a href="./category/object-orientated-programming.html">Object Orientated Programming</a></li>
+                            <li><a href="./category/uncategorized.html">Uncategorized</a></li>
+                    </ul>
+                <div>
+        </header><!-- /#banner -->
+<section id="content" class="body">
+  <article>
+    <header>
+      <h1 class="entry-title">
+        <a href="./extending-my-oop-understanding.html" rel="bookmark"
+           title="Permalink to Extending My OOP Understanding">Extending My OOP Understanding</a></h1>
+    </header>
+
+    <div class="entry-content">
+<footer class="post-info">
+        <span>Wed 06 December 2017</span>
+        	<span>| by <a class="url fn" href="./author/caidan-williams.html">Caidan Williams</a></span>
+	        <span>| in <a href="./category/object-orientated-programming.html">Object Orientated Programming</a></span>
+
+</footer><!-- /.post-info -->      <h3>Summary</h3>
+<p>There is always more to learn, especially if that focus is on
+programming. The focus of this section will be on Python specific OOP.
+This includes understanding how variables work, the "is" syntax, "None"
+syntax, "Super" syntax, classes are objects, class vs. instance
+variables, private variables, overriding methods, and overriding
+built-in methods.</p>
+<p>“Commenting your code is like cleaning your bathroom - you never want to
+do it, but it really does create a more pleasant experience for you and
+your guests.”<br>
+—Ryan Campbel</p>
+<hr>
+<h3>The Underlying Mechanics of Variables</h3>
+<p>Every variable "points" to an object. For example, we can create a new
+variable  <code>j</code>  which we will give an arbitrary value.</p>
+<p><code>&gt;&gt;&gt; j = 20</code></p>
+<p>The variable  <code>j</code>  we created will now point to an integer object that
+holds the value of  <code>20</code> .</p>
+<p>If we now assign the variable  <code>j</code>  to have a new value, we are telling
+the compiler we want to create a new integer object with our new desired
+value.</p>
+<p><code>&gt;&gt;&gt; j = 15</code></p>
+<p>Now that our variable  <code>j</code>  points to a new integer object with the
+value  <code>15</code> . What happens to the old integer object with the value of 
+<code>20</code> ? The old object is not being used, so it gets discarded. This, in
+essence, is Python's garbage collection.</p>
+<p>To elaborate we can have two different variables point to the same
+object (int, str, etc.)</p>
+<p><code>&gt;&gt;&gt; j = 20 &gt;&gt;&gt; k = j &gt;&gt;&gt; print(j) 20 &gt;&gt;&gt; print(k) 20</code></p>
+<p>Keep in mind that objects are not tied to the variable that originally
+created them. So if we delete  <code>j</code>  after we have assigned  <code>k</code>  the
+same integer object, we will still have the same object as it is still
+be used by part of the program. Both  <code>j</code>  and  <code>k</code>  point to the same
+integer object that holds the value of  <code>20</code> .</p>
+<hr>
+<h3>"Is"</h3>
+<p>The keyword "is" compares two objects based on their location in memory.
+We will create a new class, and then initialize three new instance
+objects from the class.</p>
+<p><code>class Puppy:   def __init__(self):     self.name = "Alexander II"</code></p>
+<p>`&gt;&gt;&gt; pup = Puppy() &gt;&gt;&gt; same_pup = pup &gt;&gt;&gt; print(pup is same_pup) True</p>
+<blockquote>
+<blockquote>
+<blockquote>
+<p>another_pup = Puppy() &gt;&gt;&gt; print(pup is another_pup) False`</p>
+</blockquote>
+</blockquote>
+</blockquote>
+<p>Though  <code>pup</code>  and  <code>another_pup</code>  are from the class they aren't stored
+in the same place in memory. We can see that  <code>pup</code>  and  <code>same_pup</code> 
+return True because they both point to the same  <code>Puppy</code>  object in
+memory.</p>
+<p><code>&gt;&gt;&gt; print(pup)</code></p>
+<p>>>> print(same_pup)</p>
+<p>>>> print(another_pup)</p>
+<p>Here we can see the different locations in memory for the different
+objects. We have only initialized two  <code>Puppy</code>  objects but we have
+three variables. Two variables that point to  <code>0x03890B90</code>  and one
+pointing to  <code>0x060A7090</code>.</p>
+<hr>
+<h3>"None"</h3>
+<p>This is a built-in constant, it is used to represent the absence of a
+value.</p>
+<p><code>&gt;&gt;&gt; x = None &gt;&gt;&gt; print(x) None</code></p>
+<p>This can be useful when you need to have a variable, but don't have a
+value for it yet. You can have your program logic deal with the variable
+properly.</p>
+<hr>
+<h3>"Super"</h3>
+<p>This built-in function, lets us call a method a class has inherited from
+its parent. The basic syntax structure to use the "Super" keyword is
+below.</p>
+<p><code>super().[parent_method]([parameters])</code></p>
+<p>Replace the  <code>parent_method</code>  with the desired method you wish to call,
+that can be found in the parent class. The  <code>parameters</code>  is what the
+parent method takes as arguments.</p>
+<hr>
+<h3>Are Classes Objects?</h3>
+<p>In Python, classes are objects. When you run a program that defines a
+class, Python will turn that class into an object, which can be used in
+your program.</p>
+<p><code>class Peanut:   pass</code></p>
+<p><code>&gt;&gt;&gt; print(Peanut)</code></p>
+<hr>
+<h3>Class vs. Instance Variables</h3>
+<p>A class can have two types of variables, class and instance. First, we
+will look at instance variables. Instance variables belong to the object
+that created them. They are created with the  <code>self</code>  keyword.</p>
+<p><code>class Chicken:   def __init__(self, name):     self.name = name</code></p>
+<p><code>&gt;&gt;&gt; phil = Chicken("Phillip") &gt;&gt;&gt; print(phil.name) Phillip</code></p>
+<p>Instance variables are unique to each object created from a class. Class
+variables are not unique, and every object of a certain class can use
+that same class's variables.</p>
+<p><code>class Chicken:   species = "Bird"   def __init__(self, name):
+    self.name = name</code></p>
+<p><code>&gt;&gt;&gt; chick = Chicken("Tim") &gt;&gt;&gt; chick2 = Chicken("Jimbo")</code></p>
+<p><code>&gt;&gt;&gt; print(chick.name) Tim &gt;&gt;&gt; print(chick2.name) Jimbo</code></p>
+<p><code>&gt;&gt;&gt; print(chick.species) Bird &gt;&gt;&gt; print(chick2.species) Bird</code></p>
+<p>Class variables are useful when you want every object of a class to have
+access to a variable.</p>
+<hr>
+<h3>Private Variables</h3>
+<p>A lot of languages have at least some concept of private variables and
+methods. Python is a little different, unlike other languages, Python
+does not have syntax specifically for making variables private.
+Therefore every variable in Python is public. Though there is a way to
+indicate that a variable would like to be kept private, by using a
+naming convention. If you have a variable or method the caller should
+not access, you should precede its name with an underscore. Python
+programmers know if a method or variable has a preceding underscore,
+they should not use it, although keep in mind they will still be able to
+use it at their own risk.</p>
+<p><code>class PublicPrivateExample:   def __init__(self):
+    self.public_variable = "callers know they can access this"
+    self._dontusethisvariable = "callers know they shouldn't access
+this"   def public_method(self):     # callers know they can use this
+method     pass   def _dont_use_this_method(self):     # callers know
+they shouldn't use this method     pass</code></p>
+<hr>
+<h3>Overriding Methods</h3>
+<p>When you create a class that inherits a method from a parent, we can
+then override the method to have child specific functionality. To
+override a parent method, redefine the method with the same arguments,
+then add your custom code to the body of the method.</p>
+<p><code>class Animal:   def __init__(self):     self.hunger = 100``   def
+eat(self, amount):     self.hunger += amount     print("Animal has
+eaten")</code></p>
+<p><code>class Bird(Animal):   def eat(self, amount):     self.hunger += amount
+    print("Bird has eaten")</code></p>
+<p>You do not need to use the same arguments when overriding a method but
+if you don't then calling the child class's method without the correct
+arguments, it may end up making a call to the parent's method.</p>
+<hr>
+<h3>Overriding Built-In Methods</h3>
+<p>Every class in Python automatically inherits from a parent class called
+Object. All classes in Python inherit methods from this parent class.
+Python's built-in functions use these methods (often called magic
+methods) for different situations, such as printing an object.</p>
+<p>We can manipulate how we print an object from a certain class by
+modifying the classes magic method  <code>__repr__</code></p>
+<p><code>class Tree:   def __init__(self, age):     self.age = age   def
+__repr__(self):     return("The tree is {} years old".format(self.age))</code></p>
+<p><code>&gt;&gt;&gt; tree = Tree(12) &gt;&gt;&gt; print(tree) The tree is 12 years old</code></p>
+<p>There are many more built-in methods that are useful in helping keep a
+program clean and organized.</p>
+<p>For more info on built-in methods and some clever tricks, check out <a href="https://dbader.org/blog/python-dunder-methods">Dan
+Bader's Blog</a></p>
+<p>The official <a href="https://docs.python.org/3/reference/datamodel.html">Python 3
+Docs</a> have great
+(although technical writing) on what they call "special methods".</p>
+    </div><!-- /.entry-content -->
+
+  </article>
+</section>
+        <section id="extras" class="body">
+                <div class="blogroll">
+                        <h2>blogroll</h2>
+                        <ul>
+                            <li><a href="https://github.com/mildmelon">GitHub</a></li>
+                            <li><a href="https://gitlab.com/caidanwilliams">GitLab</a></li>
+                            <li><a href="https://bitbucket.org/caidanwilliams">BitBucket</a></li>
+                        </ul>
+                </div><!-- /.blogroll -->
+                <div class="social">
+                        <h2>social</h2>
+                        <ul>
+                            <li><a href="https://mildmelon.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+
+                            <li><a href="https://twitter.com/_mildmelon">Twitter</a></li>
+                            <li><a href="https://www.linkedin.com/in/caidan-williams/">LinkedIn</a></li>
+                        </ul>
+                </div><!-- /.social -->
+        </section><!-- /#extras -->
+
+        <footer id="contentinfo" class="body">
+                <p>Powered by <a href="http://getpelican.com/">Pelican</a>. Theme <a href="https://github.com/blueicefield/pelican-blueidea/">blueidea</a>, inspired by the default theme.</p>
+        </footer><!-- /#contentinfo -->
+
+</body>
+</html>
