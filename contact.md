@@ -1,7 +1,7 @@
 ---
-title: /contact
 layout: page
-permalink: /contact-page
+title: /contact
+permalink: /contact
 ---
 
 Phone: 970-799-0822

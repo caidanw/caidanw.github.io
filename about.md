@@ -1,7 +1,7 @@
 ---
-title: /about
 layout: page
-permalink: /about-page
+title: /about
+permalink: /about
 ---
 
 Hello, this blog is a documentation of my progress in the tech world.  

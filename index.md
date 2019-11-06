@@ -1,6 +1,6 @@
 ---
-title: /
 layout: home
+title: /
 permalink: /
 ---
 
