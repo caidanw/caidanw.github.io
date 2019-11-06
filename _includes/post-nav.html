@@ -1,0 +1,9 @@
+<div style="margin-top: 20px; margin-bottom: 20px;">
+    {%- if page.previous != nil -%}
+    <a href="{{ page.previous.url }}" style="float: left;">Previous</a>
+    {%- endif -%}
+    {%- if page.next != nil -%}
+    <a href="{{ page.next.url }}" style="float: right;">Next</a>
+    {%- endif -%}
+    <div style="clear: both;"></div> <!-- needed for float handling -->
+</div>

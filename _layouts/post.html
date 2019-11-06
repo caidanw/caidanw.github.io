@@ -11,10 +11,4 @@ layout: default
 
 {{ content }}
 
-<br />
-{%- if page.previous != nil -%}
-<a href="{{ page.previous.url }}">Previous</a>&nbsp;
-{%- endif -%}
-{%- if page.next != nil -%}
-<a href="{{ page.next.url }}">Next</a>
-{%- endif -%}
+{%- include post-nav.html -%}
