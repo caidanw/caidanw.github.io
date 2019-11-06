@@ -9,8 +9,6 @@ date: 2017-11-23 04:27:00
 
 Organize the names we give to our variables, methods, classes, arguments, and packages by following some simple rules (longer descriptions at the bottom). I refer to these coding objects that I give names as "entities" to keep it simple.
 
----
-
 ### Rules:
 
   - The name should fully reveal the intent of its use.
@@ -20,8 +18,6 @@ Organize the names we give to our variables, methods, classes, arguments, and pa
   - Use names that are easy to find by search.
   - No encodings, it can be messy, misleading, and hard to find in a search.
   - It's a waste of time to prefix member variables.
-
----
 
 ### Rules Explained:
 
@@ -41,26 +37,19 @@ a = l
 a = O1
 ```
 
-**Searchable name**  
-Avoid using names that contain single letters and single digits, as this
-is harder to search for across a project. If single letters must be
-used, say for temporary variables, then only use them as local variables
-in short methods.
+**Searchable name**
+Avoid using names that contain single letters and single digits, as this is harder to search for across a project. If single letters must be used, say for temporary variables, then only use them as local variables in short methods.
 
-**No encodings**  
-An example of bad encoding, which is illogical, confusing, and is not helpful
-for anyone other than the programmer that wrote it.
+**No encodings**
+An example of bad encoding, which is illogical, confusing, and is not helpful for anyone other than the programmer that wrote it.
+
 ```python
 var Z7_DaysLeft = 23
 ```
 
-**Prefix member variables**  
-There is no need to prefix variables that belong to a class because your
-classes (and functions) should be small enough that you wouldn't need to
-organize them. They are also easily ignored after a period of time
-working with them while making the code look really messy.  
-\---  
-Example of a prefixed member variable
+**Prefix member variables**
+There is no need to prefix variables that belong to a class because your classes (and functions) should be small enough that you wouldn't need to organize them. They are also easily ignored after a period of time working with them while making the code look really messy.  
+
 ```python
 class Barrel:
     m_weightInLbs = 23
@@ -76,12 +65,10 @@ class Barrel:
 > List, it may lead to false conclusions. So accountGroup or
 > bunchOfAccounts or just plain accounts would be better."
 >
-> \- Robert C. Martin
+> - Robert C. Martin
 
 > "The length of a name should correspond to the size of its scope."
 >
-> \- Robert C. Martin
+> - Robert C. Martin
 
----
-
-![comment_question](../images/comment_question.png):
+<div style="text-align:center"><img height="350px" src="../assets/comment_question.png" /></div>
