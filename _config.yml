@@ -9,7 +9,15 @@ header_pages:
   - about.md
   - contact.md
 
-footer: "<a href='https://github.com/mildmelon'>GitHub</a> <a href='https://twitter.com/_mildmelon'>Twitter</a> <a href='https://www.linkedin.com/in/caidan-williams/'>LinkedIn</a>"
+footer:
+  - name: GitHub
+    link: https://github.com/mildmelon
+  - name: Twitter
+    link: https://twitter.com/_mildmelon
+  - name: LinkedIn
+    link: https://www.linkedin.com/in/caidan-williams/
+  - name: RSS
+    link: https://mildmelon.github.io/feed.xml
 
 style: dark # dark (default) or light
 # listen_for_clients_preferred_style: true # true or false (default)
