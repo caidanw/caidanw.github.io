@@ -2,6 +2,7 @@ title: "mildmelon.github.io"
 description: "Caidan Williams' Blog & Portfolio"
 
 google_analytics: UA-149931368-3
+resume_link: https://docs.google.com/viewer?url=https://docs.google.com/document/d/1pOsL216fx-liQRvFX8MyQI7xWcA9HGSJ-DonPrMEVlo/export?format=pdf
 
 header_pages:
   - index.md
