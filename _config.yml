@@ -18,7 +18,7 @@ kramdown:
   input: GFM
   hard_wrap: false
 
-theme: jekyll-theme-console
+remote_theme: b2a3e8/jekyll-theme-console
 
 plugins:
   - jekyll-seo-tag
