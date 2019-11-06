@@ -80,6 +80,7 @@ textarea { vertical-align: top; }
  * Code and syntax highlighting
  */
 pre { background-color: var(--background-code-color);  border: none;  padding: 5px 10px;  overflow: auto;  font-size: $base-font-size;  color: rgba(255,255,255,0.65);  line-height: 1.7 !important; }
+code { background-color: var(--background-code-color);  border: none;  overflow: auto;  font-size: $base-font-size;  color: rgba(255,255,255,0.65);  line-height: 1.7 !important; }
 .highlight .c { color: #999988; font-style: italic } /* Comment */
 .highlight .err { color: #a61717; background-color: #e3d2d2 } /* Error */
 .highlight .k { font-weight: bold } /* Keyword */
