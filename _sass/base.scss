@@ -28,6 +28,7 @@ h4:before { content: "#### "; }
 h5:before { content: "##### "; }
 h6:before { content: "###### "; }
 hr { border: none;  height: 1px;  color: var(--text-color);  background-color: var(--text-color); }
+blockquote { margin-inline-start: 0px;  margin-inline-end: 0px;  padding: 5px 20px;  background-color: var(--background-code-color); }
 
 /**
  * Layout
