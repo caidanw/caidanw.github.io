@@ -77,5 +77,4 @@ __pm_ = private member
 
 > "The length of a name should correspond to the size of its scope."
 > - Robert C. Martin
-
-<div style="text-align:center"><img height="350px" src="../assets/comment_question.png" /></div>
+> 
