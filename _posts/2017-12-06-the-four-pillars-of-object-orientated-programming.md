@@ -69,8 +69,7 @@ If we look at python's built-in function `print()` we know that it will take any
 
 ### Abstraction
 
-Abstraction is used in OOP when we create a class and define its methods. When we define a class and its methods, we are
-creating an *abstraction*. We are creating *abstractions* of different concepts that all work together to form our program. Abstraction allows us to model objects with clear boundaries, and have them interact with each other.
+Abstraction is used in OOP when we create a class and define its methods. When we define a class and its methods, we are creating an *abstraction*. We are creating *abstractions* of different concepts that all work together to form our program. Abstraction allows us to model objects with clear boundaries, and have them interact with each other.
 
 ### Encapsulation
 
