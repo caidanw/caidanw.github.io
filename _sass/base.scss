@@ -29,10 +29,12 @@ h5:before { content: "##### "; }
 h6:before { content: "###### "; }
 hr { border: none;  height: 1px;  color: var(--text-color);  background-color: var(--text-color); }
 blockquote { margin-inline-start: 0px;  margin-inline-end: 0px;  padding: 5px 20px;  background-color: var(--background-code-color); }
-.icon { width: 24px; }
-.icon-text { color: var(--background-color); margin-left: 5px; }
-.icon-container { display: flex; float: left; background-color: var(--text-color);  padding: 5px 10px; }
+
+.icon { align-self: center;  width: 24px; }
+.icon-text { align-self: center;  color: var(--background-color); margin-left: 5px; }
+.icon-container { display: flex;  float: left;  background-color: var(--text-color);  padding: 3px 6px; }
 .icon-container > a { display: inline-flex; }
+
 .project-tags { width: 100%;  display: inline-block; }
 .project-tags > ul { list-style: none;  padding-left: 0; margin: 0px;}
 .project-tags > ul > li { float: left; background-color: var(--text-color);  color: var(--background-color); border-block-end-style: double;  padding: 0px 5px;  margin-right: 10px; }
