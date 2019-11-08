@@ -10,4 +10,4 @@ I've been coding since I was 13, and I've developed everything from video games 
 
 If you'd like to see my work experience or personal projects, you can find my social links below.
 
-**Job Status: I am actively searching for full-time work and I am looking for relocation in the greater Seattle area.**
+**Job Status: I am open to opportunities for full-time work with relocation in the greater Seattle area.**
