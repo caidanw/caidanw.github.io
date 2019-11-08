@@ -26,11 +26,11 @@ layout: default
     </div>
 </div>
 
-{%- if page.tech_stack -%}
-<div class="keywords">
+{%- if page.tags -%}
+<div class="project-tags">
     <ul>
-        {%- for keyword in page.tech_stack -%}        
-            <li>{{ keyword }}</li>
+        {%- for tag in page.tags -%}        
+            <li>{{ tag }}</li>
         {%- endfor -%}
     </ul>
 </div>
