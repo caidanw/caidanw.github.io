@@ -7,10 +7,7 @@ layout: default
 <ul id="portfolio-gallery">
     {% for project in site.projects %}
         <li>
-            <a href="{{ site.baseurl }}{{ project.url }}">
-                <img src="{{ project.image }}">
-                <h2>{{ project.title }}</h2>
-            </a>
+            [ {{ project.tech_stack | join: ', ' }} ] <a href="{{ site.baseurl }}{{ project.url }}">{{ project.title }}</a>
         </li>
     {% endfor %}
 </ul>

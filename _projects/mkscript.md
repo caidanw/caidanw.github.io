@@ -2,7 +2,7 @@
 layout: project
 title: mkscript.sh
 permalink: mkscript-sh
-demo_url: asdf
+demo_url:
 source_url: https://gist.github.com/mildmelon/110dcc1f9c2be5ba3ab4b1371dd158e8
 tech_stack: [Bash, NeoVim]
 ---
