@@ -6,7 +6,7 @@ resume_link: https://docs.google.com/viewer?url=https://docs.google.com/document
 
 header_pages:
   - index.md
-  - about.md
+  - blog.md
   - contact.md
 
 footer:
