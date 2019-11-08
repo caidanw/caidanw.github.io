@@ -33,9 +33,10 @@ blockquote { margin-inline-start: 0px;  margin-inline-end: 0px;  padding: 5px 20
 .icon-text { color: var(--background-color); margin-left: 5px; }
 .icon-container { display: flex; float: left; background-color: var(--text-color);  padding: 5px 10px; }
 .icon-container > a { display: inline-flex; }
-.keywords { width: 100%;  display: inline-block; }
-.keywords > ul { list-style: none;  padding-left: 0; margin: 0px;}
-.keywords > ul > li { float: left; background-color: var(--text-color);  color: var(--background-color); border-block-end-style: double;  padding: 0px 5px;  margin-right: 10px; }
+.project-tags { width: 100%;  display: inline-block; }
+.project-tags > ul { list-style: none;  padding-left: 0; margin: 0px;}
+.project-tags > ul > li { float: left; background-color: var(--text-color);  color: var(--background-color); border-block-end-style: double;  padding: 0px 5px;  margin-right: 10px; }
+img.project-cover { border: solid;  display: block;  margin-left: auto;  margin-right: auto;  max-width: 100%;  height: auto; }
 
 /**
  * Layout
@@ -56,9 +57,9 @@ footer { margin-bottom: 20px; }
 /**
  * Lists
  */
-:not(.menu):not(.keywords) > ul { list-style: none;  padding-left: 0; }
-:not(.menu):not(.keywords) > ul { list-style-type: none; }
-:not(.menu):not(.keywords) > ul > li:before { content: "-";  margin-right: 9px; }
+:not(.menu):not(.project-tags) > ul { list-style: none;  padding-left: 0; }
+:not(.menu):not(.project-tags) > ul { list-style-type: none; }
+:not(.menu):not(.project-tags) > ul > li:before { content: "-";  margin-right: 9px; }
 
 /**
  * Header/Navigation
