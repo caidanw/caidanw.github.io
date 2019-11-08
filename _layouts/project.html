@@ -1,0 +1,39 @@
+---
+layout: default
+---
+
+<div style="border-bottom: var(--border); margin-bottom: 20px;">
+    <div style="margin-bottom: 20px;">
+        <h1>{{ page.title }}</h1>
+        <div style="width: 100%; display: inline-block;">
+            {%- if page.demo_url -%}
+            <div class="icon-container" style="margin-right: 10px;">
+                <a href="{{ page.demo_url }}" target="_blank">
+                    <img class="icon" src="../assets/icons/demo.svg">
+                    <div class="icon-text">Demo</div>
+                </a>
+            </div>
+            {%- endif -%}
+            {%- if page.source_url -%}
+            <div class="icon-container">
+                <a href="{{ page.source_url }}" target="_blank">
+                    <img class="icon" src="../assets/icons/code.svg">
+                    <div class="icon-text">Code</div>
+                </a>
+            </div>
+            {%- endif -%}
+        </div>
+    </div>
+</div>
+
+{%- if page.tech_stack -%}
+<div class="keywords">
+    <ul>
+        {%- for keyword in page.tech_stack -%}        
+            <li>{{ keyword }}</li>
+        {%- endfor -%}
+    </ul>
+</div>
+{%- endif -%}
+
+{{ content }}

@@ -7,6 +7,7 @@ resume_link: https://docs.google.com/viewer?url=https://docs.google.com/document
 header_pages:
   - index.md
   - blog.md
+  - portfolio.md
   - contact.md
 
 footer:
@@ -18,6 +19,11 @@ footer:
     link: https://www.linkedin.com/in/caidan-williams/
   - name: RSS
     link: https://mildmelon.github.io/feed.xml
+
+collections:
+  projects:
+    output: true
+    permalink: /projects/:path/
 
 style: dark # dark (default) or light
 # listen_for_clients_preferred_style: true # true or false (default)

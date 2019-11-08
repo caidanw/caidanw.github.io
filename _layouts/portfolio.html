@@ -1,0 +1,16 @@
+---
+layout: default
+---
+
+{{ content }}
+
+<ul id="portfolio-gallery">
+    {% for project in site.projects %}
+        <li>
+            <a href="{{ site.baseurl }}{{ project.url }}">
+                <img src="{{ project.image }}">
+                <h2>{{ project.title }}</h2>
+            </a>
+        </li>
+    {% endfor %}
+</ul>
