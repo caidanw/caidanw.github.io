@@ -1,7 +1,6 @@
 ---
 layout: project
 title: Unlock Hero
-permalink: unlock-hero
 demo_url: https://mildmelon.github.io/unlock-hero
 source_url: https://github.com/mildmelon/unlock-hero
 tags: [JavaScript, Pixi.js, Game Dev, WebStorm, LD45]

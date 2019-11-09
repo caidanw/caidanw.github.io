@@ -1,7 +1,6 @@
 ---
 layout: project
 title: mildmelon.github.io
-permalink: mildmelon-github-io
 demo_url: /
 source_url: https://github.com/mildmelon/mildmelon.github.io
 tags: [Ruby, Jekyll, Markdown, VS Code, Linux]
