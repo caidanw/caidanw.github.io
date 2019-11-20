@@ -1,8 +1,8 @@
 ---
 layout: post
-title: Organizing Naming Rules & Conventions
-permalink: organizing-naming-rules-conventions
-date: 2017-11-23 04:27:00
+title: Naming Rules & Conventions
+permalink: naming-rules-conventions
+date: 2019-10-23 04:27:00
 ---
 
 ### Note
