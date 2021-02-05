@@ -1,0 +1,4 @@
+Contact: https://caidanwilliams.com/contact
+Encryption: https://keybase.io/caidanwilliams/pgp_keys.asc?fingerprint=7ae273746ed87a302d9b6c248e1a336aae2c3159
+Preferred-Languages: en
+Canonical: https://caidanwilliams.com/.well-known/security.txt
