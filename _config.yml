@@ -23,7 +23,9 @@ footer:
   - name: Twitter
     link: https://twitter.com/_mildmelon
   - name: LinkedIn
-    link: https://www.linkedin.com/in/caidan-williams/
+    link: https://www.linkedin.com/in/caidan-williams
+  - name: Digital Garden
+    link: https://caidanwilliams.com/digital-garden
   - name: RSS
     link: https://mildmelon.github.io/feed.xml
 
