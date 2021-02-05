@@ -1,6 +1,16 @@
 title: "mildmelon.github.io"
 description: "Caidan Williams' Blog & Portfolio"
 
+defaults:
+  - scope:
+      path: ""
+      type: "posts"
+    values:
+      author: Caidan Williams
+
+include:
+  - .well-known
+
 header_pages:
   - index.md
   - blog.md
@@ -36,21 +46,17 @@ plugins:
   - jekyll-seo-tag
   - jekyll-feed
 
-defaults:
-  -
-    scope:
-      path: ""
-      type: "posts"
-    values:
-      author: Caidan Williams
+##### Custom variables #####
 
-# Custom variables
 about_me_tags:
   - developer
   - college student
   - human named Caidan
+
 resume_link: https://registry.jsonresume.org/mildmelon
 google_analytics: UA-149931368-3
+
+# Dirty hack to use Google Forms as a backend to recieve contact submissions
 gf_url: https://docs.google.com/forms/d/e/1FAIpQLSfIvvG20D5MFqQze8FrBEq3-pgN2vI2ViAk4QlM2_qzkythAg/formResponse
 gf_name: entry.2005620554
 gf_email: entry.1045781291
