@@ -13,6 +13,6 @@ _You can expect a reply within 48 hours_
   <input type="text" id="name" name="{{ site.gf_name }}" placeholder="name:" autocomplete="off" required>
   <input type="email" id="email" name="{{ site.gf_email }}" placeholder="email:" autocomplete="off" required>
   <textarea rows="5" id="message" name="{{ site.gf_message }}" placeholder="message:" autocomplete="off"></textarea>
-  <input type="text" id="gotcha" name="{{ site.gf_gotcha }}" style="display:none">
+  <input type="text" id="company" name="{{ site.gf_gotcha }}" style="display:none">
   <input type="submit" id="submit" value="[ submit ]">
 </form>
