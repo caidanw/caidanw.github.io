@@ -1,0 +1,75 @@
+==================================================================
+https://keybase.io/caidanwilliams
+--------------------------------------------------------------------
+
+I hereby claim:
+
+  * I am an admin of https://caidanwilliams.com
+  * I am caidanwilliams (https://keybase.io/caidanwilliams) on keybase.
+  * I have a public key with fingerprint 7AE2 7374 6ED8 7A30 2D9B  6C24 8E1A 336A AE2C 3159
+
+To do so, I am signing this object:
+
+{
+  "body": {
+    "key": {
+      "eldest_kid": "0120398bedd6f8e2b46d1163cb4c486dce943558322a781b16eb06de3cdf8de48e9a0a",
+      "fingerprint": "7ae273746ed87a302d9b6c248e1a336aae2c3159",
+      "host": "keybase.io",
+      "key_id": "8e1a336aae2c3159",
+      "kid": "0101918931f80cf70e52b946f27db7be143e1bf319f14ce93362f9483ff307b26e840a",
+      "uid": "c0b5d34f9273f5debd905f5a966d1719",
+      "username": "caidanwilliams"
+    },
+    "service": {
+      "hostname": "caidanwilliams.com",
+      "protocol": "https:"
+    },
+    "type": "web_service_binding",
+    "version": 1
+  },
+  "ctime": 1612538676,
+  "expire_in": 157680000,
+  "prev": "2674fa2bd1d2aabcf5057a1118371503c329c04b361bd04a3eb7f3d3a6d9da35",
+  "seqno": 8,
+  "tag": "signature"
+}
+
+which yields the signature:
+
+-----BEGIN PGP MESSAGE-----
+Version: Keybase OpenPGP v2.1.13
+Comment: https://keybase.io/crypto
+
+yMNyAnicbZJ9UFVFGMbhGkQYEwwxGcIMHGHIEezs2fN5sZRvdEKEvsPCs2f3wBG4
+93I/ILje1GaaShMrQcEZbgqmkXwkmSGGRSigSKQDDkWQY4ySECWZUxjYuUz+5/6z
+s/s+z2+f9509E7DIy9+7IhRubo4FL3v3ddY7vDaFK6yTQmZcRhmdVAFZ2EghJjZ7
+boGGKSNFA4aGkogIxrwqEgaxPAaAhwpiFVbksUIkFnKcCBlGFkSAAE8QzWMCFayK
+mLAikWRapmIpVTPlEavFqpnsOlaQCSNAgeUJFgUZ0gyWEK8wuhzIEPKyXlYg4CTd
+mG+2eRx6OCTbyErNrN/ph9yFePfR38tNAwmIEgSqSCuqQBOOQRLLq4yAkYAIYCEB
+SIVAUgGrN6FDGFViRaiqkBYQwxORXcjtWMApNOIwZFVJT61ymCAs0ZzKyRKvj0MA
+nncdNmI1yUXEo5Y1LJtKtcJCTS6yUa5YSq+VaArxjNfTz311KxVzkc6xWM12s2Iu
+1Ov5drvFZvT47WUWj6GUoNz/UblIM2F9prqjhFhtmtlEGYGuVOyahw14wHBQ5AU+
+liKvWzQrydU8Ck7gRVpfnndIiY5keIFVZQZhgBlZRorK0ZwgAwBEKACOhgpkJIVm
+EeQBwjQrQ4IEFWIo81jCMuQoT3PFJjNlFPWYcp6OtGl5JtnusBLK9W3nxge8vP29
+fH0Mnr/m5f9Q4L0fOLTlkbmQ+iuzU5MN462u/X8ZBqJC6sprAqam2oae2Rm2pjme
+tHUbJ8Tz1uh9VT+1U/aDG8ufTl5i7Gh1Z5g69gyb/h08uz61OaUkY2nw52dz2m1b
+i5NyIivCUWcUe8e+IX3LkuSuwGxyuj+s6djypsabX266tryDrXz1R8PjPZG+hy7E
+JRiSmK5u8cO6uIjitLTSgbhtM72up9qz1za03jz1ZMFYvJZS1bTMNZbuPLBhxF8N
+Lsq+etdrviW+v2GyttYv6eLwru244FJEze89/T1ESq0+4Tuc/sa0z1pLfUiNzytX
+Uv1/uDv6dsqJFdvPJU3eGi641WGpjjEfX/fr5Yf9/AJ2/p3xws+Bv52M2N3XG1QV
+PDEbY9xhGI9Y9X2zqSqdv1ze25KfdmPXjPvgHUtWdYufVBG9qkR4tHHv0oGAl04u
+a/xk7Jcgd/TtoVjf4ZFay59Xn/uu57NjNZOrnUmZb35Rv3qA21b64p4jF848W2Y2
+FOZULbK+pe2vcIxSRcnBhz51T/tFRj/29ZHmNR8l/nGxZzAh9PTIpetHB9/hVrAT
+WYM9M2Xvdn/c7pw76p6yRlfeWL/ZJT44F3cAJz5fFjVQdW7f4YonLGFZoVuPfxOz
+2/hVQpY4FpTjHX547/l1xulKn5Suxe9ZFou9cREfjLxWN/d+1ChyOOfH0PVEl9Q2
+7749+8/2a6cyd+RlZvSN/wcoxMc5
+=Onfh
+-----END PGP MESSAGE-----
+
+And finally, I am proving ownership of this host by posting or
+appending to this document.
+
+View my publicly-auditable identity here: https://keybase.io/caidanwilliams
+
+==================================================================
