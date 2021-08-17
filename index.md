@@ -6,6 +6,10 @@ permalink: /
 
 {%- include introduction.html -%}
 
-I've been coding since I was 13, and I've developed everything from video games to mobile apps to internal tools. I'm an autodidact and I love to learn new things, I am fully self-taught but I am currently pursuing a Bachelor's of Science in Computer Science and Game Development to be more easily recognized by game companies. I'm looking to expand my knowledge and dive into other technologies, as I have a deep passion for programming and learning. I can learn new languages and frameworks quickly, this reduces the time it takes for me to get familiar with a new tech stack and allows me to start contributing sooner. I've been coding since the end of the world (2012), and started working professionally in 2018.
+I've been creating mini digital worlds and tools since ~2012, and started my professional career in 2018. I've dabbled with developing everything from video games to mobile apps to internal tools. Some might say that I'm an autodidact and have a passion for learning new things. I am fully self-taught with the exception of a brief one semester stint of community college.
 
-If you'd like to see my work experience or personal projects, follow my social links below.
+If you'd like to see my work experience or personal projects, my social links are below and my resume is top-right.
+
+I have been creating mini digital worlds and tools since ~2012 and started my professional career in 2018. I've dabbled with developing everything from video games to mobile apps to internal tools. Some might say that I'm an autodidact and have a passion for learning new things. I am fully self-taught but have done a brief one-semester stint of community college.
+
+If you'd like to know see my [work experience](https://registry.jsonresume.org/mildmelon), [personal projects](https://github.com/mildmelon), or social links (below).
