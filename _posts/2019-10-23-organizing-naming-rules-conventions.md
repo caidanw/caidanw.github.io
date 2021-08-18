@@ -9,8 +9,6 @@ date: 2019-10-23 04:27:00
 
 Organize the names we give to our variables, methods, classes, arguments, and packages by following some simple rules (longer descriptions at the bottom).
 
-**NOTE: I refer to any coding objects (variable, class, method, etc.) that would be given a name as an "entity" to reduce redundancy.**
-
 ### Rules
 
 - The name should fully reveal the intent of its use.
@@ -28,7 +26,7 @@ Take time when trying to determine a name. Think about the variable, method, etc
 _PS: If it needs a comment (near its declaration) to describe what it is, then rename it._
 
 **Don't misinform**
-Entities will be read by both yourself and possibly other people in the future. So a name that misinforms the reader about the entity will be hard to understand it's purpose at a later date.
+Names will be read by both yourself and possibly other people in the future. So a name that misinforms the reader about the underlying data or function will be hard to understand it's purpose at a later date.
 
 **Meaningful Distinctions**
 This is fairly simple, just don't use characters that look like others if they are not in a word/group. Here is an example of how the lowercase L can be confused with the number 1, and how an uppercase O can be confused with a 0. Although this only happens when using certain fonts, if you use a "code" font the it shouldn't be an issue (can't speak for your co-workers).
