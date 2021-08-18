@@ -38,4 +38,4 @@ To my surprise, Jekyll and Ruby were really easy to pickup and learn. I started 
 - Added more social links in the footer, including RSS (even though I doubt anyone uses it anymore).
 - Contact form has a clear separation of input fields and requires name/email field with red box-shadow on invalid input.
 - To protect against bots scraping my email for spam I used Google Forms as my POST endpoint, with an extra "gotcha" input to help filter out spam.
-- Incorporate a special header link that redirects to a ~~PDF version of my resume hosted on Google Docs~~ a rendered view of my JSON based resume.
+- Incorporate a special header link that redirects to a ~~PDF version of my resume hosted on Google Docs~~ rendered view of my JSON based resume.
