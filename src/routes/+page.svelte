@@ -41,7 +41,7 @@
 		<p class="text-2xl">Work Experience</p>
 
 		<!-- Work experience widget -->
-		<codersrank-work-experience {username} branding="false" logos></codersrank-work-experience>
+		<codersrank-work-experience {username} branding="false" logos />
 	</section>
 
 	<footer class="text-center opacity-60">Copyright &copy; {currentYear} Caidan Williams</footer>

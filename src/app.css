@@ -1,3 +1,25 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --theme-color: #FF6033;
+  --theme-color-rgb: 255, 96, 51;
+}
+
+/* Widgets */
+
+codersrank-summary {
+}
+
+codersrank-activity {
+}
+
+codersrank-skills-chart {
+}
+
+codersrank-work-experience {
+}
+
+codersrank-portfolio {
+}
