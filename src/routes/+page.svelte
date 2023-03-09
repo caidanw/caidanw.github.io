@@ -1,5 +1,6 @@
 <script>
-	import Header from "./header.svelte";
+	import LifeClock from '../lib/components/lifeClock.svelte';
+	import Header from './header.svelte';
 
 	const username = 'caidanw';
 	const currentYear = new Date().getFullYear();
@@ -7,6 +8,8 @@
 
 <main class="space-y-8">
 	<Header />
+
+	<div class="px-10" />
 
 	<section class="space-y-4">
 		<p class="text-3xl font-semibold">My Coding Activity & Stats</p>
@@ -41,6 +44,9 @@
 
 		<!-- Portfolio widget -->
 		<codersrank-portfolio {username} branding="false" logos />
+
+		<p class="text-3xl font-semibold">Fun Widgets I Made</p>
+		<LifeClock />
 	</section>
 	<section class="space-y-4">
 		<p class="text-3xl font-semibold">Work Experience</p>
