@@ -1,7 +1,17 @@
 <script>
 	import avatarImage from '$lib/images/avatar.webp';
+	import githubIcon from '$lib/images/icon_github.svg';
+	import linkedinIcon from '$lib/images/icon_linkedin.svg';
+	import codersrankIcon from '$lib/images/icon_cr.svg';
+
 	const username = 'caidanw';
 	const currentYear = new Date().getFullYear();
+	const subtitleTags = ['Software Engineer', 'Artist', 'Musician', 'Seattle, WA ☕'];
+	const socialLinks = [
+		{ name: 'GitHub', url: 'https://github.com/caidanw', icon: githubIcon },
+		{ name: 'LinkedIn', url: 'https://www.linkedin.com/in/caidan-williams/', icon: linkedinIcon },
+		{ name: 'CodersRank', url: 'https://profile.codersrank.io/user/caidanw/', icon: codersrankIcon }
+	];
 </script>
 
 <main class="space-y-8">
@@ -20,19 +30,28 @@
 					lives. Welcome to my online home!
 				</p>
 			</div>
+			<hr class="mx-2" />
+			<div id="header-subtitle" class="w-full">
+				<p class="text-2xl font-light">
+					{@html subtitleTags.join('<span class="opacity-50"> • </span>')}
+				</p>
+			</div>
+			<div id="socials" class="flex w-full space-x-4">
+				{#each socialLinks as social}
+					<a
+						href={social.url}
+						target="_blank"
+						rel="noreferrer"
+						class="inline-flex items-center space-x-2 border-2 px-2 py-1 rounded-lg"
+					>
+						<img src={social.icon} alt={social.name} class="flex-row w-6 h-6" />
+						<span>{social.name}</span>
+					</a>
+				{/each}
+			</div>
+		</div>
 	</header>
 
-	<section>
-		<p class="text-2xl">About Me</p>
-		<p>
-			Hi, I'm Caidan, a self-taught software engineer with over 10 years of experience in coding. I
-			have a strong focus on data engineering and tool development, and I've spent most of my career
-			working in the AI industry. I have a solid background in Python, JavaScript, TypeScript, Java,
-			Bash, Ruby, GoLang, and Lua. I'm experienced in working with frameworks such as Flask, Django,
-			React, Svelte, Spring Boot, and Jekyll. I'm also familiar with technologies such as Git,
-			Docker, Linux, Kubernetes, MongoDB, PostgreSQL, Spark, and Redis.
-		</p>
-	</section>
 	<section class="space-y-4">
 		<p class="text-2xl">My Coding Activity & Stats</p>
 
