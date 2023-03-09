@@ -19,7 +19,7 @@
 		id="avatar"
 		src={avatarImage}
 		alt="Avatar"
-		class="border-4 border-rose-500 rounded-full w-1/5 h-auto mr-8"
+		class="border-4 border-rose-400 dark:border-rose-500 rounded-full w-1/5 h-auto mr-8"
 	/>
 	<div class="w-full space-y-4">
 		<div id="header-title" class="w-full">
@@ -31,7 +31,7 @@
 		</div>
 		<hr class="mx-2" />
 		<div id="header-subtitle" class="w-full">
-			<span class="text-2xl font-light">
+			<span class="text-xl font-light">
 				{@html subtitleTags.join(tagSeperator)}
 			</span>
 		</div>
@@ -41,7 +41,10 @@
 					href={social.url}
 					target="_blank"
 					rel="noreferrer"
-					class="inline-flex items-center space-x-2 border-2 px-2 py-1 rounded-lg"
+					class="inline-flex items-center space-x-2 px-2 py-1 rounded-lg
+          font-semibold text-rose-500
+          bg-stone-200 dark:bg-stone-800
+          opacity-70 hover:opacity-100"
 				>
 					<img src={social.icon} alt={social.name} class="flex-row w-6 h-6" />
 					<span>{social.name}</span>
