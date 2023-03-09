@@ -25,14 +25,15 @@
 		<div id="header-title" class="w-full">
 			<p class="text-5xl font-bold">Hey there 👋 <br /> I'm Caidan Williams</p>
 			<p class="text-3xl font-light">
-				a software engineer who loves building intuitive solutions for human problems; Welcome to my online home!
+				a software engineer who loves building intuitive solutions for human problems; Welcome to my
+				online home!
 			</p>
 		</div>
 		<hr class="mx-2" />
 		<div id="header-subtitle" class="w-full">
-			<p class="text-2xl font-light">
+			<span class="text-2xl font-light">
 				{@html subtitleTags.join(tagSeperator)}
-			</p>
+			</span>
 		</div>
 		<div id="socials" class="flex w-full space-x-4">
 			{#each socialLinks as social}
