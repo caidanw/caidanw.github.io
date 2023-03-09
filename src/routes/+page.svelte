@@ -1,11 +1,25 @@
 <script>
+	import avatarImage from '$lib/images/avatar.webp';
 	const username = 'caidanw';
 	const currentYear = new Date().getFullYear();
 </script>
 
-<main class="space-y-6">
-	<header>
-		<span class="text-4xl">Caidan Williams</span>
+<main class="space-y-8">
+	<header class="flex items-center">
+		<img
+			id="avatar"
+			src={avatarImage}
+			alt="Avatar"
+			class="border-4 border-rose-500 rounded-full w-1/5 h-auto mr-8"
+		/>
+		<div class="w-full space-y-4">
+			<div id="header-title" class="w-full">
+				<p class="text-5xl font-bold">Hey there 👋 <br /> I'm Caidan Williams</p>
+				<p class="text-3xl font-light">
+					a software engineer who loves building intuitive tech solutions that simplify people's
+					lives. Welcome to my online home!
+				</p>
+			</div>
 	</header>
 
 	<section>
