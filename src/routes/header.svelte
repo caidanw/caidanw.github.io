@@ -4,7 +4,7 @@
 	import linkedinIcon from '$lib/images/icon_linkedin.svg';
 	import codersrankIcon from '$lib/images/icon_cr.svg';
 
-	export let subtitleTags = ['Software Engineer', 'Artist', 'Musician', 'Seattle, WA ☕'];
+	export let subtitleTags = ['Software Engineer', 'Artist', 'Musician', 'Seattle, WA'];
 	export let socialLinks = [
 		{ name: 'GitHub', url: 'https://github.com/caidanw', icon: githubIcon },
 		{ name: 'LinkedIn', url: 'https://www.linkedin.com/in/caidan-williams/', icon: linkedinIcon },
