@@ -96,4 +96,12 @@
 		--link-hover-bg-color: theme(colors.stone.700);
 		--link-text-color: theme(colors.rose.500);
 	}
+
+	codersrank-work-experience {
+		--item-bg-color: theme(colors.stone.800);
+		--item-padding: 0.5rem;
+		--item-border-radius: 8px;
+		--item-spacing: 1rem;
+		--tag-bg-color: theme(colors.stone.700);
+	}
 </style>
