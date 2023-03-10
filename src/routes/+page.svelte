@@ -69,4 +69,14 @@
 		--border-radius: 8px;
 		--badge-border-radius: 8px;
 	}
+
+	codersrank-activity {
+		--bg-color-0: theme(colors.stone.800);
+		--bg-color-1: theme(colors.rose.200);
+		--bg-color-2: theme(colors.rose.400);
+		--bg-color-3: theme(colors.rose.600);
+		--bg-color-4: theme(colors.rose.800);
+		--legend-margin: 0;
+		--label-text-color: theme(colors.stone.500);
+	}
 </style>
