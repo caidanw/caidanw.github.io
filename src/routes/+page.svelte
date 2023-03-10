@@ -79,4 +79,11 @@
 		--legend-margin: 0;
 		--label-text-color: theme(colors.stone.500);
 	}
+
+	codersrank-skills-chart {
+		--chart-bg-color: theme(colors.stone.800);
+		--chart-border-radius: 8px;
+		--label-text-color: theme(colors.stone.100);
+		--legend-text-color: theme(colors.stone.100);
+	}
 </style>
