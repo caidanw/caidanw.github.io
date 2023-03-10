@@ -57,3 +57,16 @@
 
 	<footer class="text-center opacity-60">Copyright &copy; {currentYear} Caidan Williams</footer>
 </main>
+
+<style lang="postcss">
+	codersrank-summary {
+		--bg-color: transparent;
+		--header-bg-color: theme(colors.stone.800);
+		--header-text-color: theme(colors.stone.100);
+		--badge-bg-color: theme(colors.stone.800);
+		--badge-text-color: theme(colors.stone.100);
+		--badges-padding: 0.5rem 0rem;
+		--border-radius: 8px;
+		--badge-border-radius: 8px;
+	}
+</style>
