@@ -1,9 +1,0 @@
-<footer>
-  <div class="social-links">
-    {%- for footer in site.footer -%}
-      {%- if footer.name and footer.link -%}
-      <a href="{{ footer.link }}" target="_blank">{{ footer.name | escape }}</a>&nbsp;
-      {%- endif -%}
-    {%- endfor -%}
-  </div>
-</footer>
