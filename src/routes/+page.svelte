@@ -45,8 +45,8 @@
 		<!-- Portfolio widget -->
 		<codersrank-portfolio {username} branding="false" logos />
 
-		<p class="text-3xl font-semibold">Fun Widgets I Made</p>
-		<LifeClock />
+		<!-- <p class="text-3xl font-semibold">Fun Widgets I Made</p> -->
+		<!-- <LifeClock /> -->
 	</section>
 	<section class="space-y-4">
 		<p class="text-3xl font-semibold">Work Experience</p>
