@@ -12,7 +12,7 @@
 	<div class="px-10" />
 
 	<section class="space-y-4">
-		<p class="text-3xl font-semibold">My Coding Activity & Stats</p>
+		<p class="text-3xl font-semibold">Coding Activity & Stats</p>
 
 		<!-- Summary widget -->
 		<codersrank-summary {username} branding="false" show-avatar="false" min-width="640" />
