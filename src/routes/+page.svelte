@@ -1,9 +1,9 @@
 <script>
 	import LifeClock from '../lib/components/lifeClock.svelte';
+	import Footer from './footer.svelte';
 	import Header from './header.svelte';
 
 	const username = 'caidanw';
-	const currentYear = new Date().getFullYear();
 </script>
 
 <main class="space-y-8">
@@ -55,7 +55,7 @@
 		<codersrank-work-experience {username} branding="false" logos />
 	</section>
 
-	<footer class="text-center opacity-60">Copyright &copy; {currentYear} Caidan Williams</footer>
+	<Footer />
 </main>
 
 <style lang="postcss">
