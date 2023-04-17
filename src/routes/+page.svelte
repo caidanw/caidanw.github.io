@@ -1,5 +1,4 @@
 <script>
-	import LifeClock from '../lib/components/lifeClock.svelte';
 	import Footer from './footer.svelte';
 	import Header from './header.svelte';
 
@@ -8,8 +7,6 @@
 
 <main class="space-y-8">
 	<Header />
-
-	<div class="px-10" />
 
 	<section class="space-y-4">
 		<p class="text-3xl font-semibold">Coding Activity & Stats</p>
@@ -39,6 +36,7 @@
 			svg-height="400"
 		/>
 	</section>
+
 	<section class="space-y-4">
 		<p class="text-3xl font-semibold">Recent Projects</p>
 
@@ -48,6 +46,7 @@
 		<!-- <p class="text-3xl font-semibold">Fun Widgets I Made</p> -->
 		<!-- <LifeClock /> -->
 	</section>
+
 	<section class="space-y-4">
 		<p class="text-3xl font-semibold">Work Experience</p>
 
