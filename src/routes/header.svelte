@@ -3,12 +3,14 @@
 	import githubIcon from '$lib/images/icon_github.svg';
 	import linkedinIcon from '$lib/images/icon_linkedin.svg';
 	import codersrankIcon from '$lib/images/icon_cr.svg';
+	import resumeIcon from '$lib/images/icon_resume.svg';
 
 	export let subtitleTags = ['Software Engineer', 'Artist', 'Musician', 'Seattle, WA'];
 	export let socialLinks = [
 		{ name: 'GitHub', url: 'https://github.com/caidanw', icon: githubIcon },
 		{ name: 'LinkedIn', url: 'https://www.linkedin.com/in/caidan-williams/', icon: linkedinIcon },
-		{ name: 'CodersRank', url: 'https://profile.codersrank.io/user/caidanw/', icon: codersrankIcon }
+		{ name: 'CodersRank', url: 'https://profile.codersrank.io/user/caidanw/', icon: codersrankIcon },
+		{ name: 'Resume', url: 'https://registry.jsonresume.org/caidanw', icon: resumeIcon }
 	];
 
 	const tagSeperator = '<span class="opacity-50"> • </span>';
