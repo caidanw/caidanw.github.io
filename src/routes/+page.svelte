@@ -1,106 +1,55 @@
 <script>
-	import Footer from './footer.svelte';
-	import Header from './header.svelte';
+	import avatarImage from '$lib/images/avatar.webp';
 
-	const username = 'caidanw';
+	/** @type {import('./$types').PageData} */
+	// export let data;
 </script>
 
-<main class="space-y-8">
-	<Header />
+<div class="h-full flex flex-col">
+	<!-- Header -->
+	<header class="sticky top-0 flex justify-start items-center gap-8 py-2 px-4 ">
+		<div class="contents py-2 px-4 border-b order-b border-surface-300 border-dashed">
+			<span class="text-lg">Caidan W.</span>
 
-	<section class="space-y-4">
-		<p class="text-3xl font-semibold">Coding Activity & Stats</p>
+			<nav class="flex gap-4">
+				<a href="/">/About</a>
+				<a href="/blog">/Blog</a>
+				<a href="/widgets">/Widgets</a>
+			</nav>
+		</div>
+	</header>
 
-		<!-- Summary widget -->
-		<codersrank-summary {username} branding="false" show-avatar="false" min-width="640" />
-
-		<!-- Activity widget -->
-		<codersrank-activity
-			{username}
-			branding="false"
-			labels
-			legend
-			tooltip
-			step="3"
-			svg-width="800"
-		/>
-
-		<!-- Skills chart widget -->
-		<codersrank-skills-chart
-			{username}
-			branding="false"
-			labels
-			legend
-			tooltip
-			svg-width="1200"
-			svg-height="400"
-		/>
-	</section>
-
-	<section class="space-y-4">
-		<p class="text-3xl font-semibold">Recent Projects</p>
-
-		<!-- Portfolio widget -->
-		<codersrank-portfolio {username} branding="false" logos />
-
-		<!-- <p class="text-3xl font-semibold">Fun Widgets I Made</p> -->
-		<!-- <LifeClock /> -->
-	</section>
-
-	<section class="space-y-4">
-		<p class="text-3xl font-semibold">Work Experience</p>
-
-		<!-- Work experience widget -->
-		<codersrank-work-experience {username} branding="false" logos />
-	</section>
-
-	<Footer />
-</main>
-
-<style lang="postcss">
-	codersrank-summary {
-		--bg-color: transparent;
-		--header-bg-color: theme(colors.stone.800);
-		--header-text-color: theme(colors.stone.100);
-		--badge-bg-color: theme(colors.stone.800);
-		--badge-text-color: theme(colors.stone.100);
-		--badges-padding: 0.5rem 0rem;
-		--border-radius: 8px;
-		--badge-border-radius: 8px;
-	}
-
-	codersrank-activity {
-		--bg-color-0: theme(colors.stone.800);
-		--bg-color-1: theme(colors.rose.200);
-		--bg-color-2: theme(colors.rose.400);
-		--bg-color-3: theme(colors.rose.600);
-		--bg-color-4: theme(colors.rose.800);
-		--legend-margin: 0;
-		--label-text-color: theme(colors.stone.500);
-	}
-
-	codersrank-skills-chart {
-		--chart-bg-color: theme(colors.stone.800);
-		--chart-border-radius: 8px;
-		--label-text-color: theme(colors.stone.100);
-		--legend-text-color: theme(colors.stone.100);
-	}
-
-	codersrank-portfolio {
-		--item-bg-color: theme(colors.stone.800);
-		--item-padding: 0.5rem;
-		--item-border-radius: 8px;
-		--item-spacing: 1rem;
-		--tag-bg-color: theme(colors.stone.700);
-		--link-hover-bg-color: theme(colors.stone.700);
-		--link-text-color: theme(colors.rose.500);
-	}
-
-	codersrank-work-experience {
-		--item-bg-color: theme(colors.stone.800);
-		--item-padding: 0.5rem;
-		--item-border-radius: 8px;
-		--item-spacing: 1rem;
-		--tag-bg-color: theme(colors.stone.700);
-	}
-</style>
+	<!-- Main -->
+	<main class="grow container mx-auto max-w-screen-lg p-4 flex flex-col">
+		<header class="flex flex-row">
+			<div id="header-title" class="contents">
+				<!-- <img
+					id="avatar"
+					src={avatarImage}
+					alt="Avatar"
+					class="w-64 float-right border border-rose-600 rounded-full"
+				/> -->
+				<h1 class="text-5xl font-bold text-end leading-relaxed mr-10">Hey there 👋</h1>
+				<h2 class="text-4xl font-semibold">
+					My name is
+					<span
+						class="text-5xl text-transparent bg-clip-text bg-gradient-to-br from-emerald-300 from-10% via-emerald-500 via-30% to-emerald-800 to-80%"
+					>
+						Caidan
+					</span>
+				</h2>
+				<p class="text-3xl font-light">
+					I'm a software engineer with a thirst for knowledge and a passion for building.
+				</p>
+				<p class="text-2xl font-light italic text-end ">Welcome to my online home!</p>
+				<img
+					id="avatar"
+					src={avatarImage}
+					alt="Avatar"
+					class="w-64 border border-rose-600 rounded-full"
+				/>
+			</div>
+		</header>
+		<section>Section 1</section>
+	</main>
+</div>

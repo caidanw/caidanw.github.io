@@ -9,7 +9,11 @@
 	export let socialLinks = [
 		{ name: 'GitHub', url: 'https://github.com/caidanw', icon: githubIcon },
 		{ name: 'LinkedIn', url: 'https://www.linkedin.com/in/caidan-williams/', icon: linkedinIcon },
-		{ name: 'CodersRank', url: 'https://profile.codersrank.io/user/caidanw/', icon: codersrankIcon },
+		{
+			name: 'CodersRank',
+			url: 'https://profile.codersrank.io/user/caidanw/',
+			icon: codersrankIcon
+		},
 		{ name: 'Resume', url: 'https://registry.jsonresume.org/caidanw', icon: resumeIcon }
 	];
 
@@ -17,21 +21,27 @@
 </script>
 
 <header class="flex flex-col md:flex-row items-center">
-	<img
-		id="avatar"
-		src={avatarImage}
-		alt="Avatar"
-		class="border-4 border-rose-500 rounded-full w-1/5 h-auto hidden md:block md:mr-8"
-	/>
 	<div class="w-full space-y-4">
-		<div id="header-title" class="w-full">
-			<p class="text-5xl font-bold">Hey there 👋 <br /> I'm Caidan Williams</p>
-			<p class="text-3xl font-light">
-				a software engineer who loves building intuitive solutions for human problems; Welcome to my
-				online home!
-			</p>
+		<div class="grid grid-flow-col">
+			<div id="header-title" class="w-full">
+				<p class="text-5xl font-bold">Hey there 👋 <br /> I'm Caidan Williams</p>
+				<p class="text-3xl font-light">
+					a software engineer who loves building intuitive solutions for human problems; Welcome to
+					my online home!
+				</p>
+			</div>
+			<div class="col-span-2">
+				<img
+					id="avatar"
+					src={avatarImage}
+					alt="Avatar"
+					class="border-4 border-rose-500 rounded-xl max-w-xs hidden md:block"
+				/>
+			</div>
 		</div>
+
 		<hr class="opacity-50" />
+
 		<div id="header-subtitle" class="w-full">
 			<span class="text-xl font-light">
 				{@html subtitleTags.join(tagSeperator)}
