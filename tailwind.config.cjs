@@ -7,7 +7,11 @@ module.exports = {
     fontFamily: {
       sans: ['Inter Variable', ...defaultTheme.fontFamily.sans]
     },
-    extend: {},
+    extend: {
+      colors: {
+        surface: defaultTheme.colors.zinc
+      }
+    },
   },
   plugins: [],
 }
