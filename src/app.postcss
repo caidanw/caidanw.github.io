@@ -5,9 +5,15 @@
 
 @import '@fontsource-variable/inter';
 
-
 /* Configure Tailwind */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+	html,
+	body {
+		@apply h-full;
+	}
+}
