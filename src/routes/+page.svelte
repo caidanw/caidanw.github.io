@@ -7,53 +7,61 @@
 	// export let data;
 </script>
 
-<HolyGrailLayout>
+<HolyGrailLayout class="container mx-auto" stickyHeader>
 	<!-- Header -->
 	<div
 		slot="header"
-		class="flex justify-between items-center gap-8 py-3 mb-6 bg-dark border-y border-surface-300 border-dashed"
+		class={cn(
+			'test flex justify-between items-center gap-8 py-3 mb-4 md:mb-8',
+			'bg-dark border-y-[3px] border-light/50 border-dashed'
+		)}
 	>
 		<span class="text-xl">Caidan W.</span>
 
-		<nav class="flex gap-4">
-			<a href="/">/home</a>
-			<a href="/blog">/blog</a>
-			<a href="/widgets">/widgets</a>
-			<a href="/resume">/resume</a>
+		<nav class="text-lg flex gap-4">
+			<ul class="contents">
+				<li><a href="/">/home</a></li>
+				<li><a href="/blog">/blog</a></li>
+				<li><a href="/widgets">/widgets</a></li>
+				<li><a href="/resume">/resume</a></li>
+			</ul>
 		</nav>
 	</div>
 
 	<!-- Main Page Content -->
 	<div slot="main" class="">
-		<header class="grid grid-cols-4">
-			<div class="col-span-3 grid row-auto">
-				<h1 class="text-5xl font-bold text-end leading-relaxed mr-10">Hey there 👋</h1>
-				<h2 class="text-4xl font-semibold">
+		<!-- Intro Header -->
+		<header class="flex justify-evenly gap-2 select-none">
+			<div class="grid row-auto justify-items-start gap-2">
+				<h1 class="justify-self-end text-4xl md:text-5xl font-semibold leading-loose">
+					Hey there 👋
+				</h1>
+				<h2 class="text-3xl md:text-4xl font-semibold align-bottom">
 					My name is
 					<span
 						class={cn(
-							'text-5xl text-transparent bg-clip-text',
-							// 'from-emerald-400 via-emerald-500 to-emerald-900',
+							'text-4xl md:text-5xl text-transparent font-bold bg-clip-text',
 							'bg-gradient-to-br from-pink-500 via-red-500 to-yellow-500'
 						)}
 					>
 						Caidan
 					</span>
 				</h2>
-				<p class="text-3xl font-light">
+				<p class="text-2xl md:text-3xl font-light leading-tight">
 					I'm a software engineer with a thirst for knowledge and a passion for building.
 				</p>
-				<p class="text-2xl font-light italic text-end leading-loose justify-self-center">
+				<p class="justify-self-center text-xl md:text-2xl font-light italic">
 					Welcome to my online home!
 				</p>
 			</div>
 			<div
 				class={cn(
-					'w-64 h-64 rounded-full p-1.5',
+					'hidden md:block',
+					'w-64 h-64 aspect-square rounded-full p-1.5',
 					'bg-gradient-to-r from-fuchsia-500 via-red-600 to-orange-400'
 				)}
 			>
-				<img id="avatar" src={avatarImage} alt="Avatar" class="aspect-square rounded-full" />
+				<img id="avatar" src={avatarImage} alt="Avatar" class="rounded-full" />
 			</div>
 		</header>
 	</div>
@@ -61,7 +69,7 @@
 	<!-- Footer -->
 	<div
 		slot="footer"
-		class="flex justify-between items-center gap-8 pt-3 mt-6 bg-dark border-t border-surface-300 border-dashed"
+		class="flex justify-between items-center gap-8 pt-3 mt-6 bg-dark border-t-[3px] border-light/50 border-dashed"
 	>
 		Footer
 	</div>
