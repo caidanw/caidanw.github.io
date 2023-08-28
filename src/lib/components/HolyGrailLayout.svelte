@@ -3,13 +3,14 @@
 
 	let className: string | undefined | null = undefined;
 	export { className as class };
+	export let stickyHeader = false;
 </script>
 
 <!-- Layout Parent -->
-<div class={cn('parent container mx-auto h-full py-6 px-4', className)}>
+<div class={cn('parent h-full py-6 px-4', className)}>
 	<!-- Header -->
 	{#if $$slots.header}
-		<header>
+		<header class={cn(stickyHeader && 'sticky top-0')}>
 			<slot name="header" />
 		</header>
 	{/if}
