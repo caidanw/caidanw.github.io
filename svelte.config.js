@@ -5,7 +5,7 @@ import { mdsvex } from 'mdsvex';
 /** @type {import('mdsvex').MdsvexOptions} */
 const mdsvexOptions = {
 	extensions: ['.md']
-}
+};
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
@@ -20,7 +20,7 @@ const config = {
 			precompress: false,
 			strict: true
 		})
-	},
+	}
 };
 
 export default config;
