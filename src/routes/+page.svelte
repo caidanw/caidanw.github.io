@@ -1,5 +1,5 @@
 <script>
-	import avatarImage from '$lib/images/avatar.webp';
+	import avatarImage from '$lib/images/avatar.jpeg';
 	import HolyGrailLayout from '../lib/components/HolyGrailLayout.svelte';
 	import { cn } from '../lib/utils';
 
