@@ -23,11 +23,11 @@
 	<div
 		slot="header"
 		class={cn(
-			'flex justify-between items-center gap-2 py-3 mb-4 md:mb-8',
+			'flex justify-between items-start gap-2 py-3 mb-4 md:mb-8',
 			'bg-dark/50 backdrop-blur border-y-[3px] border-light/50 border-dashed',
 		)}
 	>
-		<span class="group inline-flex text-2xl leading-7 font-mono">
+		<span class="group inline-flex text-2xl leading-7 font-mono whitespace-nowrap">
 			<span>Caidan W</span>
 			<i class="animate-pulse group-hover:animate-none">.</i>
 			<i class="transition opacity-0 group-hover:opacity-100 delay-150 ease-out">.</i>
