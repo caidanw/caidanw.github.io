@@ -35,6 +35,6 @@
 			'bg-gradient-to-br from-emerald-300 from-30% via-emerald-500 via-40% to-emerald-800 to-70%'
 		)}
 	>
-		<img id="avatar" src={avatarImage} alt="Avatar" class="rounded-full" />
+		<img id="avatar" src={avatarImage} alt="Headshot of Caidan" class="rounded-full" />
 	</div>
 </header>
