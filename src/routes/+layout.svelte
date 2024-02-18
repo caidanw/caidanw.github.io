@@ -1,8 +1,8 @@
 <script>
 	import '../app.postcss';
 
+	import HolyGrailLayout from '$lib/components/HolyGrailLayout.svelte';
 	import { cn } from '$lib/utils';
-	import HolyGrailLayout from '../lib/components/HolyGrailLayout.svelte';
 </script>
 
 <HolyGrailLayout class="container mx-auto" stickyHeader>
@@ -11,7 +11,7 @@
 		slot="header"
 		class={cn(
 			'flex justify-between items-center gap-8 py-3 mb-4 md:mb-8',
-			'bg-dark border-y-[3px] border-light/50 border-dashed'
+			'bg-dark/50 backdrop-blur border-y-[3px] border-light/50 border-dashed',
 		)}
 	>
 		<span class="text-xl">Caidan Williams</span>
