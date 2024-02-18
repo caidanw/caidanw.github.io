@@ -33,7 +33,7 @@ const config = {
 		fontFamily: {
 			sans: ['Inter Variable', ...defaultTheme.fontFamily.sans],
 			serif: defaultTheme.fontFamily.serif,
-			mono: defaultTheme.fontFamily.mono,
+			mono: ['Source Code Pro Variable', ...defaultTheme.fontFamily.mono],
 		},
 		extend: {
 			colors,
