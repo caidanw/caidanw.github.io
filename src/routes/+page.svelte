@@ -21,7 +21,7 @@
 				Caidan
 			</span>
 		</h2>
-		<p class="text-2xl md:text-3xl font-light leading-tight">
+		<p class="text-2xl md:text-3xl font-light leading-tight text-pretty">
 			I'm a software engineer with a thirst for knowledge and a passion for building.
 		</p>
 		<p class="justify-self-center text-xl md:text-2xl font-light italic">
