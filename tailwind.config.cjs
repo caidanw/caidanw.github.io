@@ -31,7 +31,9 @@ const config = {
 	content: ['./src/**/*.{html,js,ts,svelte}'],
 	theme: {
 		fontFamily: {
-			sans: ['Inter Variable', ...defaultTheme.fontFamily.sans]
+			sans: ['Inter Variable', ...defaultTheme.fontFamily.sans],
+			serif: defaultTheme.fontFamily.serif,
+			mono: defaultTheme.fontFamily.mono,
 		},
 		extend: {
 			colors
