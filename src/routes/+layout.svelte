@@ -27,7 +27,12 @@
 			'bg-dark/50 backdrop-blur border-y-[3px] border-light/50 border-dashed',
 		)}
 	>
-		<span class="text-xl font-mono">Caidan Williams</span>
+		<span class="group inline-flex text-2xl leading-7 font-mono">
+			<span>Caidan W</span>
+			<i class="animate-pulse group-hover:animate-none">.</i>
+			<i class="transition opacity-0 group-hover:opacity-100 delay-150 ease-out">.</i>
+			<i class="transition opacity-0 group-hover:opacity-100 delay-300 ease-out">.</i>
+		</span>
 
 		<nav class="text-lg font-mono font-bold">
 			<ul class="flex flex-wrap justify-end gap-2">
