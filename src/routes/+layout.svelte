@@ -3,6 +3,13 @@
 
 	import HolyGrailLayout from '$lib/components/HolyGrailLayout.svelte';
 	import { cn } from '$lib/utils';
+
+	const routes = [
+		{ name: '/home', url: '/' },
+		{ name: '/blog', url: '/blog' },
+		{ name: '/widgets', url: '/widgets' },
+		{ name: '/resume', url: '/resume' },
+	];
 </script>
 
 <HolyGrailLayout class="container mx-auto" stickyHeader>
@@ -14,21 +21,20 @@
 			'bg-dark/50 backdrop-blur border-y-[3px] border-light/50 border-dashed',
 		)}
 	>
-		<span class="text-xl">Caidan Williams</span>
+		<span class="text-xl font-mono">Caidan Williams</span>
 
-		<nav class="text-lg flex gap-4">
-			<ul class="contents">
-				<li><a href="/">/home</a></li>
-				<li><a href="/blog">/blog</a></li>
-				<li><a href="/widgets">/widgets</a></li>
-				<li><a href="/resume">/resume</a></li>
+		<nav class="text-lg font-mono">
+			<ul class="flex gap-4">
+				{#each routes as { name, url }}
+					<li class="hover:bg-emerald-800 rounded px-1">
+						<a href={url}>{name}</a>
+					</li>
+				{/each}
 			</ul>
 		</nav>
 	</div>
 
 	<!-- Main Page Content -->
-	<!-- <div slot="main" /> -->
-
 	<slot slot="main" />
 
 	<!-- Footer -->
