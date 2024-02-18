@@ -1,7 +1,7 @@
 const defaultTheme = require('tailwindcss/defaultTheme');
 const defaultColors = require('tailwindcss/colors');
 
-console.log(defaultColors);
+// console.log(defaultColors);
 
 // const colors = {
 // 	surface: defaultColors.zinc,
