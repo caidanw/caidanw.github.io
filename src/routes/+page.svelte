@@ -15,7 +15,7 @@
 			<span
 				class={cn(
 					'text-4xl md:text-5xl text-transparent font-bold bg-clip-text',
-					'bg-gradient-to-br from-emerald-300 from-30% via-emerald-500 via-40% to-emerald-700 to-70%'
+					'bg-gradient-to-br from-emerald-300 from-30% via-emerald-500 via-40% to-emerald-800 to-70%',
 				)}
 			>
 				Caidan
@@ -32,7 +32,7 @@
 		class={cn(
 			'hidden md:block my-auto',
 			'w-64 h-64 aspect-square rounded-full p-1.5',
-			'bg-gradient-to-br from-emerald-300 from-30% via-emerald-500 via-40% to-emerald-800 to-70%'
+			'bg-gradient-to-br from-emerald-300 from-30% via-emerald-500 via-40% to-emerald-800 to-70%',
 		)}
 	>
 		<img id="avatar" src={avatarImage} alt="Headshot of Caidan" class="rounded-full" />

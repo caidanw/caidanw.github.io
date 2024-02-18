@@ -12,9 +12,9 @@
 		{
 			name: 'CodersRank',
 			url: 'https://profile.codersrank.io/user/caidanw/',
-			icon: codersrankIcon
+			icon: codersrankIcon,
 		},
-		{ name: 'Resume', url: 'https://registry.jsonresume.org/caidanw', icon: resumeIcon }
+		{ name: 'Resume', url: 'https://registry.jsonresume.org/caidanw', icon: resumeIcon },
 	];
 
 	const tagSeperator = '<span class="opacity-50"> • </span>';

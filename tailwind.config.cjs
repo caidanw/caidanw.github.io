@@ -16,14 +16,14 @@ const defaultColors = require('tailwindcss/colors');
 
 let colors = {
 	// Source color palletes
-	surface: defaultColors.zinc
+	surface: defaultColors.zinc,
 };
 
 // Semantic color tokens from the pallete
 colors = {
 	light: colors.surface[50],
 	dark: colors.surface[900],
-	...colors
+	...colors,
 };
 
 /** @type {import('tailwindcss').Config} */
@@ -36,10 +36,10 @@ const config = {
 			mono: defaultTheme.fontFamily.mono,
 		},
 		extend: {
-			colors
-		}
+			colors,
+		},
 	},
-	plugins: []
+	plugins: [],
 };
 
 module.exports = config;
