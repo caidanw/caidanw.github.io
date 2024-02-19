@@ -62,7 +62,7 @@
 			<ul class="flex gap-4">
 				{#each externalRoutes as { name, url }}
 					<li class="hover:text-emerald-500 rounded px-1.5 transition-colors">
-						<a href={url}>{name}</a>
+						<a href={url} rel="me">{name}</a>
 					</li>
 				{/each}
 			</ul>
