@@ -1,5 +1,5 @@
 <script>
-	import avatarImage from '$lib/images/avatar.webp';
+	import avatarImage from '$lib/images/avatar.jpeg';
 	import githubIcon from '$lib/images/icon_github.svg';
 	import linkedinIcon from '$lib/images/icon_linkedin.svg';
 	import codersrankIcon from '$lib/images/icon_cr.svg';

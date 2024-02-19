@@ -1,6 +1,6 @@
 <script>
-	import Footer from 'footer.svelte';
-	import Header from 'header.svelte';
+	import Footer from './footer.svelte';
+	import Header from './header.svelte';
 
 	const username = 'caidanw';
 </script>
