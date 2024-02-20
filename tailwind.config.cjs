@@ -8,7 +8,7 @@ let colors = {
 
 // Semantic color tokens from the pallete
 colors = {
-	light: colors.surface[50],
+	light: colors.surface[200],
 	dark: colors.surface[900],
 	...colors
 };
