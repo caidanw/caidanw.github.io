@@ -23,15 +23,22 @@
 	<div
 		slot="header"
 		class={cn(
-			'-mx-4 mb-4 flex items-start justify-between gap-2 px-4 py-3 md:mb-8',
+			'-mx-3 mb-4 flex flex-wrap items-start justify-between gap-2 px-3 py-3 md:mb-8',
 			'rounded-2xl border-y-[3px] border-dashed border-light/50 bg-dark/50 backdrop-blur'
 		)}
 	>
+		{#snippet dot(delay)}
+			<i
+				class="relative -top-4 opacity-0 transition-all duration-300 group-hover:inset-0 group-hover:opacity-100"
+				style="transition-delay: {delay}ms;">.</i
+			>
+		{/snippet}
+
 		<span class="group inline-flex whitespace-nowrap font-mono text-2xl leading-7">
 			<span>Caidan W</span>
 			<i class="animate-pulse group-hover:animate-none">.</i>
-			<i class="opacity-0 transition delay-150 ease-out group-hover:opacity-100">.</i>
-			<i class="opacity-0 transition delay-300 ease-out group-hover:opacity-100">.</i>
+			{@render dot(150)}
+			{@render dot(300)}
 		</span>
 
 		<nav class="font-mono text-lg font-bold">
