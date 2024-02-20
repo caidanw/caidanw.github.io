@@ -1,5 +1,5 @@
 <script>
-	// import '../app.postcss';
+	import '../app.pcss';
 
 	import { page } from '$app/stores';
 	import HolyGrailLayout from '$lib/components/HolyGrailLayout.svelte';
