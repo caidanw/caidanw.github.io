@@ -12,16 +12,16 @@
 		fetch(userEndpoint, {
 			method: 'GET',
 			headers: {
-				'Content-Type': 'application/json',
-			},
+				'Content-Type': 'application/json'
+			}
 		}).then((res) => res.json());
 
 	const getBadges = () =>
 		fetch(badgesEndpoint, {
 			method: 'GET',
 			headers: {
-				'Content-Type': 'application/json',
-			},
+				'Content-Type': 'application/json'
+			}
 		}).then((res) => res.json());
 
 	onMount(async () => {
@@ -30,7 +30,7 @@
 
 		data = {
 			...user,
-			...badges,
+			...badges
 		};
 	});
 </script>

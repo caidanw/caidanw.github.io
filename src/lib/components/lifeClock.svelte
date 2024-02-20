@@ -25,8 +25,8 @@
 </script>
 
 <div class="inline-flex flex-row space-x-2">
-	<span class="font-medium text-lg">Life Clock</span>
-	<span class="font-mono font-semibold border-2 rounded-lg px-1.5 py-0.5">
+	<span class="text-lg font-medium">Life Clock</span>
+	<span class="rounded-lg border-2 px-1.5 py-0.5 font-mono font-semibold">
 		{age.format('YY')}y {age.format('MM')}m {age.format('DD')}d
 		{age.format('HH')}h {age.format('mm')}m {age.format('ss')}s
 	</span>

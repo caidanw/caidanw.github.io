@@ -7,7 +7,7 @@
 </script>
 
 <!-- Layout Parent -->
-<div class={cn('parent h-full py-6 px-4', className)}>
+<div class={cn('parent h-full px-4 py-6', className)}>
 	<!-- Header -->
 	{#if $$slots.header}
 		<header class={cn(stickyHeader && 'sticky top-0')}>

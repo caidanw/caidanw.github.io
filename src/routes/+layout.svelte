@@ -23,24 +23,24 @@
 	<div
 		slot="header"
 		class={cn(
-			'flex justify-between items-start gap-2 py-3 mb-4 md:mb-8',
-			'bg-dark/50 backdrop-blur border-y-[3px] border-light/50 border-dashed'
+			'mb-4 flex items-start justify-between gap-2 py-3 md:mb-8',
+			'border-y-[3px] border-dashed border-light/50 bg-dark/50 backdrop-blur'
 		)}
 	>
-		<span class="group inline-flex text-2xl leading-7 font-mono whitespace-nowrap">
+		<span class="group inline-flex whitespace-nowrap font-mono text-2xl leading-7">
 			<span>Caidan W</span>
 			<i class="animate-pulse group-hover:animate-none">.</i>
-			<i class="transition opacity-0 group-hover:opacity-100 delay-150 ease-out">.</i>
-			<i class="transition opacity-0 group-hover:opacity-100 delay-300 ease-out">.</i>
+			<i class="opacity-0 transition delay-150 ease-out group-hover:opacity-100">.</i>
+			<i class="opacity-0 transition delay-300 ease-out group-hover:opacity-100">.</i>
 		</span>
 
-		<nav class="text-lg font-mono font-bold">
+		<nav class="font-mono text-lg font-bold">
 			<ul class="flex flex-wrap justify-end gap-2">
 				{#each siteRoutes as { name, url }}
 					<li
 						class={cn(
-							'hover:text-emerald-500 rounded px-1.5 transition-colors',
-							url === $page.url.pathname && 'text-emerald-500 bg-light/10'
+							'rounded px-1.5 transition-colors hover:text-emerald-500',
+							url === $page.url.pathname && 'bg-light/10 text-emerald-500'
 						)}
 					>
 						<a href={url}>{name}</a>
@@ -58,12 +58,12 @@
 	<!-- Footer -->
 	<div
 		slot="footer"
-		class="flex justify-between items-center gap-8 pt-3 mt-6 bg-dark border-t-[3px] border-light/50 border-dashed"
+		class="mt-6 flex items-center justify-between gap-8 border-t-[3px] border-dashed border-light/50 bg-dark pt-3"
 	>
-		<nav class="text-lg font-mono font-semibold">
+		<nav class="font-mono text-lg font-semibold">
 			<ul class="flex gap-4">
 				{#each externalRoutes as { name, url }}
-					<li class="hover:text-emerald-500 rounded px-1.5 transition-colors">
+					<li class="rounded px-1.5 transition-colors hover:text-emerald-500">
 						<a href={url} rel="me">{name}</a>
 					</li>
 				{/each}
