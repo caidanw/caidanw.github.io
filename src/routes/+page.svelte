@@ -1,9 +1,6 @@
-<script>
+<script lang="ts">
 	import avatarImage from '$lib/images/avatar.jpeg';
 	import { cn } from '$lib/utils';
-
-	/** @type {import('./$types').PageData} */
-	// export let data;
 </script>
 
 <!-- Intro Header -->
