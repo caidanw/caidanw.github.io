@@ -1,5 +1,5 @@
 <script lang="ts">
-	import avatarImage from '$lib/images/avatar.jpeg';
+	import avatarImage from '$lib/images/avatar.png';
 	import { cn } from '$lib/utils';
 </script>
 
