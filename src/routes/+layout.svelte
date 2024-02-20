@@ -23,8 +23,8 @@
 	<div
 		slot="header"
 		class={cn(
-			'mb-4 flex items-start justify-between gap-2 py-3 md:mb-8',
-			'border-y-[3px] border-dashed border-light/50 bg-dark/50 backdrop-blur'
+			'-mx-4 mb-4 flex items-start justify-between gap-2 px-4 py-3 md:mb-8',
+			'rounded-2xl border-y-[3px] border-dashed border-light/50 bg-dark/50 backdrop-blur'
 		)}
 	>
 		<span class="group inline-flex whitespace-nowrap font-mono text-2xl leading-7">
