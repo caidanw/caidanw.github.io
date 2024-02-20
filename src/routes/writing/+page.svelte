@@ -4,7 +4,7 @@
 	export let data: PageData;
 </script>
 
-<article class="prose prose-zinc prose-emerald prose-invert mx-auto lg:prose-xl">
+<article class="prose prose-neutral prose-emerald prose-invert mx-auto lg:prose-xl">
 	<p>
 		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut
 		labore et dolore magna aliqua. Ac auctor augue mauris augue neque gravida in fermentum.
