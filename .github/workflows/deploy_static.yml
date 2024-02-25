@@ -5,7 +5,7 @@ name: Deploy Svelte static site to GitHub Pages
 on:
   # Runs on pushes targeting the default branch
   push:
-    branches: ["master"]
+    branches: "master"
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -23,45 +23,47 @@ concurrency:
 
 jobs:
   # Single deploy job since we're just deploying
-  build:
+  build_site:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3.3.0
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v3.0.4
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
         with:
-          # Optional static site generator to attempt to configure: "nuxt", "next", "gatsby", or "sveltekit"
-          static_site_generator: sveltekit
-      - name: Setup Node
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
-          cache: 'npm'
+          node-version: 20
+          cache: npm
+
       - name: Install and Build
+        env:
+          BASE_PATH: '/${{ github.event.repository.name }}'
         run: |
           npm ci
           npm run build
-      - name: Upload GitHub Pages artifact
-        uses: actions/upload-pages-artifact@v1.0.7
+
+      - name: Upload Artifact
+        uses: actions/upload-pages-artifact@v3
         with:
           # Artifact name
           name: github-pages
           # Path of the directory containing the static assets.
-          path: ./build
+          path: build/
           # Duration after which artifact will expire in days.
           retention-days: 1
 
   deploy:
+    needs: build_site
     runs-on: ubuntu-latest
+
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    needs: build
+
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v1.2.5
+        uses: actions/deploy-pages@v4
         with:
           # Name of the artifact to deploy
           artifact_name: github-pages
