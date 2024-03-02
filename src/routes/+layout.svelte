@@ -7,9 +7,12 @@
 
 	const siteRoutes = [
 		{ name: '/home', url: '/' },
-		{ name: '/writing', url: '/writing' },
-		{ name: '/widgets', url: '/widgets' },
-		{ name: '/resume', url: '/resume' }
+		// { name: '/writing', url: '/writing' },
+		// { name: '/widgets', url: '/widgets' },
+		{
+			name: '/resume',
+			url: 'https://caidan-my.sharepoint.com/:b:/g/personal/me_caidan_dev/EcMqP0jC_VtIttsG8Q58-uYBN_jnnl_sDmbWQpQ4daPRTQ'
+		}
 	];
 
 	const externalRoutes = [
