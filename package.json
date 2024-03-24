@@ -28,12 +28,20 @@
 		"prettier": "^3.1.1",
 		"prettier-plugin-svelte": "^3.1.2",
 		"prettier-plugin-tailwindcss": "^0.5.9",
+		"remark-extract-frontmatter": "^3.2.0",
+		"remark-frontmatter": "^5.0.0",
+		"remark-parse": "^11.0.0",
+		"remark-stringify": "^11.0.0",
 		"svelte": "^5.0.0-next.1",
 		"svelte-check": "^3.6.0",
 		"tailwind-merge": "^2.2.1",
 		"tailwindcss": "^3.3.6",
 		"tslib": "^2.4.1",
 		"typescript": "^5.0.0",
-		"vite": "^5.0.3"
+		"unified": "^11.0.4",
+		"vfile": "^6.0.1",
+		"vfile-reporter": "^8.1.0",
+		"vite": "^5.0.3",
+		"yaml": "^2.4.1"
 	}
 }
