@@ -7,7 +7,8 @@
 
 	const siteRoutes = [
 		{ name: '/home', url: '/' },
-		// { name: '/writing', url: '/writing' },
+		{ name: '/blog', url: '/blog' },
+		// { name: '/projects', url: '/projects' },
 		// { name: '/widgets', url: '/widgets' },
 		{
 			name: '/resume',
