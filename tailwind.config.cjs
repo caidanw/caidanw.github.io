@@ -3,7 +3,8 @@ const defaultColors = require('tailwindcss/colors');
 
 let colors = {
 	// Source color palletes
-	surface: defaultColors.neutral
+	surface: defaultColors.neutral,
+	accent: defaultColors.emerald
 };
 
 // Semantic color tokens from the pallete
