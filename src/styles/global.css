@@ -1,14 +1,25 @@
 :root {
-  --font-sans: "Nunito", sans-serif;
-  --font-mono: "ServerMono", monospace;
+  --font-sans: 'Nunito', sans-serif;
+  --font-mono: 'ServerMono', monospace;
 
   --color-dark: hsl(0, 0%, 8%);
   --color-light: hsl(0, 0%, 96%);
+
+  color-scheme: light dark;
+  --theme-bg: light-dark(var(--color-light), var(--color-dark));
+  --theme-text: light-dark(var(--color-dark), var(--color-light));
 }
 
-html,
+[data-theme='light'] {
+  color-scheme: light;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+}
+
 body {
   font-family: var(--font-sans);
-  background-color: var(--color-dark);
-  color: var(--color-light);
+  background-color: var(--theme-bg);
+  color: var(--theme-text);
 }
