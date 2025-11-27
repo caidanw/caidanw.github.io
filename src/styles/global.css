@@ -25,3 +25,18 @@
   font-style: oblique;
   font-display: swap;
 }
+
+:root {
+  --font-sans: "Nunito", sans-serif;
+  --font-mono: "ServerMono", monospace;
+
+  --color-dark: hsl(0, 0%, 8%);
+  --color-light: hsl(0, 0%, 96%);
+}
+
+html,
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-dark);
+  color: var(--color-light);
+}
