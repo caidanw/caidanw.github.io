@@ -47,16 +47,10 @@ body {
 }
 
 a {
-  color: var(--theme-accent-light);
+  color: var(--theme-accent);
   text-decoration: none;
-  transition: color 0.2s ease;
-
-  &:visited {
-    color: var(--theme-accent-dark);
-  }
 
   &:hover {
-    color: var(--theme-accent);
     text-decoration: underline;
   }
 }
