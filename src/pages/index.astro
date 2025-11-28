@@ -7,7 +7,7 @@ import { Image } from 'astro:assets'
 <Layout>
   <main>
     <header>
-      <Image src={avatar} alt="Avatar" width="128" height="128" style="border-radius: 0.5rem;" />
+      <Image src={avatar} alt="Avatar" class="avatar" />
       <div>
         <h1>I’m <strong>Caidan Williams</strong></h1>
         <p>a self-taught web developer and designer.</p>
@@ -51,6 +51,12 @@ import { Image } from 'astro:assets'
     max-width: 70ch;
     padding: 3rem 1rem;
     margin: auto;
+  }
+  .avatar {
+    width: 8rem;
+    height: 8rem;
+    border-radius: 0.5rem;
+    object-fit: cover;
   }
   header {
     display: flex;
