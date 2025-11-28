@@ -24,6 +24,14 @@
   --theme-accent-dark: hsl(from var(--color-akira-red) h s calc(l - 10));
 }
 
+:root {
+  font-size: 16px;
+
+  @media (max-width: 768px) {
+    font-size: 14px;
+  }
+}
+
 [data-theme='light'] {
   color-scheme: light;
 }
