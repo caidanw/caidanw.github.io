@@ -20,8 +20,8 @@
   --theme-text-dim: light-dark(var(--color-gray-dark), var(--color-gray-light));
 
   --theme-accent: var(--color-akira-red);
-  --theme-accent-light: hsl(from var(--color-akira-red) h s calc(l + 10));
-  --theme-accent-dark: hsl(from var(--color-akira-red) h s calc(l - 10));
+  --theme-accent-light: hsl(from var(--color-akira-red) h s calc(l + 15));
+  --theme-accent-dark: hsl(from var(--color-akira-red) h s calc(l - 15));
 }
 
 :root {
