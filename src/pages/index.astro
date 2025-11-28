@@ -1,15 +1,80 @@
 ---
-import Layout from '../layouts/Layout.astro';
+import Layout from '../layouts/Layout.astro'
+import avatar from '../images/avatar.png'
+import { Image } from 'astro:assets'
 ---
 
 <Layout>
-	<main>
-		<header>
-			<h1>Welcome to My Astro Site</h1>
-		</header>
-		<section>
-			<p>This is the homepage of my Astro-powered website.</p>
-		</section>
-	</main>
+  <main>
+    <header>
+      <Image src={avatar} alt="Avatar" width="128" height="128" style="border-radius: 0.5rem;" />
+      <div>
+        <h1>I’m <strong>Caidan Williams</strong></h1>
+        <p>a self-taught web developer and designer.</p>
+        <nav class="socials">
+          <a href="https://github.com/caidanw" aria-label="GitHub Profile" target="_blank" rel="noopener">Github</a>
+          <a href="https://bsky.app/profile/caidan.dev" aria-label="Bluesky Profile" target="_blank" rel="noopener">Bluesky</a>
+          <a href="https://twitter.com/caidanwilliams" aria-label="Twitter Profile" target="_blank" rel="noopener">Twitter</a>
+          <a href="https://threads.net/@ancientsunshine" aria-label="Threads Profile" target="_blank" rel="noopener">Threads</a>
+          <a href="https://linkedin.com/in/caidan-williams" aria-label="LinkedIn Profile" target="_blank" rel="noopener">LinkedIn</a>
+        </nav>
+      </div>
+    </header>
+    <hr />
+    <section>
+      <p>This is the homepage of my <a href="#">Astro-powered</a> website.</p>
+    </section>
+  </main>
 </Layout>
 
+<style>
+  body {
+    max-width: 70ch;
+    padding: 3rem 1rem;
+    margin: auto;
+    font-size: 1.125rem;
+  }
+  header {
+    display: flex;
+    gap: 2rem;
+
+    > div {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+    }
+  }
+  h1 {
+    line-height: 1;
+    font-weight: normal;
+    + p {
+      font-size: 1.5rem;
+    }
+  }
+  hr {
+    margin: 2em 0;
+    border-color: var(--theme-border);
+  }
+
+  .socials {
+    display: flex;
+    align-items: flex-end;
+    flex-grow: 1;
+    gap: 1rem;
+
+    > a {
+      font-size: 0.875rem;
+      line-height: 1;
+      text-decoration: none;
+      color: var(--theme-text);
+      transition: border-color 0.3s;
+      padding: 0.5rem 1rem;
+      border: 1px solid var(--theme-border);
+      border-radius: 0.5rem;
+
+      &:hover {
+        border-color: var(--theme-accent);
+      }
+    }
+  }
+</style>

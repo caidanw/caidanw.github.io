@@ -8,7 +8,7 @@
   --color-gray: hsl(0, 0%, 54%);
   --color-gray-dark: hsl(0, 0%, 28%);
   --color-gray-darker: hsl(0, 0%, 17%);
-  --color-black: hsl(0, 0%, 3%);
+  --color-black: hsl(0, 0%, 7%);
   --color-akira-red: #e12120;
 
   color-scheme: light dark;
@@ -36,4 +36,23 @@ body {
   font-family: var(--font-sans);
   background-color: var(--theme-bg);
   color: var(--theme-text);
+}
+
+a {
+  color: var(--theme-accent-light);
+  text-decoration: none;
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: var(--theme-accent);
+    text-decoration: underline;
+  }
+
+  &:visited {
+    color: var(--theme-accent-dark);
+  }
+}
+
+strong {
+  font-weight: bold;
 }
