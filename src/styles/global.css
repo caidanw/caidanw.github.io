@@ -43,13 +43,13 @@ a {
   text-decoration: none;
   transition: color 0.2s ease;
 
+  &:visited {
+    color: var(--theme-accent-dark);
+  }
+
   &:hover {
     color: var(--theme-accent);
     text-decoration: underline;
-  }
-
-  &:visited {
-    color: var(--theme-accent-dark);
   }
 }
 
