@@ -1,6 +1,7 @@
 ---
 import '../styles/reset.css'
 import '../styles/global.css'
+import avatarImage from '../assets/avatar.png'
 
 interface Props {
   title?: string
@@ -11,7 +12,7 @@ interface Props {
 const {
   title = 'Caidan Williams',
   description = 'Self-taught web developer and designer creating unique digital experiences',
-  image = '/src/assets/avatar.png',
+  image = avatarImage.src,
 } = Astro.props
 
 const siteUrl = 'https://caidan.dev'
