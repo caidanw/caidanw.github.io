@@ -1,17 +1,10 @@
 ---
 import Layout from '../layouts/Layout.astro'
-import { readFileSync } from 'fs'
-import { fileURLToPath } from 'url'
-import { dirname, join } from 'path'
-
-const __dirname = dirname(fileURLToPath(import.meta.url))
-const iconsPath = join(__dirname, '../images')
-
-const GithubIcon = readFileSync(join(iconsPath, 'icon_github.svg'), 'utf-8')
-const BlueskyIcon = readFileSync(join(iconsPath, 'icon_bluesky.svg'), 'utf-8')
-const TwitterIcon = readFileSync(join(iconsPath, 'icon_twitter.svg'), 'utf-8')
-const ThreadsIcon = readFileSync(join(iconsPath, 'icon_threads.svg'), 'utf-8')
-const LinkedInIcon = readFileSync(join(iconsPath, 'icon_linkedin.svg'), 'utf-8')
+import GithubIcon from '../images/icon_github.svg'
+import BlueskyIcon from '../images/icon_bluesky.svg'
+import TwitterIcon from '../images/icon_twitter.svg'
+import ThreadsIcon from '../images/icon_threads.svg'
+import LinkedInIcon from '../images/icon_linkedin.svg'
 ---
 
 <Layout>
@@ -22,19 +15,19 @@ const LinkedInIcon = readFileSync(join(iconsPath, 'icon_linkedin.svg'), 'utf-8')
     </header>
     <nav class="socials">
       <a href="https://github.com/caidanw" aria-label="GitHub Profile" target="_blank" rel="noopener">
-        <Fragment set:html={GithubIcon} />
+        <GithubIcon />
       </a>
       <a href="https://bsky.app/profile/caidan.dev" aria-label="Bluesky Profile" target="_blank" rel="noopener">
-        <Fragment set:html={BlueskyIcon} />
+        <BlueskyIcon />
       </a>
       <a href="https://twitter.com/caidanwilliams" aria-label="Twitter Profile" target="_blank" rel="noopener">
-        <Fragment set:html={TwitterIcon} />
+        <TwitterIcon />
       </a>
       <a href="https://threads.net/@ancientsunshine" aria-label="Threads Profile" target="_blank" rel="noopener">
-        <Fragment set:html={ThreadsIcon} />
+        <ThreadsIcon />
       </a>
       <a href="https://linkedin.com/in/caidan-williams" aria-label="LinkedIn Profile" target="_blank" rel="noopener">
-        <Fragment set:html={LinkedInIcon} />
+        <LinkedInIcon />
       </a>
     </nav>
   </main>
@@ -58,23 +51,22 @@ const LinkedInIcon = readFileSync(join(iconsPath, 'icon_linkedin.svg'), 'utf-8')
     display: flex;
     gap: 1rem;
     margin-top: 2rem;
-  }
 
-  .socials a {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: opacity 0.2s ease;
-    color: var(--theme-text);
-  }
+    a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
 
-  .socials a:hover {
-    opacity: 0.7;
-  }
+      svg {
+        width: 1.5rem;
+        height: 1.5rem;
+        fill: var(--theme-text);
+        transition: fill 0.2s ease;
+      }
 
-  .socials :global(svg) {
-    width: 24px;
-    height: 24px;
-    fill: currentColor;
+      &:hover svg {
+        fill: var(--theme-accent);
+      }
+    }
   }
 </style>
