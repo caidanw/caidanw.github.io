@@ -17,6 +17,7 @@ const {
 } = Astro.props
 
 const siteUrl = 'https://caidan.dev'
+const twitterHandle = '@caidanwilliams'
 ---
 
 <!doctype html>
@@ -41,6 +42,8 @@ const siteUrl = 'https://caidan.dev'
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={image.src} />
+    <meta name="twitter:site" content={twitterHandle} />
+    <meta name="twitter:creator" content={twitterHandle} />
 
     <link rel="icon" href="/favicon.ico" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
