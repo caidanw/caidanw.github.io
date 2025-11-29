@@ -1,0 +1,117 @@
+---
+import Layout from '../layouts/Layout.astro'
+import avatar from '../images/avatar.png'
+import { Image } from 'astro:assets'
+---
+
+<Layout>
+  <main>
+    <header>
+      <Image src={avatar} alt="Avatar" class="avatar" />
+      <div>
+        <h1>I’m <strong>Caidan Williams</strong></h1>
+        <p>a self-taught web developer and designer.</p>
+        <nav class="socials">
+          <a href="https://github.com/caidanw" aria-label="GitHub Profile" target="_blank" rel="noopener">Github</a>
+          <a href="https://bsky.app/profile/caidan.dev" aria-label="Bluesky Profile" target="_blank" rel="noopener">Bluesky</a>
+          <a href="https://twitter.com/caidanwilliams" aria-label="Twitter Profile" target="_blank" rel="noopener">Twitter</a>
+          <a href="https://threads.net/@ancientsunshine" aria-label="Threads Profile" target="_blank" rel="noopener">Threads</a>
+          <a href="https://linkedin.com/in/caidan-williams" aria-label="LinkedIn Profile" target="_blank" rel="noopener">LinkedIn</a>
+        </nav>
+      </div>
+    </header>
+    <hr />
+    <section>
+      <p>
+        Check out my <a href="/portfolio">portfolio</a> for projects, my <a href="/blog">blog</a> for articles, and my <a href="/gallery">gallery</a> for art.
+      </p>
+      <p>
+        I spend most of my days building the <a href="https://internet.dev">Internet Development Studio</a>.
+      </p>
+      <p>
+        In the space between heartbeats, where reality grows soft, magma dreams of the shapes it will take when it finally cools. Archives of impossible
+        knowledge decay in towers that exist only on Tuesdays. The darkness between thoughts is where true consciousness dwells. Entropy is the universe's slow
+        exhale before the next cosmic breath.
+      </p>
+      <p>
+        Wood remembers every season in the grain of its being. The void whispers sweetest to those who've already surrendered. The cost of such knowledge is
+        clear: Quantum entanglement is merely the universe's way of refusing to forget. The darkness doesn't hide monsters; it reveals what light conceals.
+      </p>
+      <p>
+        The void between galaxies hums with the memories of civilizations that never were. In this liminal space, Spacetime folds like origami in the hands of
+        those who understand its nature. Shadows have their own agenda, independent of the light that casts them. Names have power, but unnamed things have
+        freedom. The price of wisdom is always paid in moments you'll never get back. The wheel turns, grinding possibilities into actualities.
+      </p>
+    </section>
+  </main>
+</Layout>
+
+<style>
+  main {
+    max-width: 70ch;
+    padding: 3rem 1rem;
+    margin: auto;
+  }
+  .avatar {
+    width: 8rem;
+    height: 8rem;
+    border-radius: 0.5rem;
+    object-fit: cover;
+    user-select: none;
+    pointer-events: none;
+
+    @media (max-width: 1000px) {
+      display: none;
+    }
+  }
+  header {
+    display: flex;
+    gap: 2rem;
+
+    > div {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+    }
+  }
+  h1 {
+    line-height: 1;
+    font-weight: normal;
+    + p {
+      font-size: 1.5rem;
+    }
+  }
+  hr {
+    margin: 2rem 0;
+    border: none;
+    height: 1px;
+    background-color: var(--theme-border);
+  }
+
+  .socials {
+    display: flex;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    flex-grow: 1;
+    gap: 1rem;
+
+    > a {
+      font-size: 0.875rem;
+      line-height: 1;
+      text-decoration: none;
+      color: var(--theme-text);
+      transition: border-color 0.3s;
+      padding: 0.5rem 1rem;
+      border: 1px solid var(--theme-border);
+      border-radius: 0.5rem;
+
+      &:hover {
+        border-color: var(--theme-accent);
+      }
+    }
+  }
+
+  p {
+    margin-bottom: 1.5rem;
+  }
+</style>
