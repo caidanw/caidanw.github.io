@@ -41,6 +41,11 @@ import LinkedInIcon from '../assets/icon_linkedin.svg'
     display: flex;
     flex-direction: column;
     justify-content: center;
+    gap: 1rem;
+
+    @media (max-width: 768px) {
+      padding: 0 1.5rem;
+    }
   }
 
   h1 {
@@ -54,7 +59,6 @@ import LinkedInIcon from '../assets/icon_linkedin.svg'
   .socials {
     display: flex;
     gap: 0.5rem;
-    margin-top: 1rem;
     margin-left: -0.5rem;
 
     a {
