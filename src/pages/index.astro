@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro'
+import PageNav from '../components/PageNav.astro'
 import GithubIcon from '../assets/icon_github.svg'
 import BlueskyIcon from '../assets/icon_bluesky.svg'
 import TwitterIcon from '../assets/icon_twitter.svg'
@@ -31,23 +32,7 @@ import LinkedInIcon from '../assets/icon_linkedin.svg'
       </a>
     </nav>
     <hr />
-    <nav class="pages" aria-label="Main Site Navigation">
-      <a href="/blog">
-        <span class="list-icon">+</span>
-        <span class="main-text">Blog</span>
-        <span class="detail-text">— Read my thoughts</span>
-      </a>
-      <a href="/gallery">
-        <span class="list-icon">+</span>
-        <span class="main-text">Gallery</span>
-        <span class="detail-text">— Browse my art</span>
-      </a>
-      <a href="/portfolio">
-        <span class="list-icon">+</span>
-        <span class="main-text">Portfolio</span>
-        <span class="detail-text">— View my work</span>
-      </a>
-    </nav>
+    <PageNav excludeHome={true} />
   </main>
 </Layout>
 
@@ -104,69 +89,5 @@ import LinkedInIcon from '../assets/icon_linkedin.svg'
     border-top: 1px solid var(--theme-border);
     margin: 0.5rem 0;
     margin-right: -0.25rem;
-  }
-
-  .pages {
-    margin-top: 1rem;
-    font-size: 1.25rem;
-    letter-spacing: 0.05em;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-
-    a {
-      color: var(--theme-text);
-      text-decoration: none;
-      transition: color 0.3s ease;
-
-      &:hover {
-        text-decoration: none;
-      }
-    }
-
-    a .main-text {
-      position: relative;
-      display: inline-block;
-      transition: color 0.3s ease;
-    }
-
-    a .main-text::after {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 0;
-      height: 1px;
-      background: var(--theme-accent);
-      transition: width 0.3s ease;
-    }
-
-    a:hover .main-text {
-      color: var(--theme-accent);
-    }
-
-    a:hover .main-text::after {
-      width: 100%;
-    }
-
-    a .detail-text {
-      display: inline;
-      opacity: 0;
-      max-width: 0;
-      overflow: hidden;
-      color: var(--theme-text-dim);
-      transition: all 0.3s ease;
-      white-space: nowrap;
-    }
-
-    a:hover .detail-text {
-      opacity: 1;
-      max-width: 300px;
-      margin-left: 0.5rem;
-    }
-
-    .list-icon {
-      color: var(--theme-accent);
-    }
   }
 </style>
