@@ -7,13 +7,13 @@ interface Props {
   repeatCount?: number
 }
 
-const { position = 'top', direction = 'normal', text = 'CAUTION', divider = ' /// ', repeatCount = 200 } = Astro.props
+const { position = 'top', direction = 'normal', text = 'CAUTION', divider = ' /// ', repeatCount = 120 } = Astro.props
 
 const pattern = (divider + text).repeat(repeatCount) + divider
 ---
 
 <div class={`caution-tape-wrapper ${position}`}>
-  <div class="caution-tape" style={`animation-direction: ${direction};`}>
+  <div class="caution-tape" style={`animation-direction: ${direction}; animation-duration: ${direction};`}>
     {pattern}
   </div>
 </div>
@@ -24,15 +24,14 @@ const pattern = (divider + text).repeat(repeatCount) + divider
     left: 0;
     width: 100%;
     overflow: hidden;
-    z-index: 1000;
-  }
 
-  .caution-tape-wrapper.top {
-    top: 1rem;
-  }
+    &.top {
+      top: 2rem;
+    }
 
-  .caution-tape-wrapper.bottom {
-    bottom: 1rem;
+    &.bottom {
+      bottom: 2rem;
+    }
   }
 
   .caution-tape {
@@ -40,14 +39,13 @@ const pattern = (divider + text).repeat(repeatCount) + divider
     color: var(--theme-text-dim);
     font-family: var(--font-mono);
     font-weight: normal;
-    font-size: 0.75rem;
+    font-size: 1.25rem;
     line-height: 1;
-    padding: 0.5rem 0;
     white-space: nowrap;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.02em;
     opacity: 0.4;
     width: max-content;
-    animation: scroll 120s linear infinite;
+    animation: scroll 600s linear infinite;
   }
 
   @keyframes scroll {
