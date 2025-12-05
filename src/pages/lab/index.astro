@@ -6,19 +6,23 @@ import CautionTape from '../../components/CautionTape.astro'
 
 <Layout title="the lab">
   <CautionTape position="top" direction="normal" />
+  <CautionTape position="bottom" direction="reverse" />
   <main>
-    <LabSign />
-    <p class="welcome">
-      Welcome to the lab! I'm a bit surpised you made it here considering that this page is unlisted. Anyways, this is my staging area for experiments and
-      works-in-progress.<br />
-      <br />
+    <header>
+      <LabSign />
+    </header>
+    <p>
+      Welcome to the lab!<br />
+      I'm a bit surpised you made it here considering that this page is unlisted.
+    </p>
+    <p>
+      Anyways, this is my staging area for experiments and works-in-progress.<br />
       Feel free to explore and see what's cooking:
     </p>
     <ul>
-      <li><a href="./temp.astro">temp.astro</a></li>
+      <li><a class="list" href="./temp.astro">temp.astro</a></li>
     </ul>
   </main>
-  <CautionTape position="bottom" direction="reverse" />
 </Layout>
 
 <style>
@@ -31,10 +35,14 @@ import CautionTape from '../../components/CautionTape.astro'
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 2rem;
+    gap: 1rem;
   }
 
-  .welcome {
+  header {
+    margin-bottom: 3rem;
+  }
+
+  p {
     text-wrap: pretty;
   }
 
