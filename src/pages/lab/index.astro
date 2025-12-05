@@ -2,6 +2,11 @@
 import Layout from '../../layouts/Layout.astro'
 import LabSign from '../../components/LabSign.astro'
 import CautionTape from '../../components/CautionTape.astro'
+
+// Get all .astro files in the lab directory (excluding index.astro)
+const labPages = Object.keys(import.meta.glob('./*.astro'))
+  .filter((path) => !path.includes('index.astro'))
+  .map((path) => path.replace('./', '').split('.')[0])
 ---
 
 <Layout title="the lab">
@@ -20,7 +25,15 @@ import CautionTape from '../../components/CautionTape.astro'
       Feel free to explore and see what's cooking:
     </p>
     <ul>
-      <li><a class="list" href="./temp.astro">temp.astro</a></li>
+      {
+        labPages.map((page) => (
+          <li>
+            <a class="list" href={`./${page}`}>
+              {page}
+            </a>
+          </li>
+        ))
+      }
     </ul>
   </main>
 </Layout>
