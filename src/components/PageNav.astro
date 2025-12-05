@@ -21,76 +21,47 @@ const filteredPages = pages.filter((page) => !excludeList.includes(page.href))
 <nav class="pages" aria-label="Main Site Navigation">
   {
     filteredPages.map((page) => (
-      <a href={page.href}>
-        <span class="list-icon">+</span>
-        <span class="main-text">{page.text}</span>
+      <span class="wrapper">
+        <a class="list" href={page.href}>
+          {page.text}
+        </a>
         <span class="detail-text">{page.detail}</span>
-      </a>
+      </span>
     ))
   }
 </nav>
 
 <style>
   .pages {
-    font-size: 1.25rem;
     letter-spacing: 0.05em;
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+  }
 
-    a {
-      color: var(--theme-text);
-      text-decoration: none;
-      transition: color 0.3s ease;
+  .main-text {
+    position: relative;
+    display: inline-block;
+    transition: color 0.3s ease;
+  }
 
-      &:hover {
-        text-decoration: none;
-      }
-    }
+  .wrapper:hover a {
+    color: var(--theme-accent);
+  }
 
-    a .main-text {
-      position: relative;
-      display: inline-block;
-      transition: color 0.3s ease;
-    }
+  .wrapper .detail-text {
+    display: inline;
+    opacity: 0;
+    max-width: 0;
+    overflow: hidden;
+    color: var(--theme-text-dim);
+    transition: all 0.3s ease;
+    white-space: nowrap;
+  }
 
-    a .main-text::after {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 0;
-      height: 1px;
-      background: var(--theme-accent);
-      transition: width 0.3s ease;
-    }
-
-    a:hover .main-text {
-      color: var(--theme-accent);
-    }
-
-    a:hover .main-text::after {
-      width: 100%;
-    }
-
-    a .detail-text {
-      display: inline;
-      opacity: 0;
-      max-width: 0;
-      overflow: hidden;
-      color: var(--theme-text-dim);
-      transition: all 0.3s ease;
-      white-space: nowrap;
-    }
-
-    a:hover .detail-text {
-      opacity: 1;
-      max-width: 300px;
-      margin-left: 0.5rem;
-    }
-
-    .list-icon {
-      color: var(--theme-accent);
-    }
+  .wrapper:hover .detail-text {
+    opacity: 1;
+    max-width: 300px;
+    margin-left: 0.5rem;
   }
 </style>
