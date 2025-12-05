@@ -2,22 +2,27 @@
 interface Props {
   position?: 'top' | 'bottom'
   direction?: 'left' | 'right'
+  text?: string
+  divider?: string
+  repeatCount?: number
 }
 
-const { position = 'top', direction = 'left' } = Astro.props
+const { position = 'top', direction = 'left', text = 'CAUTION', divider = '///', repeatCount = 50 } = Astro.props
+
 const animationName = direction === 'left' ? 'scrollLeft' : 'scrollRight'
 const positionClass = position === 'top' ? 'top' : 'bottom'
+const repeatedText = (divider + text).repeat(repeatCount) + divider
 ---
 
 <div class={`caution-tape-wrapper ${positionClass}`}>
   <div class="caution-tape" style={`animation: ${animationName} 20s linear infinite;`}>
-    ///CAUTION///CAUTION///CAUTION///CAUTION///CAUTION///CAUTION///CAUTION///CAUTION///CAUTION///CAUTION///CAUTION///CAUTION///CAUTION///CAUTION///CAUTION///CAUTION///CAUTION///CAUTION///CAUTION///CAUTION///CAUTION///CAUTION///CAUTION///CAUTION///
+    {repeatedText}
   </div>
 </div>
 
 <style>
   .caution-tape-wrapper {
-    position: fixed;
+    position: absolute;
     left: 0;
     width: 100%;
     overflow: hidden;
@@ -47,19 +52,19 @@ const positionClass = position === 'top' ? 'top' : 'bottom'
 
   @keyframes scrollLeft {
     0% {
-      transform: translateX(0);
+      transform: translateX(0%);
     }
     100% {
-      transform: translateX(-50%);
+      transform: translateX(-25%);
     }
   }
 
   @keyframes scrollRight {
     0% {
-      transform: translateX(-50%);
+      transform: translateX(-25%);
     }
     100% {
-      transform: translateX(0);
+      transform: translateX(0%);
     }
   }
 </style>
