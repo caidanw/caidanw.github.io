@@ -5,8 +5,8 @@ import CautionTape from '../../components/CautionTape.astro'
 ---
 
 <Layout title="the lab">
+  <CautionTape position="top" direction="normal" />
   <main>
-    <CautionTape position="top" direction="left" />
     <LabSign />
     <p class="welcome">
       Welcome to the lab! I'm a bit surpised you made it here considering that this page is unlisted. Anyways, this is my staging area for experiments and
@@ -17,8 +17,8 @@ import CautionTape from '../../components/CautionTape.astro'
     <ul>
       <li><a href="./temp.astro">temp.astro</a></li>
     </ul>
-    <CautionTape position="bottom" direction="right" />
   </main>
+  <CautionTape position="bottom" direction="reverse" />
 </Layout>
 
 <style>

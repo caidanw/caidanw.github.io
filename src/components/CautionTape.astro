@@ -1,22 +1,20 @@
 ---
 interface Props {
   position?: 'top' | 'bottom'
-  direction?: 'left' | 'right'
+  direction?: 'normal' | 'reverse'
   text?: string
   divider?: string
   repeatCount?: number
 }
 
-const { position = 'top', direction = 'left', text = 'CAUTION', divider = '///', repeatCount = 50 } = Astro.props
+const { position = 'top', direction = 'normal', text = 'CAUTION', divider = ' /// ', repeatCount = 200 } = Astro.props
 
-const animationName = direction === 'left' ? 'scrollLeft' : 'scrollRight'
-const positionClass = position === 'top' ? 'top' : 'bottom'
-const repeatedText = (divider + text).repeat(repeatCount) + divider
+const pattern = (divider + text).repeat(repeatCount) + divider
 ---
 
-<div class={`caution-tape-wrapper ${positionClass}`}>
-  <div class="caution-tape" style={`animation: ${animationName} 20s linear infinite;`}>
-    {repeatedText}
+<div class={`caution-tape-wrapper ${position}`}>
+  <div class="caution-tape" style={`animation-direction: ${direction};`}>
+    {pattern}
   </div>
 </div>
 
@@ -30,11 +28,11 @@ const repeatedText = (divider + text).repeat(repeatCount) + divider
   }
 
   .caution-tape-wrapper.top {
-    top: 0;
+    top: 1rem;
   }
 
   .caution-tape-wrapper.bottom {
-    bottom: 0;
+    bottom: 1rem;
   }
 
   .caution-tape {
@@ -43,28 +41,21 @@ const repeatedText = (divider + text).repeat(repeatCount) + divider
     font-family: var(--font-mono);
     font-weight: normal;
     font-size: 0.75rem;
+    line-height: 1;
     padding: 0.5rem 0;
     white-space: nowrap;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.05em;
     opacity: 0.4;
     width: max-content;
+    animation: scroll 120s linear infinite;
   }
 
-  @keyframes scrollLeft {
+  @keyframes scroll {
     0% {
       transform: translateX(0%);
     }
     100% {
-      transform: translateX(-25%);
-    }
-  }
-
-  @keyframes scrollRight {
-    0% {
-      transform: translateX(-25%);
-    }
-    100% {
-      transform: translateX(0%);
+      transform: translateX(-50%);
     }
   }
 </style>
