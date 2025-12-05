@@ -17,7 +17,7 @@
 
   --theme-text: light-dark(var(--color-black), var(--color-white));
   --theme-text-subtle: light-dark(var(--color-gray-darker), var(--color-gray-lighter));
-  --theme-text-dim: light-dark(var(--color-gray-dark), var(--color-gray-light));
+  --theme-text-dim: light-dark(var(--color-gray-dark), var(--color-gray));
 
   --theme-accent: var(--color-akira-red);
   --theme-accent-light: hsl(from var(--color-akira-red) h s calc(l + 15));
