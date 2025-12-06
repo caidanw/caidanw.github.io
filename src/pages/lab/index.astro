@@ -7,7 +7,7 @@ import CautionTape from '../../components/CautionTape.astro'
 console.log(import.meta.glob('./*.astro')['./stipple_dithering.astro'])
 const labPages = Object.keys(import.meta.glob('./*.astro'))
   .filter((path) => !path.includes('index.astro'))
-  .map((path) => path.replace('./', '').replace('.astro', '.html'))
+  .map((path) => path.replace('./', '').split('.')[0])
 ---
 
 <Layout title="the lab">
