@@ -14,7 +14,7 @@ import Layout from '../../layouts/Layout.astro'
         Upload Image
         <input type="file" id="fileInput" accept="image/*" />
       </label>
-      <button id="regenerate">Generate</button>
+      <button id="download">Download</button>
       <label>
         Grid Size:
         <input type="range" id="gridSize" min="8" max="64" value="24" step="4" />
@@ -30,36 +30,194 @@ import Layout from '../../layouts/Layout.astro'
         <input type="range" id="dotSize" min="0.3" max="3" value="1.2" step="0.1" />
         <span id="dotSizeValue">1.2</span>
       </label>
+      <label>
+        Method:
+        <select id="method">
+          <option value="recursive">Recursive</option>
+          <option value="delaunay">Delaunay</option>
+        </select>
+      </label>
     </div>
+
+    <div id="loadingIndicator" class="loading-indicator hidden">Generating...</div>
 
     <div class="info">Region-based triangulation stippling — segments image by brightness, then stipples each region</div>
   </div>
 </Layout>
 
 <script>
-  const sourceCanvas = document.getElementById('sourceCanvas') as HTMLCanvasElement
-  const outputCanvas = document.getElementById('outputCanvas') as HTMLCanvasElement
-  const sourceCtx = sourceCanvas.getContext('2d')!
-  const outputCtx = outputCanvas.getContext('2d')!
-  const fileInput = document.getElementById('fileInput') as HTMLInputElement
-  const gridSizeSlider = document.getElementById('gridSize') as HTMLInputElement
-  const gridSizeValue = document.getElementById('gridSizeValue') as HTMLSpanElement
-  const subdivisionsSlider = document.getElementById('subdivisions') as HTMLInputElement
-  const subdivisionsValue = document.getElementById('subdivisionsValue') as HTMLSpanElement
-  const dotSizeSlider = document.getElementById('dotSize') as HTMLInputElement
-  const dotSizeValue = document.getElementById('dotSizeValue') as HTMLSpanElement
-  const regenerateBtn = document.getElementById('regenerate') as HTMLButtonElement
+  // Constants
+  const BACKGROUND_COLOR = '#ebebeb'
+  const DOT_COLOR = '#121212'
+  const MIN_DARKNESS_THRESHOLD = 0.05
+  const MIN_DISTANCE_THRESHOLD = 2
+  const HARD_MAX_RECURSION_DEPTH = 15
+  const DEFAULT_BRIGHTNESS = 0.5
+  const DEBOUNCE_DELAY = 150
+  const BRIGHTNESS_SAMPLE_STEP = 4
+
+  // Type guard helpers
+  function isHTMLCanvasElement(el: HTMLElement | null): el is HTMLCanvasElement {
+    return el !== null && el instanceof HTMLCanvasElement
+  }
+
+  function isHTMLInputElement(el: HTMLElement | null): el is HTMLInputElement {
+    return el !== null && el instanceof HTMLInputElement
+  }
+
+  function isHTMLSpanElement(el: HTMLElement | null): el is HTMLSpanElement {
+    return el !== null && el instanceof HTMLSpanElement
+  }
+
+  function isHTMLSelectElement(el: HTMLElement | null): el is HTMLSelectElement {
+    return el !== null && el instanceof HTMLSelectElement
+  }
+
+  function isHTMLButtonElement(el: HTMLElement | null): el is HTMLButtonElement {
+    return el !== null && el instanceof HTMLButtonElement
+  }
+
+  // Get DOM elements with type guards
+  const sourceCanvasEl = document.getElementById('sourceCanvas')
+  const outputCanvasEl = document.getElementById('outputCanvas')
+  const fileInputEl = document.getElementById('fileInput')
+  const gridSizeSliderEl = document.getElementById('gridSize')
+  const gridSizeValueEl = document.getElementById('gridSizeValue')
+  const subdivisionsSliderEl = document.getElementById('subdivisions')
+  const subdivisionsValueEl = document.getElementById('subdivisionsValue')
+  const dotSizeSliderEl = document.getElementById('dotSize')
+  const dotSizeValueEl = document.getElementById('dotSizeValue')
+  const methodSelectEl = document.getElementById('method')
+  const downloadBtnEl = document.getElementById('download')
+  const loadingIndicatorEl = document.getElementById('loadingIndicator')
+
+  if (!isHTMLCanvasElement(sourceCanvasEl) || !isHTMLCanvasElement(outputCanvasEl)) {
+    throw new Error('Canvas elements not found')
+  }
+  if (!isHTMLInputElement(fileInputEl) || !isHTMLInputElement(gridSizeSliderEl) || 
+      !isHTMLInputElement(subdivisionsSliderEl) || !isHTMLInputElement(dotSizeSliderEl)) {
+    throw new Error('Input elements not found')
+  }
+  if (!isHTMLSpanElement(gridSizeValueEl) || !isHTMLSpanElement(subdivisionsValueEl) || 
+      !isHTMLSpanElement(dotSizeValueEl)) {
+    throw new Error('Span elements not found')
+  }
+  if (!isHTMLSelectElement(methodSelectEl)) {
+    throw new Error('Select element not found')
+  }
+  if (!isHTMLButtonElement(downloadBtnEl)) {
+    throw new Error('Download button not found')
+  }
+  if (!loadingIndicatorEl) {
+    throw new Error('Loading indicator not found')
+  }
+
+  const sourceCanvas = sourceCanvasEl
+  const outputCanvas = outputCanvasEl
+  const fileInput = fileInputEl
+  const gridSizeSlider = gridSizeSliderEl
+  const gridSizeValue = gridSizeValueEl
+  const subdivisionsSlider = subdivisionsSliderEl
+  const subdivisionsValue = subdivisionsValueEl
+  const dotSizeSlider = dotSizeSliderEl
+  const dotSizeValue = dotSizeValueEl
+  const methodSelect = methodSelectEl
+  const downloadBtn = downloadBtnEl
+  const loadingIndicator = loadingIndicatorEl
+
+  const sourceCtx = sourceCanvas.getContext('2d')
+  const outputCtx = outputCanvas.getContext('2d')
+
+  if (!sourceCtx || !outputCtx) {
+    throw new Error('Could not get canvas contexts')
+  }
 
   let gridSize = parseInt(gridSizeSlider.value)
   let maxSubdivisions = parseInt(subdivisionsSlider.value)
   let dotSize = parseFloat(dotSizeSlider.value)
+  let method: 'recursive' | 'delaunay' = 'recursive'
   let sourceImage: HTMLImageElement | null = null
   let imageData: ImageData | null = null
+  let brightnessCache: Float32Array | null = null
+  let cacheWidth = 0
+  let cacheHeight = 0
   let dots: { x: number; y: number; opacity: number; size: number }[] = []
+  let isGenerating = false
+  let cancelGeneration = false
 
   interface Point {
     x: number
     y: number
+  }
+
+  interface Triangle {
+    p1: Point
+    p2: Point
+    p3: Point
+  }
+
+  // Calculate luminance using perceptual formula
+  function calculateLuminance(r: number, g: number, b: number): number {
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  }
+
+  // Build brightness cache with downsampling
+  function buildBrightnessCache() {
+    if (!imageData) return
+
+    cacheWidth = Math.ceil(sourceCanvas.width / BRIGHTNESS_SAMPLE_STEP)
+    cacheHeight = Math.ceil(sourceCanvas.height / BRIGHTNESS_SAMPLE_STEP)
+    brightnessCache = new Float32Array(cacheWidth * cacheHeight)
+
+    for (let y = 0; y < cacheHeight; y++) {
+      for (let x = 0; x < cacheWidth; x++) {
+        const px = Math.min(x * BRIGHTNESS_SAMPLE_STEP, sourceCanvas.width - 1)
+        const py = Math.min(y * BRIGHTNESS_SAMPLE_STEP, sourceCanvas.height - 1)
+        const index = (py * sourceCanvas.width + px) * 4
+        
+        const r = imageData.data[index]
+        const g = imageData.data[index + 1]
+        const b = imageData.data[index + 2]
+        
+        brightnessCache[y * cacheWidth + x] = calculateLuminance(r, g, b)
+      }
+    }
+  }
+
+  // Get brightness from cache
+  function getBrightness(x: number, y: number): number {
+    if (!brightnessCache) return DEFAULT_BRIGHTNESS
+
+    const cx = Math.floor(x / BRIGHTNESS_SAMPLE_STEP)
+    const cy = Math.floor(y / BRIGHTNESS_SAMPLE_STEP)
+
+    if (cx < 0 || cx >= cacheWidth || cy < 0 || cy >= cacheHeight) {
+      return 1
+    }
+
+    return brightnessCache[cy * cacheWidth + cx]
+  }
+
+  // Get average brightness of a region
+  function getRegionBrightness(x: number, y: number, w: number, h: number): number {
+    let total = 0
+    let count = 0
+
+    const startX = Math.floor(x / BRIGHTNESS_SAMPLE_STEP)
+    const startY = Math.floor(y / BRIGHTNESS_SAMPLE_STEP)
+    const endX = Math.ceil((x + w) / BRIGHTNESS_SAMPLE_STEP)
+    const endY = Math.ceil((y + h) / BRIGHTNESS_SAMPLE_STEP)
+
+    for (let cy = startY; cy < endY; cy++) {
+      for (let cx = startX; cx < endX; cx++) {
+        if (cx >= 0 && cx < cacheWidth && cy >= 0 && cy < cacheHeight) {
+          total += brightnessCache![cy * cacheWidth + cx]
+          count++
+        }
+      }
+    }
+
+    return count > 0 ? total / count : DEFAULT_BRIGHTNESS
   }
 
   // Calculate centroid of three points
@@ -75,54 +233,29 @@ import Layout from '../../layouts/Layout.astro'
     return Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2)
   }
 
-  // Get brightness at a point (0 = black, 1 = white)
-  function getBrightness(x: number, y: number): number {
-    if (!imageData) return 0.5
-
-    const ix = Math.floor(x)
-    const iy = Math.floor(y)
-
-    if (ix < 0 || ix >= sourceCanvas.width || iy < 0 || iy >= sourceCanvas.height) {
-      return 1
-    }
-
-    const index = (iy * sourceCanvas.width + ix) * 4
-    const r = imageData.data[index]
-    const g = imageData.data[index + 1]
-    const b = imageData.data[index + 2]
-
-    // Convert to grayscale
-    return (r + g + b) / (3 * 255)
-  }
-
-  // Get average brightness of a region
-  function getRegionBrightness(x: number, y: number, w: number, h: number): number {
-    let total = 0
-    let count = 0
-    const step = 2
-
-    for (let dy = 0; dy < h; dy += step) {
-      for (let dx = 0; dx < w; dx += step) {
-        total += getBrightness(x + dx, y + dy)
-        count++
-      }
-    }
-
-    return count > 0 ? total / count : 0.5
-  }
-
   // Recursive stippling within a bounded region
-  function stippleRegion(p1: Point, p2: Point, p3: Point, depth: number, maxDepth: number, regionBrightness: number) {
+  function stippleRegionRecursive(
+    p1: Point, 
+    p2: Point, 
+    p3: Point, 
+    depth: number, 
+    maxDepth: number, 
+    regionBrightness: number
+  ) {
+    // Hard limit to prevent stack overflow
+    if (depth >= HARD_MAX_RECURSION_DEPTH) return
+
     const avgDist = (distance(p1, p2) + distance(p2, p3) + distance(p3, p1)) / 3
-    if (avgDist < 2) return
+    if (avgDist < MIN_DISTANCE_THRESHOLD) return
 
     const center = centroid(p1, p2, p3)
 
-    // If we've reached max depth or triangle is small enough, place dot and stop
+    // If we've reached max depth, place dot and stop
     if (depth >= maxDepth) {
       const darkness = 1 - regionBrightness
-      if (darkness > 0.1) {
-        const opacity = 0.5 + darkness * 0.5
+      if (darkness > MIN_DARKNESS_THRESHOLD) {
+        // More accurate opacity mapping
+        const opacity = Math.pow(darkness, 0.8)
         dots.push({
           x: center.x,
           y: center.y,
@@ -133,58 +266,220 @@ import Layout from '../../layouts/Layout.astro'
       return
     }
 
-    // Otherwise, recurse into three new triangles without placing a dot here
-    stippleRegion(p1, p2, center, depth + 1, maxDepth, regionBrightness)
-    stippleRegion(p2, p3, center, depth + 1, maxDepth, regionBrightness)
-    stippleRegion(p3, p1, center, depth + 1, maxDepth, regionBrightness)
+    // Recurse into three new triangles
+    stippleRegionRecursive(p1, p2, center, depth + 1, maxDepth, regionBrightness)
+    stippleRegionRecursive(p2, p3, center, depth + 1, maxDepth, regionBrightness)
+    stippleRegionRecursive(p3, p1, center, depth + 1, maxDepth, regionBrightness)
   }
 
-  function generate() {
-    if (!sourceImage) return
+  // Delaunay triangulation helper functions
+  function circumcircle(p1: Point, p2: Point, p3: Point) {
+    const ax = p1.x - p3.x
+    const ay = p1.y - p3.y
+    const bx = p2.x - p3.x
+    const by = p2.y - p3.y
 
-    dots = []
+    const m = 2 * (ax * by - ay * bx)
+    if (Math.abs(m) < 1e-10) return null
 
-    // Clear output canvas
-    outputCtx.fillStyle = '#ebebeb'
-    outputCtx.fillRect(0, 0, outputCanvas.width, outputCanvas.height)
+    const s1 = ax * ax + ay * ay
+    const s2 = bx * bx + by * by
 
-    const w = outputCanvas.width
-    const h = outputCanvas.height
+    const cx = p3.x + (by * s1 - ay * s2) / m
+    const cy = p3.y + (ax * s2 - bx * s1) / m
+    const r = Math.sqrt((cx - p1.x) ** 2 + (cy - p1.y) ** 2)
 
-    const cellW = w / gridSize
-    const cellH = h / gridSize
+    return { x: cx, y: cy, r }
+  }
 
-    // Divide canvas into grid and analyze each cell
-    for (let row = 0; row < gridSize; row++) {
-      for (let col = 0; col < gridSize; col++) {
-        const x = col * cellW
-        const y = row * cellH
+  function pointInCircumcircle(p: Point, t: Triangle): boolean {
+    const circle = circumcircle(t.p1, t.p2, t.p3)
+    if (!circle) return false
+    return distance(p, circle) < circle.r
+  }
 
-        // Get average brightness of this cell
-        const brightness = getRegionBrightness(x, y, cellW, cellH)
-        const darkness = 1 - brightness
+  function trianglesEqual(t1: Triangle, t2: Triangle): boolean {
+    const points1 = [t1.p1, t1.p2, t1.p3].sort((a, b) => a.x - b.x || a.y - b.y)
+    const points2 = [t2.p1, t2.p2, t2.p3].sort((a, b) => a.x - b.x || a.y - b.y)
+    return points1.every((p, i) => p.x === points2[i].x && p.y === points2[i].y)
+  }
 
-        // Determine subdivision depth based on darkness
-        // Darker regions get MORE subdivisions (more dots)
-        // Light regions get FEWER subdivisions (fewer dots)
-        const subdivDepth = Math.max(1, Math.floor(darkness * maxSubdivisions))
+  // Bowyer-Watson Delaunay triangulation
+  function delaunayTriangulation(points: Point[]): Triangle[] {
+    if (points.length < 3) return []
 
-        // Create initial triangle for this cell
-        const topLeft = { x: x, y: y }
-        const topRight = { x: x + cellW, y: y }
-        const bottomLeft = { x: x, y: y + cellH }
-        const bottomRight = { x: x + cellW, y: y + cellH }
-        const center = { x: x + cellW / 2, y: y + cellH / 2 }
+    // Create super triangle
+    const minX = Math.min(...points.map(p => p.x))
+    const minY = Math.min(...points.map(p => p.y))
+    const maxX = Math.max(...points.map(p => p.x))
+    const maxY = Math.max(...points.map(p => p.y))
+    
+    const dx = maxX - minX
+    const dy = maxY - minY
+    const deltaMax = Math.max(dx, dy) * 2
 
-        // Stipple this cell with triangulation
-        stippleRegion(topLeft, topRight, center, 0, subdivDepth, brightness)
-        stippleRegion(topRight, bottomRight, center, 0, subdivDepth, brightness)
-        stippleRegion(bottomRight, bottomLeft, center, 0, subdivDepth, brightness)
-        stippleRegion(bottomLeft, topLeft, center, 0, subdivDepth, brightness)
+    const superTriangle: Triangle = {
+      p1: { x: minX - deltaMax, y: minY - 1 },
+      p2: { x: minX + deltaMax * 2, y: minY - 1 },
+      p3: { x: minX + dx / 2, y: maxY + deltaMax }
+    }
+
+    let triangles: Triangle[] = [superTriangle]
+
+    // Add each point
+    for (const point of points) {
+      const badTriangles: Triangle[] = []
+      
+      // Find bad triangles
+      for (const triangle of triangles) {
+        if (pointInCircumcircle(point, triangle)) {
+          badTriangles.push(triangle)
+        }
+      }
+
+      // Find boundary polygon
+      const edges: Array<[Point, Point]> = []
+      for (const triangle of badTriangles) {
+        edges.push([triangle.p1, triangle.p2])
+        edges.push([triangle.p2, triangle.p3])
+        edges.push([triangle.p3, triangle.p1])
+      }
+
+      // Remove duplicate edges
+      const uniqueEdges = edges.filter((edge, i) => {
+        return !edges.some((otherEdge, j) => {
+          if (i === j) return false
+          return (edge[0] === otherEdge[1] && edge[1] === otherEdge[0])
+        })
+      })
+
+      // Remove bad triangles
+      triangles = triangles.filter(t => !badTriangles.includes(t))
+
+      // Add new triangles
+      for (const edge of uniqueEdges) {
+        triangles.push({ p1: edge[0], p2: edge[1], p3: point })
       }
     }
 
-    console.log(`Generated ${dots.length} dots`)
+    // Remove triangles that share vertices with super triangle
+    return triangles.filter(t => {
+      return t.p1 !== superTriangle.p1 && t.p1 !== superTriangle.p2 && t.p1 !== superTriangle.p3 &&
+             t.p2 !== superTriangle.p1 && t.p2 !== superTriangle.p2 && t.p2 !== superTriangle.p3 &&
+             t.p3 !== superTriangle.p1 && t.p3 !== superTriangle.p2 && t.p3 !== superTriangle.p3
+    })
+  }
+
+  function generatePointsForRegion(x: number, y: number, w: number, h: number, brightness: number): Point[] {
+    const darkness = 1 - brightness
+    const numPoints = Math.max(1, Math.round(darkness * maxSubdivisions * 5))
+    const points: Point[] = []
+
+    for (let i = 0; i < numPoints; i++) {
+      points.push({
+        x: x + Math.random() * w,
+        y: y + Math.random() * h
+      })
+    }
+
+    return points
+  }
+
+  function stippleRegionDelaunay(x: number, y: number, w: number, h: number, brightness: number) {
+    const points = generatePointsForRegion(x, y, w, h, brightness)
+    if (points.length === 0) return
+
+    const triangles = delaunayTriangulation(points)
+    const darkness = 1 - brightness
+
+    if (darkness > MIN_DARKNESS_THRESHOLD) {
+      const opacity = Math.pow(darkness, 0.8)
+      
+      for (const tri of triangles) {
+        const center = centroid(tri.p1, tri.p2, tri.p3)
+        dots.push({
+          x: center.x,
+          y: center.y,
+          opacity: opacity,
+          size: dotSize,
+        })
+      }
+    }
+  }
+
+  async function generateProgressively() {
+    if (!sourceImage || isGenerating) return
+
+    isGenerating = true
+    cancelGeneration = false
+    dots = []
+
+    // Show loading indicator
+    loadingIndicator.classList.remove('hidden')
+
+    try {
+      // Clear output canvas
+      outputCtx.save()
+      outputCtx.fillStyle = BACKGROUND_COLOR
+      outputCtx.fillRect(0, 0, outputCanvas.width, outputCanvas.height)
+      outputCtx.restore()
+
+      const w = outputCanvas.width
+      const h = outputCanvas.height
+      const cellW = w / gridSize
+      const cellH = h / gridSize
+
+      // Process grid cells progressively
+      for (let row = 0; row < gridSize; row++) {
+        if (cancelGeneration) break
+
+        for (let col = 0; col < gridSize; col++) {
+          if (cancelGeneration) break
+
+          const x = col * cellW
+          const y = row * cellH
+
+          const brightness = getRegionBrightness(x, y, cellW, cellH)
+          const darkness = 1 - brightness
+
+          if (method === 'delaunay') {
+            stippleRegionDelaunay(x, y, cellW, cellH, brightness)
+          } else {
+            // Use Math.round instead of Math.floor to prevent banding
+            const subdivDepth = Math.max(1, Math.round(darkness * maxSubdivisions))
+
+            const topLeft = { x: x, y: y }
+            const topRight = { x: x + cellW, y: y }
+            const bottomLeft = { x: x, y: y + cellH }
+            const bottomRight = { x: x + cellW, y: y + cellH }
+            const center = { x: x + cellW / 2, y: y + cellH / 2 }
+
+            stippleRegionRecursive(topLeft, topRight, center, 0, subdivDepth, brightness)
+            stippleRegionRecursive(topRight, bottomRight, center, 0, subdivDepth, brightness)
+            stippleRegionRecursive(bottomRight, bottomLeft, center, 0, subdivDepth, brightness)
+            stippleRegionRecursive(bottomLeft, topLeft, center, 0, subdivDepth, brightness)
+          }
+        }
+
+        // Render progressively every row
+        await new Promise(resolve => requestAnimationFrame(resolve))
+        renderDots()
+      }
+
+      console.log(`Generated ${dots.length} dots`)
+    } catch (error) {
+      console.error('Error during generation:', error)
+    } finally {
+      loadingIndicator.classList.add('hidden')
+      isGenerating = false
+    }
+  }
+
+  function renderDots() {
+    // Clear and redraw
+    outputCtx.save()
+    outputCtx.fillStyle = BACKGROUND_COLOR
+    outputCtx.fillRect(0, 0, outputCanvas.width, outputCanvas.height)
 
     // Draw all dots
     dots.forEach((dot) => {
@@ -193,89 +488,166 @@ import Layout from '../../layouts/Layout.astro'
       outputCtx.arc(dot.x, dot.y, dot.size, 0, Math.PI * 2)
       outputCtx.fill()
     })
+
+    outputCtx.restore()
   }
 
   function loadImage(file: File) {
     const reader = new FileReader()
+    
+    reader.onerror = () => {
+      console.error('Error reading file')
+      alert('Failed to read image file')
+    }
+
     reader.onload = (e) => {
       const img = new Image()
-      img.onload = () => {
-        sourceImage = img
-
-        // Draw source image
-        sourceCtx.fillStyle = '#ebebeb'
-        sourceCtx.fillRect(0, 0, sourceCanvas.width, sourceCanvas.height)
-
-        const scale = Math.min(sourceCanvas.width / img.width, sourceCanvas.height / img.height)
-        const w = img.width * scale
-        const h = img.height * scale
-        const x = (sourceCanvas.width - w) / 2
-        const y = (sourceCanvas.height - h) / 2
-
-        sourceCtx.drawImage(img, x, y, w, h)
-
-        // Get image data for brightness sampling
-        imageData = sourceCtx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height)
-
-        generate()
+      
+      img.onerror = () => {
+        console.error('Error loading image')
+        alert('Failed to load image')
       }
-      img.src = e.target?.result as string
+
+      img.onload = () => {
+        try {
+          sourceImage = img
+
+          // Draw source image
+          sourceCtx.save()
+          sourceCtx.fillStyle = BACKGROUND_COLOR
+          sourceCtx.fillRect(0, 0, sourceCanvas.width, sourceCanvas.height)
+
+          const scale = Math.min(sourceCanvas.width / img.width, sourceCanvas.height / img.height)
+          const w = img.width * scale
+          const h = img.height * scale
+          const x = (sourceCanvas.width - w) / 2
+          const y = (sourceCanvas.height - h) / 2
+
+          sourceCtx.drawImage(img, x, y, w, h)
+          sourceCtx.restore()
+
+          // Get image data for brightness sampling
+          imageData = sourceCtx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height)
+          buildBrightnessCache()
+
+          generateProgressively()
+        } catch (error) {
+          console.error('Error processing image:', error)
+          alert('Failed to process image')
+        }
+      }
+      
+      const result = e.target?.result
+      if (typeof result === 'string') {
+        img.src = result
+      }
     }
+    
     reader.readAsDataURL(file)
   }
 
+  function downloadImage() {
+    try {
+      const link = document.createElement('a')
+      link.download = 'stipple-dithering.png'
+      link.href = outputCanvas.toDataURL('image/png')
+      link.click()
+    } catch (error) {
+      console.error('Error downloading image:', error)
+      alert('Failed to download image')
+    }
+  }
+
+  // Debounce helper
+  function debounce<T extends (...args: any[]) => any>(func: T, delay: number) {
+    let timeoutId: ReturnType<typeof setTimeout>
+    return function(this: any, ...args: Parameters<T>) {
+      clearTimeout(timeoutId)
+      timeoutId = setTimeout(() => func.apply(this, args), delay)
+    }
+  }
+
+  const debouncedGenerate = debounce(() => {
+    if (sourceImage) {
+      cancelGeneration = true
+      setTimeout(() => generateProgressively(), 50)
+    }
+  }, DEBOUNCE_DELAY)
+
+  // Event listeners
   fileInput.addEventListener('change', (e) => {
-    const target = e.target as HTMLInputElement
-    if (target.files && target.files.length > 0) {
-      loadImage(target.files[0])
+    if (!(e.target instanceof HTMLInputElement)) return
+    if (e.target.files && e.target.files.length > 0) {
+      loadImage(e.target.files[0])
     }
   })
 
   gridSizeSlider.addEventListener('input', (e) => {
-    const target = e.target as HTMLInputElement
-    gridSize = parseInt(target.value)
+    if (!(e.target instanceof HTMLInputElement)) return
+    gridSize = parseInt(e.target.value)
     gridSizeValue.textContent = gridSize.toString()
-    if (sourceImage) generate()
+    debouncedGenerate()
   })
 
   subdivisionsSlider.addEventListener('input', (e) => {
-    const target = e.target as HTMLInputElement
-    maxSubdivisions = parseInt(target.value)
+    if (!(e.target instanceof HTMLInputElement)) return
+    maxSubdivisions = parseInt(e.target.value)
     subdivisionsValue.textContent = maxSubdivisions.toString()
-    if (sourceImage) generate()
+    debouncedGenerate()
   })
 
   dotSizeSlider.addEventListener('input', (e) => {
-    const target = e.target as HTMLInputElement
-    dotSize = parseFloat(target.value)
+    if (!(e.target instanceof HTMLInputElement)) return
+    dotSize = parseFloat(e.target.value)
     dotSizeValue.textContent = dotSize.toString()
-    if (sourceImage) generate()
+    debouncedGenerate()
   })
 
-  regenerateBtn.addEventListener('click', () => {
-    if (sourceImage) generate()
+  methodSelect.addEventListener('change', (e) => {
+    if (!(e.target instanceof HTMLSelectElement)) return
+    method = e.target.value as 'recursive' | 'delaunay'
+    debouncedGenerate()
   })
+
+  downloadBtn.addEventListener('click', downloadImage)
 
   // Load a default gradient to demonstrate
   function createDefaultImage() {
-    sourceCtx.fillStyle = '#ebebeb'
-    sourceCtx.fillRect(0, 0, sourceCanvas.width, sourceCanvas.height)
+    try {
+      sourceCtx.save()
+      sourceCtx.fillStyle = BACKGROUND_COLOR
+      sourceCtx.fillRect(0, 0, sourceCanvas.width, sourceCanvas.height)
 
-    // Create a circular gradient
-    const gradient = sourceCtx.createRadialGradient(sourceCanvas.width / 2, sourceCanvas.height / 2, 50, sourceCanvas.width / 2, sourceCanvas.height / 2, 200)
-    gradient.addColorStop(0, '#121212')
-    gradient.addColorStop(1, '#ebebeb')
+      // Create a circular gradient
+      const gradient = sourceCtx.createRadialGradient(
+        sourceCanvas.width / 2, 
+        sourceCanvas.height / 2, 
+        50, 
+        sourceCanvas.width / 2, 
+        sourceCanvas.height / 2, 
+        200
+      )
+      gradient.addColorStop(0, DOT_COLOR)
+      gradient.addColorStop(1, BACKGROUND_COLOR)
 
-    sourceCtx.fillStyle = gradient
-    sourceCtx.fillRect(0, 0, sourceCanvas.width, sourceCanvas.height)
+      sourceCtx.fillStyle = gradient
+      sourceCtx.fillRect(0, 0, sourceCanvas.width, sourceCanvas.height)
+      sourceCtx.restore()
 
-    imageData = sourceCtx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height)
+      imageData = sourceCtx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height)
+      buildBrightnessCache()
 
-    const img = new Image()
-    img.src = sourceCanvas.toDataURL()
-    img.onload = () => {
-      sourceImage = img
-      generate()
+      const img = new Image()
+      img.onerror = () => {
+        console.error('Error loading default image')
+      }
+      img.onload = () => {
+        sourceImage = img
+        generateProgressively()
+      }
+      img.src = sourceCanvas.toDataURL()
+    } catch (error) {
+      console.error('Error creating default image:', error)
     }
   }
 
@@ -355,6 +727,17 @@ import Layout from '../../layouts/Layout.astro'
     width: 150px;
   }
 
+  select {
+    background: var(--theme-bg);
+    color: var(--theme-text);
+    border: 1px solid var(--theme-border);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    cursor: pointer;
+  }
+
   .info {
     color: var(--theme-text-dim);
     font-size: 13px;
@@ -374,5 +757,19 @@ import Layout from '../../layouts/Layout.astro'
 
   .file-label:hover {
     background: var(--theme-accent-light);
+  }
+
+  .loading-indicator {
+    color: var(--theme-accent);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 16px;
+    background: var(--theme-bg);
+    border: 1px solid var(--theme-border);
+    border-radius: 6px;
+  }
+
+  .loading-indicator.hidden {
+    display: none;
   }
 </style>
