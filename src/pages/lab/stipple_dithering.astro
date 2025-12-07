@@ -697,10 +697,12 @@ import Layout from '../../layouts/Layout.astro'
 
       if (darkness < darknessThreshold) continue
 
-      // Darker areas can have much tighter spacing for higher density
-      const minRadiusForPoint = calculateMinRadiusForDarkness(darkness)
+      // Very dark areas (>0.8) allow overlapping for solid fill
+      // Medium-dark areas use tight spacing
+      // Light areas use normal spacing
+      const minRadiusForPoint = darkness > 0.8 ? 0 : calculateMinRadiusForDarkness(darkness)
 
-      if (isTooClose(x, y, minRadiusForPoint, grid)) continue
+      if (minRadiusForPoint > 0 && isTooClose(x, y, minRadiusForPoint, grid)) continue
 
       // Very dark areas get pure black, others use scaled opacity
       const opacity = darkness > 0.8 ? 1.0 : Math.pow(darkness, 0.6)
@@ -712,7 +714,9 @@ import Layout from '../../layouts/Layout.astro'
       }
 
       dots.push(dot)
-      addToGrid(dot, grid)
+      if (minRadiusForPoint > 0) {
+        addToGrid(dot, grid)
+      }
     }
   }
 
