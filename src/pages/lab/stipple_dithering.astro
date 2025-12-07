@@ -268,10 +268,10 @@ import Layout from '../../layouts/Layout.astro'
 
   function calculateMinRadiusForDarkness(darkness: number): number {
     const baseRadius = calculateMinRadius()
-    // Much tighter spacing in darker areas (0.3x to 1.0x of base radius)
-    // darkness 1.0 → 0.3x (very tight), darkness 0.0 → 1.0x (normal)
-    const darknessMultiplier = 1.0 - (darkness * 0.7)
-    return Math.max(0.5, baseRadius * darknessMultiplier)
+    // Extreme spacing reduction in dark areas (0.15x to 1.0x of base radius)
+    // darkness 1.0 → 0.15x (extremely tight), darkness 0.0 → 1.0x (normal)
+    const darknessMultiplier = 1.0 - (darkness * 0.85)
+    return Math.max(0.3, baseRadius * darknessMultiplier)
   }
 
   function calculateDotSize(darkness: number): number {
@@ -678,8 +678,8 @@ import Layout from '../../layouts/Layout.astro'
 
   // METHOD 6: Organic Random (Dart Throwing + Poisson Disk)
   function organicRandomSampling(w: number, h: number) {
-    const targetDots = density * 20
-    const maxAttempts = targetDots * 30
+    const targetDots = density * 50  // Significantly increased for better coverage
+    const maxAttempts = targetDots * 50
 
     const baseMinRadius = calculateMinRadius()
     const grid = createSpatialGrid(w, h, baseMinRadius)
@@ -697,21 +697,18 @@ import Layout from '../../layouts/Layout.astro'
 
       if (darkness < darknessThreshold) continue
 
-      // Weighted acceptance: darker areas more likely to accept
-      const acceptanceProbability = Math.pow(darkness, 0.5)
-      if (Math.random() > acceptanceProbability) continue
-
       // Darker areas can have much tighter spacing for higher density
       const minRadiusForPoint = calculateMinRadiusForDarkness(darkness)
 
       if (isTooClose(x, y, minRadiusForPoint, grid)) continue
 
-      const opacity = Math.pow(darkness, 0.8)
+      // Very dark areas get pure black, others use scaled opacity
+      const opacity = darkness > 0.8 ? 1.0 : Math.pow(darkness, 0.6)
       const dot = {
         x: x,
         y: y,
         opacity: opacity,
-        size: dotSize,  // Constant size - only density varies
+        size: dotSize,
       }
 
       dots.push(dot)
