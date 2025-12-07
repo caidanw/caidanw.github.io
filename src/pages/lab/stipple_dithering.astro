@@ -24,6 +24,11 @@ import Layout from '../../layouts/Layout.astro'
         <span id="dotSizeValue">1.2</span>
       </label>
       <label>
+        Darkness Threshold:
+        <input type="range" id="darknessThreshold" min="0.05" max="0.5" value="0.15" step="0.05" />
+        <span id="darknessThresholdValue">0.15</span>
+      </label>
+      <label>
         Method:
         <select id="method">
           <option value="quadtree">Quadtree Subdivision</option>
@@ -31,6 +36,7 @@ import Layout from '../../layouts/Layout.astro'
           <option value="voronoi">Voronoi</option>
           <option value="hybrid">Hybrid Subdivision</option>
           <option value="grid">Grid-Based</option>
+          <option value="organic">Organic Random</option>
         </select>
       </label>
     </div>
@@ -39,7 +45,7 @@ import Layout from '../../layouts/Layout.astro'
 
     <div id="imageSizeInfo" class="image-size-info hidden"></div>
 
-    <div class="info">Adaptive stippling with 5 different algorithms — switch methods to compare approaches</div>
+    <div class="info">Adaptive stippling with 6 different algorithms — switch methods to compare approaches</div>
   </div>
 </Layout>
 
@@ -83,6 +89,8 @@ import Layout from '../../layouts/Layout.astro'
   const densityValue = getSpan('densityValue')
   const dotSizeSlider = getInput('dotSize')
   const dotSizeValue = getSpan('dotSizeValue')
+  const darknessThresholdSlider = getInput('darknessThreshold')
+  const darknessThresholdValue = getSpan('darknessThresholdValue')
   const methodSelect = getSelect('method')
   const downloadBtn = getButton('download')
   const loadingIndicator = getDiv('loadingIndicator')
@@ -97,7 +105,8 @@ import Layout from '../../layouts/Layout.astro'
 
   let density = parseInt(densitySlider.value)
   let dotSize = parseFloat(dotSizeSlider.value)
-  let method: 'quadtree' | 'random' | 'voronoi' | 'hybrid' | 'grid' = 'quadtree'
+  let darknessThreshold = parseFloat(darknessThresholdSlider.value)
+  let method: 'quadtree' | 'random' | 'voronoi' | 'hybrid' | 'grid' | 'organic' = 'quadtree'
   let sourceImage: HTMLImageElement | null = null
   let imageData: ImageData | null = null
   let brightnessCache: Float32Array | null = null
@@ -116,6 +125,13 @@ import Layout from '../../layouts/Layout.astro'
     p1: Point
     p2: Point
     p3: Point
+  }
+
+  interface SpatialGrid {
+    cellSize: number
+    cols: number
+    rows: number
+    cells: Map<string, Array<{ x: number; y: number; size: number }>>
   }
 
   // Calculate luminance using perceptual formula
@@ -193,6 +209,67 @@ import Layout from '../../layouts/Layout.astro'
   // Calculate distance between two points
   function distance(p1: Point, p2: Point): number {
     return Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2)
+  }
+
+  // Spatial grid helpers for Organic Random
+  function createSpatialGrid(w: number, h: number, minRadius: number): SpatialGrid {
+    const cellSize = minRadius * 2
+    const cols = Math.ceil(w / cellSize)
+    const rows = Math.ceil(h / cellSize)
+
+    return {
+      cellSize,
+      cols,
+      rows,
+      cells: new Map(),
+    }
+  }
+
+  function getCellKey(x: number, y: number, grid: SpatialGrid): string {
+    const col = Math.floor(x / grid.cellSize)
+    const row = Math.floor(y / grid.cellSize)
+    return `${col},${row}`
+  }
+
+  function addToGrid(dot: { x: number; y: number; size: number }, grid: SpatialGrid) {
+    const key = getCellKey(dot.x, dot.y, grid)
+    if (!grid.cells.has(key)) {
+      grid.cells.set(key, [])
+    }
+    grid.cells.get(key)!.push(dot)
+  }
+
+  function isTooClose(x: number, y: number, radius: number, grid: SpatialGrid): boolean {
+    const col = Math.floor(x / grid.cellSize)
+    const row = Math.floor(y / grid.cellSize)
+
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        const key = `${col + dx},${row + dy}`
+        const cellDots = grid.cells.get(key)
+
+        if (cellDots) {
+          for (const dot of cellDots) {
+            const dist = Math.sqrt((x - dot.x) ** 2 + (y - dot.y) ** 2)
+            const combinedRadius = radius + dot.size * 1.5
+            if (dist < combinedRadius) return true
+          }
+        }
+      }
+    }
+
+    return false
+  }
+
+  function calculateMinRadius(): number {
+    const baseRadius = 10 - (density / 100) * 8
+    return Math.max(2, baseRadius)
+  }
+
+  function calculateDotSize(darkness: number): number {
+    const baseSize = dotSize
+    const multiplier = 0.4 + darkness * 1.3
+    return baseSize * multiplier
   }
 
   // Recursive stippling within a bounded region
@@ -591,6 +668,45 @@ import Layout from '../../layouts/Layout.astro'
     gridCellRecursive(x + hw, y + hh, hw, hh, brightness, depth + 1, maxDepth)
   }
 
+  // METHOD 6: Organic Random (Dart Throwing + Poisson Disk)
+  function organicRandomSampling(w: number, h: number) {
+    const targetDots = density * 10
+    const maxAttempts = targetDots * 20
+
+    const minRadius = calculateMinRadius()
+    const grid = createSpatialGrid(w, h, minRadius)
+
+    let attempts = 0
+    while (dots.length < targetDots && attempts < maxAttempts) {
+      if (cancelGeneration) return
+      attempts++
+
+      const x = Math.random() * w
+      const y = Math.random() * h
+
+      const brightness = getBrightness(x, y)
+      const darkness = 1 - brightness
+
+      if (darkness < darknessThreshold) continue
+
+      const dotSizeForPoint = calculateDotSize(darkness)
+      const effectiveRadius = Math.max(minRadius, dotSizeForPoint * 1.5)
+
+      if (isTooClose(x, y, effectiveRadius, grid)) continue
+
+      const opacity = Math.pow(darkness, 0.8)
+      const dot = {
+        x: x,
+        y: y,
+        opacity: opacity,
+        size: dotSizeForPoint,
+      }
+
+      dots.push(dot)
+      addToGrid(dot, grid)
+    }
+  }
+
   async function generateProgressively() {
     if (!sourceImage || isGenerating) return
 
@@ -625,6 +741,9 @@ import Layout from '../../layouts/Layout.astro'
           break
         case 'grid':
           gridBasedStippling(w, h)
+          break
+        case 'organic':
+          organicRandomSampling(w, h)
           break
       }
 
@@ -773,9 +892,16 @@ import Layout from '../../layouts/Layout.astro'
     debouncedGenerate()
   })
 
+  darknessThresholdSlider.addEventListener('input', (e) => {
+    if (!(e.target instanceof HTMLInputElement)) return
+    darknessThreshold = parseFloat(e.target.value)
+    darknessThresholdValue.textContent = darknessThreshold.toFixed(2)
+    debouncedGenerate()
+  })
+
   methodSelect.addEventListener('change', (e) => {
     if (!(e.target instanceof HTMLSelectElement)) return
-    method = e.target.value as 'quadtree' | 'random' | 'voronoi' | 'hybrid' | 'grid'
+    method = e.target.value as 'quadtree' | 'random' | 'voronoi' | 'hybrid' | 'grid' | 'organic'
     debouncedGenerate()
   })
 
