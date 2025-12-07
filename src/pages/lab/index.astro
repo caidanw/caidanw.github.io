@@ -4,7 +4,6 @@ import LabSign from '../../components/LabSign.astro'
 import CautionTape from '../../components/CautionTape.astro'
 
 // Get all .astro files in the lab directory (excluding index.astro)
-console.log(import.meta.glob('./*.astro')['./stipple_dithering.astro'])
 const labPages = Object.keys(import.meta.glob('./*.astro'))
   .filter((path) => !path.includes('index.astro'))
   .map((path) => path.replace('./', '').split('.')[0])
