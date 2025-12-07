@@ -266,6 +266,13 @@ import Layout from '../../layouts/Layout.astro'
     return Math.max(2, baseRadius)
   }
 
+  function calculateMinRadiusForDarkness(darkness: number): number {
+    const baseRadius = calculateMinRadius()
+    // Darker areas can have tighter spacing (0.5x to 1.0x of base radius)
+    const darknessMultiplier = 1.0 - (darkness * 0.5)
+    return Math.max(1, baseRadius * darknessMultiplier)
+  }
+
   function calculateDotSize(darkness: number): number {
     const baseSize = dotSize
     const multiplier = 0.4 + darkness * 1.3
@@ -670,11 +677,11 @@ import Layout from '../../layouts/Layout.astro'
 
   // METHOD 6: Organic Random (Dart Throwing + Poisson Disk)
   function organicRandomSampling(w: number, h: number) {
-    const targetDots = density * 10
-    const maxAttempts = targetDots * 20
+    const targetDots = density * 20  // Increased from 10 to 20
+    const maxAttempts = targetDots * 30  // Increased attempts
 
-    const minRadius = calculateMinRadius()
-    const grid = createSpatialGrid(w, h, minRadius)
+    const baseMinRadius = calculateMinRadius()
+    const grid = createSpatialGrid(w, h, baseMinRadius)
 
     let attempts = 0
     while (dots.length < targetDots && attempts < maxAttempts) {
@@ -689,8 +696,16 @@ import Layout from '../../layouts/Layout.astro'
 
       if (darkness < darknessThreshold) continue
 
+      // Weighted acceptance: darker areas more likely to accept
+      // This biases dot placement toward darker regions
+      const acceptanceProbability = Math.pow(darkness, 0.5)  // Square root gives good balance
+      if (Math.random() > acceptanceProbability) continue
+
       const dotSizeForPoint = calculateDotSize(darkness)
-      const effectiveRadius = Math.max(minRadius, dotSizeForPoint * 1.5)
+      
+      // Darker areas can have tighter spacing
+      const minRadiusForPoint = calculateMinRadiusForDarkness(darkness)
+      const effectiveRadius = Math.max(minRadiusForPoint, dotSizeForPoint * 1.2)
 
       if (isTooClose(x, y, effectiveRadius, grid)) continue
 
