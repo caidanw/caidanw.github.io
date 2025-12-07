@@ -15,7 +15,7 @@ import Layout from '../../layouts/Layout.astro'
       <button id="download">Download</button>
       <label>
         Density:
-        <input type="range" id="density" min="1" max="100" value="50" step="1" />
+        <input type="range" id="density" min="1" max="1000" value="500" step="1" />
         <span id="densityValue">50</span>
       </label>
       <label>
@@ -769,7 +769,7 @@ import Layout from '../../layouts/Layout.astro'
   dotSizeSlider.addEventListener('input', (e) => {
     if (!(e.target instanceof HTMLInputElement)) return
     dotSize = parseFloat(e.target.value)
-    dotSizeValue.textContent = dotSize.toString()
+    dotSizeValue.textContent = dotSize.toFixed(1)
     debouncedGenerate()
   })
 
