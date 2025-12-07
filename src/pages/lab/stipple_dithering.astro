@@ -16,14 +16,14 @@ import Layout from '../../layouts/Layout.astro'
       </label>
       <button id="download">Download</button>
       <label>
-        Grid Size:
-        <input type="range" id="gridSize" min="8" max="64" value="24" step="4" />
-        <span id="gridSizeValue">24</span>
+        Dot Density:
+        <input type="range" id="dotDensity" min="5" max="50" value="20" step="5" />
+        <span id="dotDensityValue">20</span>
       </label>
       <label>
-        Subdivisions:
-        <input type="range" id="subdivisions" min="2" max="8" value="5" step="1" />
-        <span id="subdivisionsValue">5</span>
+        Detail Level:
+        <input type="range" id="detailLevel" min="1" max="8" value="4" step="1" />
+        <span id="detailLevelValue">4</span>
       </label>
       <label>
         Dot Size:
@@ -83,10 +83,10 @@ import Layout from '../../layouts/Layout.astro'
   const sourceCanvas = getCanvas('sourceCanvas')
   const outputCanvas = getCanvas('outputCanvas')
   const fileInput = getInput('fileInput')
-  const gridSizeSlider = getInput('gridSize')
-  const gridSizeValue = getSpan('gridSizeValue')
-  const subdivisionsSlider = getInput('subdivisions')
-  const subdivisionsValue = getSpan('subdivisionsValue')
+  const dotDensitySlider = getInput('dotDensity')
+  const dotDensityValue = getSpan('dotDensityValue')
+  const detailLevelSlider = getInput('detailLevel')
+  const detailLevelValue = getSpan('detailLevelValue')
   const dotSizeSlider = getInput('dotSize')
   const dotSizeValue = getSpan('dotSizeValue')
   const methodSelect = getSelect('method')
@@ -101,8 +101,8 @@ import Layout from '../../layouts/Layout.astro'
     throw new Error('Could not get canvas contexts')
   }
 
-  let gridSize = parseInt(gridSizeSlider.value)
-  let maxSubdivisions = parseInt(subdivisionsSlider.value)
+  let dotDensity = parseInt(dotDensitySlider.value)
+  let detailLevel = parseInt(detailLevelSlider.value)
   let dotSize = parseFloat(dotSizeSlider.value)
   let method: 'recursive' | 'delaunay' = 'recursive'
   let sourceImage: HTMLImageElement | null = null
@@ -342,7 +342,7 @@ import Layout from '../../layouts/Layout.astro'
 
   function generatePointsForRegion(x: number, y: number, w: number, h: number, brightness: number): Point[] {
     const darkness = 1 - brightness
-    const numPoints = Math.max(1, Math.round(darkness * maxSubdivisions * 5))
+    const numPoints = Math.max(1, Math.round(darkness * detailLevel * 5))
     const points: Point[] = []
 
     for (let i = 0; i < numPoints; i++) {
@@ -396,14 +396,14 @@ import Layout from '../../layouts/Layout.astro'
 
       const w = outputCanvas.width
       const h = outputCanvas.height
-      const cellW = w / gridSize
-      const cellH = h / gridSize
+      const cellW = w / dotDensity
+      const cellH = h / dotDensity
 
       // Process grid cells progressively
-      for (let row = 0; row < gridSize; row++) {
+      for (let row = 0; row < dotDensity; row++) {
         if (cancelGeneration) break
 
-        for (let col = 0; col < gridSize; col++) {
+        for (let col = 0; col < dotDensity; col++) {
           if (cancelGeneration) break
 
           const x = col * cellW
@@ -416,7 +416,7 @@ import Layout from '../../layouts/Layout.astro'
             stippleRegionDelaunay(x, y, cellW, cellH, brightness)
           } else {
             // Use Math.round instead of Math.floor to prevent banding
-            const subdivDepth = Math.max(1, Math.round(darkness * maxSubdivisions))
+            const subdivDepth = Math.max(1, Math.round(darkness * detailLevel))
 
             const topLeft = { x: x, y: y }
             const topRight = { x: x + cellW, y: y }
@@ -565,17 +565,17 @@ import Layout from '../../layouts/Layout.astro'
     }
   })
 
-  gridSizeSlider.addEventListener('input', (e) => {
+  dotDensitySlider.addEventListener('input', (e) => {
     if (!(e.target instanceof HTMLInputElement)) return
-    gridSize = parseInt(e.target.value)
-    gridSizeValue.textContent = gridSize.toString()
+    dotDensity = parseInt(e.target.value)
+    dotDensityValue.textContent = dotDensity.toString()
     debouncedGenerate()
   })
 
-  subdivisionsSlider.addEventListener('input', (e) => {
+  detailLevelSlider.addEventListener('input', (e) => {
     if (!(e.target instanceof HTMLInputElement)) return
-    maxSubdivisions = parseInt(e.target.value)
-    subdivisionsValue.textContent = maxSubdivisions.toString()
+    detailLevel = parseInt(e.target.value)
+    detailLevelValue.textContent = detailLevel.toString()
     debouncedGenerate()
   })
 
