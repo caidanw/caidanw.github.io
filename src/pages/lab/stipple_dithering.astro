@@ -251,8 +251,8 @@ import Layout from '../../layouts/Layout.astro'
         if (cellDots) {
           for (const dot of cellDots) {
             const dist = Math.sqrt((x - dot.x) ** 2 + (y - dot.y) ** 2)
-            const combinedRadius = radius + dot.size * 1.5
-            if (dist < combinedRadius) return true
+            // Since all dots have uniform size, just check against radius
+            if (dist < radius) return true
           }
         }
       }
@@ -268,9 +268,10 @@ import Layout from '../../layouts/Layout.astro'
 
   function calculateMinRadiusForDarkness(darkness: number): number {
     const baseRadius = calculateMinRadius()
-    // Darker areas can have tighter spacing (0.5x to 1.0x of base radius)
-    const darknessMultiplier = 1.0 - (darkness * 0.5)
-    return Math.max(1, baseRadius * darknessMultiplier)
+    // Much tighter spacing in darker areas (0.3x to 1.0x of base radius)
+    // darkness 1.0 → 0.3x (very tight), darkness 0.0 → 1.0x (normal)
+    const darknessMultiplier = 1.0 - (darkness * 0.7)
+    return Math.max(0.5, baseRadius * darknessMultiplier)
   }
 
   function calculateDotSize(darkness: number): number {
@@ -677,8 +678,8 @@ import Layout from '../../layouts/Layout.astro'
 
   // METHOD 6: Organic Random (Dart Throwing + Poisson Disk)
   function organicRandomSampling(w: number, h: number) {
-    const targetDots = density * 20  // Increased from 10 to 20
-    const maxAttempts = targetDots * 30  // Increased attempts
+    const targetDots = density * 20
+    const maxAttempts = targetDots * 30
 
     const baseMinRadius = calculateMinRadius()
     const grid = createSpatialGrid(w, h, baseMinRadius)
@@ -697,24 +698,20 @@ import Layout from '../../layouts/Layout.astro'
       if (darkness < darknessThreshold) continue
 
       // Weighted acceptance: darker areas more likely to accept
-      // This biases dot placement toward darker regions
-      const acceptanceProbability = Math.pow(darkness, 0.5)  // Square root gives good balance
+      const acceptanceProbability = Math.pow(darkness, 0.5)
       if (Math.random() > acceptanceProbability) continue
 
-      const dotSizeForPoint = calculateDotSize(darkness)
-      
-      // Darker areas can have tighter spacing
+      // Darker areas can have much tighter spacing for higher density
       const minRadiusForPoint = calculateMinRadiusForDarkness(darkness)
-      const effectiveRadius = Math.max(minRadiusForPoint, dotSizeForPoint * 1.2)
 
-      if (isTooClose(x, y, effectiveRadius, grid)) continue
+      if (isTooClose(x, y, minRadiusForPoint, grid)) continue
 
       const opacity = Math.pow(darkness, 0.8)
       const dot = {
         x: x,
         y: y,
         opacity: opacity,
-        size: dotSizeForPoint,
+        size: dotSize,  // Constant size - only density varies
       }
 
       dots.push(dot)
