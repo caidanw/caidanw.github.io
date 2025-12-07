@@ -5,8 +5,8 @@ import Layout from '../../layouts/Layout.astro'
 <Layout title="Stipple Dithering">
   <div class="container">
     <div class="canvases">
-      <canvas id="sourceCanvas" width="800" height="800"></canvas>
-      <canvas id="outputCanvas" width="800" height="800"></canvas>
+      <canvas id="sourceCanvas" width="400" height="400"></canvas>
+      <canvas id="outputCanvas" width="400" height="400"></canvas>
     </div>
 
     <div class="controls">
@@ -41,6 +41,8 @@ import Layout from '../../layouts/Layout.astro'
 
     <div id="loadingIndicator" class="loading-indicator hidden">Generating...</div>
 
+    <div id="imageSizeInfo" class="image-size-info hidden"></div>
+
     <div class="info">Region-based triangulation stippling — segments image by brightness, then stipples each region</div>
   </div>
 </Layout>
@@ -55,6 +57,7 @@ import Layout from '../../layouts/Layout.astro'
   const DEFAULT_BRIGHTNESS = 0.5
   const DEBOUNCE_DELAY = 150
   const BRIGHTNESS_SAMPLE_STEP = 4
+  const MAX_CANVAS_DIMENSION = 600 // Max width or height for performance
 
   // Type guard helpers
   function isHTMLCanvasElement(el: HTMLElement | null): el is HTMLCanvasElement {
@@ -90,6 +93,7 @@ import Layout from '../../layouts/Layout.astro'
   const methodSelectEl = document.getElementById('method')
   const downloadBtnEl = document.getElementById('download')
   const loadingIndicatorEl = document.getElementById('loadingIndicator')
+  const imageSizeInfoEl = document.getElementById('imageSizeInfo')
 
   if (!isHTMLCanvasElement(sourceCanvasEl) || !isHTMLCanvasElement(outputCanvasEl)) {
     throw new Error('Canvas elements not found')
@@ -111,6 +115,9 @@ import Layout from '../../layouts/Layout.astro'
   if (!loadingIndicatorEl) {
     throw new Error('Loading indicator not found')
   }
+  if (!imageSizeInfoEl) {
+    throw new Error('Image size info element not found')
+  }
 
   const sourceCanvas = sourceCanvasEl
   const outputCanvas = outputCanvasEl
@@ -124,6 +131,7 @@ import Layout from '../../layouts/Layout.astro'
   const methodSelect = methodSelectEl
   const downloadBtn = downloadBtnEl
   const loadingIndicator = loadingIndicatorEl
+  const imageSizeInfo = imageSizeInfoEl
 
   const sourceCtx = sourceCanvas.getContext('2d')
   const outputCtx = outputCanvas.getContext('2d')
@@ -512,18 +520,31 @@ import Layout from '../../layouts/Layout.astro'
         try {
           sourceImage = img
 
+          // Calculate optimal canvas size
+          const scale = Math.min(MAX_CANVAS_DIMENSION / img.width, MAX_CANVAS_DIMENSION / img.height, 1)
+          const canvasWidth = Math.floor(img.width * scale)
+          const canvasHeight = Math.floor(img.height * scale)
+
+          // Show image size info
+          if (scale < 1) {
+            imageSizeInfo.textContent = `Image downscaled from ${img.width}×${img.height} to ${canvasWidth}×${canvasHeight} for performance`
+            imageSizeInfo.classList.remove('hidden')
+          } else {
+            imageSizeInfo.textContent = `Processing at ${canvasWidth}×${canvasHeight}`
+            imageSizeInfo.classList.remove('hidden')
+          }
+
+          // Resize both canvases to match image aspect ratio
+          sourceCanvas.width = canvasWidth
+          sourceCanvas.height = canvasHeight
+          outputCanvas.width = canvasWidth
+          outputCanvas.height = canvasHeight
+
           // Draw source image
           sourceCtx.save()
           sourceCtx.fillStyle = BACKGROUND_COLOR
           sourceCtx.fillRect(0, 0, sourceCanvas.width, sourceCanvas.height)
-
-          const scale = Math.min(sourceCanvas.width / img.width, sourceCanvas.height / img.height)
-          const w = img.width * scale
-          const h = img.height * scale
-          const x = (sourceCanvas.width - w) / 2
-          const y = (sourceCanvas.height - h) / 2
-
-          sourceCtx.drawImage(img, x, y, w, h)
+          sourceCtx.drawImage(img, 0, 0, canvasWidth, canvasHeight)
           sourceCtx.restore()
 
           // Get image data for brightness sampling
@@ -614,6 +635,13 @@ import Layout from '../../layouts/Layout.astro'
   // Load a default gradient to demonstrate
   function createDefaultImage() {
     try {
+      // Set initial canvas size
+      const initialSize = 400
+      sourceCanvas.width = initialSize
+      sourceCanvas.height = initialSize
+      outputCanvas.width = initialSize
+      outputCanvas.height = initialSize
+
       sourceCtx.save()
       sourceCtx.fillStyle = BACKGROUND_COLOR
       sourceCtx.fillRect(0, 0, sourceCanvas.width, sourceCanvas.height)
@@ -770,6 +798,20 @@ import Layout from '../../layouts/Layout.astro'
   }
 
   .loading-indicator.hidden {
+    display: none;
+  }
+
+  .image-size-info {
+    color: var(--theme-text-subtle);
+    font-size: 13px;
+    text-align: center;
+    padding: 4px 12px;
+    background: var(--theme-bg);
+    border: 1px solid var(--theme-border);
+    border-radius: 4px;
+  }
+
+  .image-size-info.hidden {
     display: none;
   }
 </style>
