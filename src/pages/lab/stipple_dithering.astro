@@ -60,45 +60,24 @@ import Layout from '../../layouts/Layout.astro'
   const MAX_CANVAS_DIMENSION = 600 // Max width or height for performance
 
   // Generic helper to get and type-check DOM elements
-  function getElement<T extends HTMLElement>(
-    id: string,
-    type: new () => T,
-    typeName: string
-  ): T {
+  function getElement<T extends HTMLElement>(id: string, type: new () => T): T {
     const element = document.getElementById(id)
     if (!element) {
       throw new Error(`Element with id '${id}' not found`)
     }
     if (!(element instanceof type)) {
-      throw new Error(`Element '${id}' is not a ${typeName}`)
+      throw new Error(`Element '${id}' is not a ${type.name}`)
     }
     return element
   }
 
   // Convenience functions for common element types
-  function getCanvas(id: string): HTMLCanvasElement {
-    return getElement(id, HTMLCanvasElement, 'HTMLCanvasElement')
-  }
-
-  function getInput(id: string): HTMLInputElement {
-    return getElement(id, HTMLInputElement, 'HTMLInputElement')
-  }
-
-  function getButton(id: string): HTMLButtonElement {
-    return getElement(id, HTMLButtonElement, 'HTMLButtonElement')
-  }
-
-  function getSelect(id: string): HTMLSelectElement {
-    return getElement(id, HTMLSelectElement, 'HTMLSelectElement')
-  }
-
-  function getSpan(id: string): HTMLSpanElement {
-    return getElement(id, HTMLSpanElement, 'HTMLSpanElement')
-  }
-
-  function getDiv(id: string): HTMLDivElement {
-    return getElement(id, HTMLDivElement, 'HTMLDivElement')
-  }
+  const getCanvas = (id: string) => getElement(id, HTMLCanvasElement)
+  const getInput = (id: string) => getElement(id, HTMLInputElement)
+  const getButton = (id: string) => getElement(id, HTMLButtonElement)
+  const getSelect = (id: string) => getElement(id, HTMLSelectElement)
+  const getSpan = (id: string) => getElement(id, HTMLSpanElement)
+  const getDiv = (id: string) => getElement(id, HTMLDivElement)
 
   // Get all DOM elements with automatic type checking
   const sourceCanvas = getCanvas('sourceCanvas')
@@ -164,11 +143,11 @@ import Layout from '../../layouts/Layout.astro'
         const px = Math.min(x * BRIGHTNESS_SAMPLE_STEP, sourceCanvas.width - 1)
         const py = Math.min(y * BRIGHTNESS_SAMPLE_STEP, sourceCanvas.height - 1)
         const index = (py * sourceCanvas.width + px) * 4
-        
+
         const r = imageData.data[index]
         const g = imageData.data[index + 1]
         const b = imageData.data[index + 2]
-        
+
         brightnessCache[y * cacheWidth + x] = calculateLuminance(r, g, b)
       }
     }
@@ -224,14 +203,7 @@ import Layout from '../../layouts/Layout.astro'
   }
 
   // Recursive stippling within a bounded region
-  function stippleRegionRecursive(
-    p1: Point, 
-    p2: Point, 
-    p3: Point, 
-    depth: number, 
-    maxDepth: number, 
-    regionBrightness: number
-  ) {
+  function stippleRegionRecursive(p1: Point, p2: Point, p3: Point, depth: number, maxDepth: number, regionBrightness: number) {
     // Hard limit to prevent stack overflow
     if (depth >= HARD_MAX_RECURSION_DEPTH) return
 
@@ -299,11 +271,11 @@ import Layout from '../../layouts/Layout.astro'
     if (points.length < 3) return []
 
     // Create super triangle
-    const minX = Math.min(...points.map(p => p.x))
-    const minY = Math.min(...points.map(p => p.y))
-    const maxX = Math.max(...points.map(p => p.x))
-    const maxY = Math.max(...points.map(p => p.y))
-    
+    const minX = Math.min(...points.map((p) => p.x))
+    const minY = Math.min(...points.map((p) => p.y))
+    const maxX = Math.max(...points.map((p) => p.x))
+    const maxY = Math.max(...points.map((p) => p.y))
+
     const dx = maxX - minX
     const dy = maxY - minY
     const deltaMax = Math.max(dx, dy) * 2
@@ -311,7 +283,7 @@ import Layout from '../../layouts/Layout.astro'
     const superTriangle: Triangle = {
       p1: { x: minX - deltaMax, y: minY - 1 },
       p2: { x: minX + deltaMax * 2, y: minY - 1 },
-      p3: { x: minX + dx / 2, y: maxY + deltaMax }
+      p3: { x: minX + dx / 2, y: maxY + deltaMax },
     }
 
     let triangles: Triangle[] = [superTriangle]
@@ -319,7 +291,7 @@ import Layout from '../../layouts/Layout.astro'
     // Add each point
     for (const point of points) {
       const badTriangles: Triangle[] = []
-      
+
       // Find bad triangles
       for (const triangle of triangles) {
         if (pointInCircumcircle(point, triangle)) {
@@ -339,12 +311,12 @@ import Layout from '../../layouts/Layout.astro'
       const uniqueEdges = edges.filter((edge, i) => {
         return !edges.some((otherEdge, j) => {
           if (i === j) return false
-          return (edge[0] === otherEdge[1] && edge[1] === otherEdge[0])
+          return edge[0] === otherEdge[1] && edge[1] === otherEdge[0]
         })
       })
 
       // Remove bad triangles
-      triangles = triangles.filter(t => !badTriangles.includes(t))
+      triangles = triangles.filter((t) => !badTriangles.includes(t))
 
       // Add new triangles
       for (const edge of uniqueEdges) {
@@ -353,10 +325,18 @@ import Layout from '../../layouts/Layout.astro'
     }
 
     // Remove triangles that share vertices with super triangle
-    return triangles.filter(t => {
-      return t.p1 !== superTriangle.p1 && t.p1 !== superTriangle.p2 && t.p1 !== superTriangle.p3 &&
-             t.p2 !== superTriangle.p1 && t.p2 !== superTriangle.p2 && t.p2 !== superTriangle.p3 &&
-             t.p3 !== superTriangle.p1 && t.p3 !== superTriangle.p2 && t.p3 !== superTriangle.p3
+    return triangles.filter((t) => {
+      return (
+        t.p1 !== superTriangle.p1 &&
+        t.p1 !== superTriangle.p2 &&
+        t.p1 !== superTriangle.p3 &&
+        t.p2 !== superTriangle.p1 &&
+        t.p2 !== superTriangle.p2 &&
+        t.p2 !== superTriangle.p3 &&
+        t.p3 !== superTriangle.p1 &&
+        t.p3 !== superTriangle.p2 &&
+        t.p3 !== superTriangle.p3
+      )
     })
   }
 
@@ -368,7 +348,7 @@ import Layout from '../../layouts/Layout.astro'
     for (let i = 0; i < numPoints; i++) {
       points.push({
         x: x + Math.random() * w,
-        y: y + Math.random() * h
+        y: y + Math.random() * h,
       })
     }
 
@@ -384,7 +364,7 @@ import Layout from '../../layouts/Layout.astro'
 
     if (darkness > MIN_DARKNESS_THRESHOLD) {
       const opacity = Math.pow(darkness, 0.8)
-      
+
       for (const tri of triangles) {
         const center = centroid(tri.p1, tri.p2, tri.p3)
         dots.push({
@@ -452,7 +432,7 @@ import Layout from '../../layouts/Layout.astro'
         }
 
         // Render progressively every row
-        await new Promise(resolve => requestAnimationFrame(resolve))
+        await new Promise((resolve) => requestAnimationFrame(resolve))
         renderDots()
       }
 
@@ -484,7 +464,7 @@ import Layout from '../../layouts/Layout.astro'
 
   function loadImage(file: File) {
     const reader = new FileReader()
-    
+
     reader.onerror = () => {
       console.error('Error reading file')
       alert('Failed to read image file')
@@ -492,7 +472,7 @@ import Layout from '../../layouts/Layout.astro'
 
     reader.onload = (e) => {
       const img = new Image()
-      
+
       img.onerror = () => {
         console.error('Error loading image')
         alert('Failed to load image')
@@ -539,13 +519,13 @@ import Layout from '../../layouts/Layout.astro'
           alert('Failed to process image')
         }
       }
-      
+
       const result = e.target?.result
       if (typeof result === 'string') {
         img.src = result
       }
     }
-    
+
     reader.readAsDataURL(file)
   }
 
@@ -564,7 +544,7 @@ import Layout from '../../layouts/Layout.astro'
   // Debounce helper
   function debounce<T extends (...args: any[]) => any>(func: T, delay: number) {
     let timeoutId: ReturnType<typeof setTimeout>
-    return function(this: any, ...args: Parameters<T>) {
+    return function (this: any, ...args: Parameters<T>) {
       clearTimeout(timeoutId)
       timeoutId = setTimeout(() => func.apply(this, args), delay)
     }
@@ -629,14 +609,7 @@ import Layout from '../../layouts/Layout.astro'
       sourceCtx.fillRect(0, 0, sourceCanvas.width, sourceCanvas.height)
 
       // Create a circular gradient
-      const gradient = sourceCtx.createRadialGradient(
-        sourceCanvas.width / 2, 
-        sourceCanvas.height / 2, 
-        50, 
-        sourceCanvas.width / 2, 
-        sourceCanvas.height / 2, 
-        200
-      )
+      const gradient = sourceCtx.createRadialGradient(sourceCanvas.width / 2, sourceCanvas.height / 2, 50, sourceCanvas.width / 2, sourceCanvas.height / 2, 200)
       gradient.addColorStop(0, DOT_COLOR)
       gradient.addColorStop(1, BACKGROUND_COLOR)
 
