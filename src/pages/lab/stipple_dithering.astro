@@ -4,10 +4,8 @@ import Layout from '../../layouts/Layout.astro'
 
 <Layout title="Stipple Dithering">
   <div class="container">
-    <div class="canvases">
-      <canvas id="sourceCanvas" width="400" height="400"></canvas>
-      <canvas id="outputCanvas" width="400" height="400"></canvas>
-    </div>
+    <canvas id="sourceCanvas" width="400" height="400" style="display: none;"></canvas>
+    <canvas id="outputCanvas" width="800" height="800"></canvas>
 
     <div class="controls">
       <label class="file-label">
@@ -55,7 +53,7 @@ import Layout from '../../layouts/Layout.astro'
   const DEFAULT_BRIGHTNESS = 0.5
   const DEBOUNCE_DELAY = 200
   const BRIGHTNESS_SAMPLE_STEP = 4
-  const MAX_CANVAS_DIMENSION = 600 // Max width or height for performance
+  const MAX_CANVAS_DIMENSION = 1200 // Max width or height for performance
 
   // Generic helper to get and type-check DOM elements
   function getElement<T extends HTMLElement>(id: string, type: new () => T): T {
@@ -787,7 +785,7 @@ import Layout from '../../layouts/Layout.astro'
   function createDefaultImage() {
     try {
       // Set initial canvas size
-      const initialSize = 400
+      const initialSize = 800
       sourceCanvas.width = initialSize
       sourceCanvas.height = initialSize
       outputCanvas.width = initialSize
@@ -834,23 +832,18 @@ import Layout from '../../layouts/Layout.astro'
     gap: 20px;
     align-items: center;
     width: 100%;
-    max-width: 1800px;
+    max-width: 1200px;
     margin: 0 auto;
     padding: 20px;
     min-height: 100dvh;
   }
 
-  .canvases {
-    display: flex;
-    gap: 20px;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-
-  canvas {
+  #outputCanvas {
     border: 2px solid var(--theme-border);
     border-radius: 8px;
-    max-width: 100%;
+    max-width: 95vw;
+    max-height: 80vh;
+    width: auto;
     height: auto;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   }
