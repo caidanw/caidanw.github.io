@@ -16,14 +16,9 @@ import Layout from '../../layouts/Layout.astro'
       </label>
       <button id="download">Download</button>
       <label>
-        Dot Density:
-        <input type="range" id="dotDensity" min="5" max="50" value="20" step="5" />
-        <span id="dotDensityValue">20</span>
-      </label>
-      <label>
-        Detail Level:
-        <input type="range" id="detailLevel" min="1" max="8" value="4" step="1" />
-        <span id="detailLevelValue">4</span>
+        Density:
+        <input type="range" id="density" min="1" max="10" value="6" step="1" />
+        <span id="densityValue">6</span>
       </label>
       <label>
         Dot Size:
@@ -33,8 +28,11 @@ import Layout from '../../layouts/Layout.astro'
       <label>
         Method:
         <select id="method">
-          <option value="recursive">Recursive</option>
-          <option value="delaunay">Delaunay</option>
+          <option value="quadtree">Quadtree Subdivision</option>
+          <option value="random">Weighted Random</option>
+          <option value="voronoi">Voronoi</option>
+          <option value="hybrid">Hybrid Subdivision</option>
+          <option value="grid">Grid-Based</option>
         </select>
       </label>
     </div>
@@ -43,7 +41,7 @@ import Layout from '../../layouts/Layout.astro'
 
     <div id="imageSizeInfo" class="image-size-info hidden"></div>
 
-    <div class="info">Region-based triangulation stippling — segments image by brightness, then stipples each region</div>
+    <div class="info">Adaptive stippling with 5 different algorithms — switch methods to compare approaches</div>
   </div>
 </Layout>
 
@@ -83,10 +81,8 @@ import Layout from '../../layouts/Layout.astro'
   const sourceCanvas = getCanvas('sourceCanvas')
   const outputCanvas = getCanvas('outputCanvas')
   const fileInput = getInput('fileInput')
-  const dotDensitySlider = getInput('dotDensity')
-  const dotDensityValue = getSpan('dotDensityValue')
-  const detailLevelSlider = getInput('detailLevel')
-  const detailLevelValue = getSpan('detailLevelValue')
+  const densitySlider = getInput('density')
+  const densityValue = getSpan('densityValue')
   const dotSizeSlider = getInput('dotSize')
   const dotSizeValue = getSpan('dotSizeValue')
   const methodSelect = getSelect('method')
@@ -101,10 +97,9 @@ import Layout from '../../layouts/Layout.astro'
     throw new Error('Could not get canvas contexts')
   }
 
-  let dotDensity = parseInt(dotDensitySlider.value)
-  let detailLevel = parseInt(detailLevelSlider.value)
+  let density = parseInt(densitySlider.value)
   let dotSize = parseFloat(dotSizeSlider.value)
-  let method: 'recursive' | 'delaunay' = 'recursive'
+  let method: 'quadtree' | 'random' | 'voronoi' | 'hybrid' | 'grid' = 'quadtree'
   let sourceImage: HTMLImageElement | null = null
   let imageData: ImageData | null = null
   let brightnessCache: Float32Array | null = null
@@ -342,7 +337,7 @@ import Layout from '../../layouts/Layout.astro'
 
   function generatePointsForRegion(x: number, y: number, w: number, h: number, brightness: number): Point[] {
     const darkness = 1 - brightness
-    const numPoints = Math.max(1, Math.round(darkness * detailLevel * 5))
+    const numPoints = Math.max(1, Math.round(darkness * density * 5))
     const points: Point[] = []
 
     for (let i = 0; i < numPoints; i++) {
@@ -377,6 +372,227 @@ import Layout from '../../layouts/Layout.astro'
     }
   }
 
+  // METHOD 1: Pure Quadtree Subdivision
+  function quadtreeSubdivision(x: number, y: number, w: number, h: number, depth: number) {
+    if (cancelGeneration) return
+    if (depth >= density + 5) return
+
+    const brightness = getRegionBrightness(x, y, w, h)
+    const darkness = 1 - brightness
+    const minSize = 10
+
+    if (w < minSize || h < minSize) {
+      if (darkness > MIN_DARKNESS_THRESHOLD) {
+        const opacity = Math.pow(darkness, 0.8)
+        dots.push({
+          x: x + w / 2,
+          y: y + h / 2,
+          opacity: opacity,
+          size: dotSize,
+        })
+      }
+      return
+    }
+
+    const shouldSubdivide = darkness > 0.15 && depth < density
+
+    if (shouldSubdivide) {
+      const hw = w / 2
+      const hh = h / 2
+      quadtreeSubdivision(x, y, hw, hh, depth + 1)
+      quadtreeSubdivision(x + hw, y, hw, hh, depth + 1)
+      quadtreeSubdivision(x, y + hh, hw, hh, depth + 1)
+      quadtreeSubdivision(x + hw, y + hh, hw, hh, depth + 1)
+    } else {
+      if (darkness > MIN_DARKNESS_THRESHOLD) {
+        const opacity = Math.pow(darkness, 0.8)
+        dots.push({
+          x: x + w / 2,
+          y: y + h / 2,
+          opacity: opacity,
+          size: dotSize,
+        })
+      }
+    }
+  }
+
+  // METHOD 2: Weighted Random Sampling
+  function weightedRandomSampling(w: number, h: number) {
+    const totalPoints = density * 1000
+    const samples = totalPoints * 2
+
+    for (let i = 0; i < samples; i++) {
+      if (cancelGeneration) return
+
+      const x = Math.random() * w
+      const y = Math.random() * h
+      const brightness = getBrightness(x, y)
+      const darkness = 1 - brightness
+
+      // Accept point with probability proportional to darkness
+      if (Math.random() < darkness && darkness > MIN_DARKNESS_THRESHOLD) {
+        const opacity = Math.pow(darkness, 0.8)
+        dots.push({
+          x: x,
+          y: y,
+          opacity: opacity,
+          size: dotSize,
+        })
+
+        if (dots.length >= totalPoints) break
+      }
+    }
+  }
+
+  // METHOD 3: Voronoi (using Delaunay dual)
+  function voronoiStippling(w: number, h: number) {
+    // Generate initial random points weighted by darkness
+    const initialPoints: Point[] = []
+    const numSeeds = density * 100
+
+    for (let i = 0; i < numSeeds * 3; i++) {
+      if (cancelGeneration) return
+
+      const x = Math.random() * w
+      const y = Math.random() * h
+      const brightness = getBrightness(x, y)
+      const darkness = 1 - brightness
+
+      if (Math.random() < darkness && darkness > MIN_DARKNESS_THRESHOLD) {
+        initialPoints.push({ x, y })
+        if (initialPoints.length >= numSeeds) break
+      }
+    }
+
+    // Create Delaunay triangulation
+    const triangles = delaunayTriangulation(initialPoints)
+
+    // Place dots at triangle centroids
+    for (const tri of triangles) {
+      if (cancelGeneration) return
+
+      const center = centroid(tri.p1, tri.p2, tri.p3)
+      const brightness = getBrightness(center.x, center.y)
+      const darkness = 1 - brightness
+
+      if (darkness > MIN_DARKNESS_THRESHOLD) {
+        const opacity = Math.pow(darkness, 0.8)
+        dots.push({
+          x: center.x,
+          y: center.y,
+          opacity: opacity,
+          size: dotSize,
+        })
+      }
+    }
+  }
+
+  // METHOD 4: Hybrid Subdivision + Sampling
+  function hybridSubdivision(x: number, y: number, w: number, h: number, depth: number) {
+    if (cancelGeneration) return
+    if (depth >= density + 3) return
+
+    const brightness = getRegionBrightness(x, y, w, h)
+    const darkness = 1 - brightness
+    const minSize = 20
+
+    if (w < minSize || h < minSize) {
+      // Place multiple random dots in this region based on darkness
+      const numDots = Math.max(1, Math.floor(darkness * 5))
+      for (let i = 0; i < numDots; i++) {
+        if (darkness > MIN_DARKNESS_THRESHOLD) {
+          const opacity = Math.pow(darkness, 0.8)
+          dots.push({
+            x: x + Math.random() * w,
+            y: y + Math.random() * h,
+            opacity: opacity,
+            size: dotSize,
+          })
+        }
+      }
+      return
+    }
+
+    const shouldSubdivide = darkness > 0.15 && depth < density
+
+    if (shouldSubdivide) {
+      const hw = w / 2
+      const hh = h / 2
+      hybridSubdivision(x, y, hw, hh, depth + 1)
+      hybridSubdivision(x + hw, y, hw, hh, depth + 1)
+      hybridSubdivision(x, y + hh, hw, hh, depth + 1)
+      hybridSubdivision(x + hw, y + hh, hw, hh, depth + 1)
+    } else {
+      // Place multiple dots in this region
+      const numDots = Math.max(1, Math.floor(darkness * density))
+      for (let i = 0; i < numDots; i++) {
+        if (darkness > MIN_DARKNESS_THRESHOLD) {
+          const opacity = Math.pow(darkness, 0.8)
+          dots.push({
+            x: x + Math.random() * w,
+            y: y + Math.random() * h,
+            opacity: opacity,
+            size: dotSize,
+          })
+        }
+      }
+    }
+  }
+
+  // METHOD 5: Grid-Based with Recursive Subdivision
+  function gridBasedStippling(w: number, h: number) {
+    const gridSize = Math.max(5, 50 - density * 4) // Higher density = smaller grid
+    const cols = Math.ceil(w / gridSize)
+    const rows = Math.ceil(h / gridSize)
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        if (cancelGeneration) return
+
+        const x = col * gridSize
+        const y = row * gridSize
+        const cellW = Math.min(gridSize, w - x)
+        const cellH = Math.min(gridSize, h - y)
+
+        const brightness = getRegionBrightness(x, y, cellW, cellH)
+        const darkness = 1 - brightness
+
+        if (darkness > MIN_DARKNESS_THRESHOLD) {
+          // Recursively subdivide this grid cell
+          gridCellRecursive(x, y, cellW, cellH, brightness, 0, density)
+        }
+      }
+    }
+  }
+
+  function gridCellRecursive(x: number, y: number, w: number, h: number, brightness: number, depth: number, maxDepth: number) {
+    if (cancelGeneration) return
+    if (depth >= maxDepth || depth >= HARD_MAX_RECURSION_DEPTH) {
+      const darkness = 1 - brightness
+      if (darkness > MIN_DARKNESS_THRESHOLD) {
+        const opacity = Math.pow(darkness, 0.8)
+        dots.push({
+          x: x + w / 2,
+          y: y + h / 2,
+          opacity: opacity,
+          size: dotSize,
+        })
+      }
+      return
+    }
+
+    const avgDist = (w + h) / 2
+    if (avgDist < MIN_DISTANCE_THRESHOLD) return
+
+    const hw = w / 2
+    const hh = h / 2
+
+    gridCellRecursive(x, y, hw, hh, brightness, depth + 1, maxDepth)
+    gridCellRecursive(x + hw, y, hw, hh, brightness, depth + 1, maxDepth)
+    gridCellRecursive(x, y + hh, hw, hh, brightness, depth + 1, maxDepth)
+    gridCellRecursive(x + hw, y + hh, hw, hh, brightness, depth + 1, maxDepth)
+  }
+
   async function generateProgressively() {
     if (!sourceImage || isGenerating) return
 
@@ -384,11 +600,9 @@ import Layout from '../../layouts/Layout.astro'
     cancelGeneration = false
     dots = []
 
-    // Show loading indicator
     loadingIndicator.classList.remove('hidden')
 
     try {
-      // Clear output canvas
       outputCtx.save()
       outputCtx.fillStyle = BACKGROUND_COLOR
       outputCtx.fillRect(0, 0, outputCanvas.width, outputCanvas.height)
@@ -396,47 +610,29 @@ import Layout from '../../layouts/Layout.astro'
 
       const w = outputCanvas.width
       const h = outputCanvas.height
-      const cellW = w / dotDensity
-      const cellH = h / dotDensity
 
-      // Process grid cells progressively
-      for (let row = 0; row < dotDensity; row++) {
-        if (cancelGeneration) break
-
-        for (let col = 0; col < dotDensity; col++) {
-          if (cancelGeneration) break
-
-          const x = col * cellW
-          const y = row * cellH
-
-          const brightness = getRegionBrightness(x, y, cellW, cellH)
-          const darkness = 1 - brightness
-
-          if (method === 'delaunay') {
-            stippleRegionDelaunay(x, y, cellW, cellH, brightness)
-          } else {
-            // Use Math.round instead of Math.floor to prevent banding
-            const subdivDepth = Math.max(1, Math.round(darkness * detailLevel))
-
-            const topLeft = { x: x, y: y }
-            const topRight = { x: x + cellW, y: y }
-            const bottomLeft = { x: x, y: y + cellH }
-            const bottomRight = { x: x + cellW, y: y + cellH }
-            const center = { x: x + cellW / 2, y: y + cellH / 2 }
-
-            stippleRegionRecursive(topLeft, topRight, center, 0, subdivDepth, brightness)
-            stippleRegionRecursive(topRight, bottomRight, center, 0, subdivDepth, brightness)
-            stippleRegionRecursive(bottomRight, bottomLeft, center, 0, subdivDepth, brightness)
-            stippleRegionRecursive(bottomLeft, topLeft, center, 0, subdivDepth, brightness)
-          }
-        }
-
-        // Render progressively every row
-        await new Promise((resolve) => requestAnimationFrame(resolve))
-        renderDots()
+      // Route to appropriate method
+      switch (method) {
+        case 'quadtree':
+          quadtreeSubdivision(0, 0, w, h, 0)
+          break
+        case 'random':
+          weightedRandomSampling(w, h)
+          break
+        case 'voronoi':
+          voronoiStippling(w, h)
+          break
+        case 'hybrid':
+          hybridSubdivision(0, 0, w, h, 0)
+          break
+        case 'grid':
+          gridBasedStippling(w, h)
+          break
       }
 
-      console.log(`Generated ${dots.length} dots`)
+      renderDots()
+
+      console.log(`Generated ${dots.length} dots using ${method} method`)
     } catch (error) {
       console.error('Error during generation:', error)
     } finally {
@@ -565,17 +761,10 @@ import Layout from '../../layouts/Layout.astro'
     }
   })
 
-  dotDensitySlider.addEventListener('input', (e) => {
+  densitySlider.addEventListener('input', (e) => {
     if (!(e.target instanceof HTMLInputElement)) return
-    dotDensity = parseInt(e.target.value)
-    dotDensityValue.textContent = dotDensity.toString()
-    debouncedGenerate()
-  })
-
-  detailLevelSlider.addEventListener('input', (e) => {
-    if (!(e.target instanceof HTMLInputElement)) return
-    detailLevel = parseInt(e.target.value)
-    detailLevelValue.textContent = detailLevel.toString()
+    density = parseInt(e.target.value)
+    densityValue.textContent = density.toString()
     debouncedGenerate()
   })
 
@@ -588,7 +777,7 @@ import Layout from '../../layouts/Layout.astro'
 
   methodSelect.addEventListener('change', (e) => {
     if (!(e.target instanceof HTMLSelectElement)) return
-    method = e.target.value as 'recursive' | 'delaunay'
+    method = e.target.value as 'quadtree' | 'random' | 'voronoi' | 'hybrid' | 'grid'
     debouncedGenerate()
   })
 
