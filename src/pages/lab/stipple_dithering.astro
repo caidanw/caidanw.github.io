@@ -59,79 +59,61 @@ import Layout from '../../layouts/Layout.astro'
   const BRIGHTNESS_SAMPLE_STEP = 4
   const MAX_CANVAS_DIMENSION = 600 // Max width or height for performance
 
-  // Type guard helpers
-  function isHTMLCanvasElement(el: HTMLElement | null): el is HTMLCanvasElement {
-    return el !== null && el instanceof HTMLCanvasElement
+  // Generic helper to get and type-check DOM elements
+  function getElement<T extends HTMLElement>(
+    id: string,
+    type: new () => T,
+    typeName: string
+  ): T {
+    const element = document.getElementById(id)
+    if (!element) {
+      throw new Error(`Element with id '${id}' not found`)
+    }
+    if (!(element instanceof type)) {
+      throw new Error(`Element '${id}' is not a ${typeName}`)
+    }
+    return element
   }
 
-  function isHTMLInputElement(el: HTMLElement | null): el is HTMLInputElement {
-    return el !== null && el instanceof HTMLInputElement
+  // Convenience functions for common element types
+  function getCanvas(id: string): HTMLCanvasElement {
+    return getElement(id, HTMLCanvasElement, 'HTMLCanvasElement')
   }
 
-  function isHTMLSpanElement(el: HTMLElement | null): el is HTMLSpanElement {
-    return el !== null && el instanceof HTMLSpanElement
+  function getInput(id: string): HTMLInputElement {
+    return getElement(id, HTMLInputElement, 'HTMLInputElement')
   }
 
-  function isHTMLSelectElement(el: HTMLElement | null): el is HTMLSelectElement {
-    return el !== null && el instanceof HTMLSelectElement
+  function getButton(id: string): HTMLButtonElement {
+    return getElement(id, HTMLButtonElement, 'HTMLButtonElement')
   }
 
-  function isHTMLButtonElement(el: HTMLElement | null): el is HTMLButtonElement {
-    return el !== null && el instanceof HTMLButtonElement
+  function getSelect(id: string): HTMLSelectElement {
+    return getElement(id, HTMLSelectElement, 'HTMLSelectElement')
   }
 
-  // Get DOM elements with type guards
-  const sourceCanvasEl = document.getElementById('sourceCanvas')
-  const outputCanvasEl = document.getElementById('outputCanvas')
-  const fileInputEl = document.getElementById('fileInput')
-  const gridSizeSliderEl = document.getElementById('gridSize')
-  const gridSizeValueEl = document.getElementById('gridSizeValue')
-  const subdivisionsSliderEl = document.getElementById('subdivisions')
-  const subdivisionsValueEl = document.getElementById('subdivisionsValue')
-  const dotSizeSliderEl = document.getElementById('dotSize')
-  const dotSizeValueEl = document.getElementById('dotSizeValue')
-  const methodSelectEl = document.getElementById('method')
-  const downloadBtnEl = document.getElementById('download')
-  const loadingIndicatorEl = document.getElementById('loadingIndicator')
-  const imageSizeInfoEl = document.getElementById('imageSizeInfo')
-
-  if (!isHTMLCanvasElement(sourceCanvasEl) || !isHTMLCanvasElement(outputCanvasEl)) {
-    throw new Error('Canvas elements not found')
-  }
-  if (!isHTMLInputElement(fileInputEl) || !isHTMLInputElement(gridSizeSliderEl) || 
-      !isHTMLInputElement(subdivisionsSliderEl) || !isHTMLInputElement(dotSizeSliderEl)) {
-    throw new Error('Input elements not found')
-  }
-  if (!isHTMLSpanElement(gridSizeValueEl) || !isHTMLSpanElement(subdivisionsValueEl) || 
-      !isHTMLSpanElement(dotSizeValueEl)) {
-    throw new Error('Span elements not found')
-  }
-  if (!isHTMLSelectElement(methodSelectEl)) {
-    throw new Error('Select element not found')
-  }
-  if (!isHTMLButtonElement(downloadBtnEl)) {
-    throw new Error('Download button not found')
-  }
-  if (!loadingIndicatorEl) {
-    throw new Error('Loading indicator not found')
-  }
-  if (!imageSizeInfoEl) {
-    throw new Error('Image size info element not found')
+  function getSpan(id: string): HTMLSpanElement {
+    return getElement(id, HTMLSpanElement, 'HTMLSpanElement')
   }
 
-  const sourceCanvas = sourceCanvasEl
-  const outputCanvas = outputCanvasEl
-  const fileInput = fileInputEl
-  const gridSizeSlider = gridSizeSliderEl
-  const gridSizeValue = gridSizeValueEl
-  const subdivisionsSlider = subdivisionsSliderEl
-  const subdivisionsValue = subdivisionsValueEl
-  const dotSizeSlider = dotSizeSliderEl
-  const dotSizeValue = dotSizeValueEl
-  const methodSelect = methodSelectEl
-  const downloadBtn = downloadBtnEl
-  const loadingIndicator = loadingIndicatorEl
-  const imageSizeInfo = imageSizeInfoEl
+  function getDiv(id: string): HTMLDivElement {
+    return getElement(id, HTMLDivElement, 'HTMLDivElement')
+  }
+
+  // Get all DOM elements with automatic type checking
+  const sourceCanvas = getCanvas('sourceCanvas')
+  const outputCanvas = getCanvas('outputCanvas')
+  const fileInput = getInput('fileInput')
+  const gridSizeSlider = getInput('gridSize')
+  const gridSizeValue = getSpan('gridSizeValue')
+  const subdivisionsSlider = getInput('subdivisions')
+  const subdivisionsValue = getSpan('subdivisionsValue')
+  const dotSizeSlider = getInput('dotSize')
+  const dotSizeValue = getSpan('dotSizeValue')
+  const methodSelect = getSelect('method')
+  const downloadBtn = getButton('download')
+  const loadingIndicator = getDiv('loadingIndicator')
+  const imageSizeInfo = getDiv('imageSizeInfo')
 
   const sourceCtx = sourceCanvas.getContext('2d')
   const outputCtx = outputCanvas.getContext('2d')
