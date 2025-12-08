@@ -101,45 +101,45 @@ import Layout from '../../layouts/Layout.astro'
             <strong>Original source image</strong>
             <span class="description">Upload an image to begin</span>
           </div>
+        </div>
 
-          <div class="canvas-container">
-            <canvas id="brightnessCanvas"></canvas>
-            <div class="info-box">
-              <strong>Grayscale conversion</strong>
-              <span class="description">Shows average brightness values</span>
-            </div>
+        <div class="canvas-container">
+          <canvas id="brightnessCanvas"></canvas>
+          <div class="info-box">
+            <strong>Grayscale conversion</strong>
+            <span class="description">Shows average brightness values</span>
+          </div>
+        </div>
 
-            <div class="canvas-container">
-              <canvas id="quantizedCanvas"></canvas>
-              <div class="info-box">
-                <strong>Discrete brightness levels</strong>
-                <span class="description">Image divided into <span id="currentLevels">5</span> brightness regions</span>
-              </div>
-            </div>
+        <div class="canvas-container">
+          <canvas id="quantizedCanvas"></canvas>
+          <div class="info-box">
+            <strong>Discrete brightness levels</strong>
+            <span class="description">Image divided into <span id="currentLevels">5</span> brightness regions</span>
+          </div>
+        </div>
 
-            <div class="canvas-container">
-              <canvas id="diffusedCanvas"></canvas>
-              <div class="info-box">
-                <strong>Smoothed transitions</strong>
-                <span class="description">Gradual changes between regions</span>
-              </div>
-            </div>
+        <div class="canvas-container">
+          <canvas id="diffusedCanvas"></canvas>
+          <div class="info-box">
+            <strong>Smoothed transitions</strong>
+            <span class="description">Gradual changes between regions</span>
+          </div>
+        </div>
 
-            <div class="canvas-container">
-              <canvas id="thresholdCanvas"></canvas>
-              <div class="info-box">
-                <strong>Darkness threshold mask</strong>
-                <span class="description">White areas will receive dots, black areas will be pure black</span>
-              </div>
-            </div>
+        <div class="canvas-container">
+          <canvas id="thresholdCanvas"></canvas>
+          <div class="info-box">
+            <strong>Darkness threshold mask</strong>
+            <span class="description">White areas will receive dots, black areas will be pure black</span>
+          </div>
+        </div>
 
-            <div class="canvas-container">
-              <canvas id="stippledCanvas"></canvas>
-              <div class="info-box">
-                <strong>Dot placement visualization</strong>
-                <span class="description">Algorithm: <span id="currentAlgorithm">Hybrid</span></span>
-              </div>
-            </div>
+        <div class="canvas-container">
+          <canvas id="stippledCanvas"></canvas>
+          <div class="info-box">
+            <strong>Dot placement visualization</strong>
+            <span class="description">Algorithm: <span id="currentAlgorithm">Hybrid</span></span>
           </div>
         </div>
       </div>
