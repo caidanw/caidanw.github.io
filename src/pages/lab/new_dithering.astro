@@ -449,7 +449,7 @@ import Layout from '../../layouts/Layout.astro'
     // Fill with dark background
     ctx.fillStyle = '#000'
     ctx.fillRect(0, 0, stippledCanvas.width, stippledCanvas.height)
-    
+
     // Draw light dots on top
     ctx.fillStyle = '#fff'
     const dotSize = parseFloat(dotSizeSlider.value)
@@ -468,15 +468,19 @@ import Layout from '../../layouts/Layout.astro'
     const width = stippledCanvas.width
     const height = stippledCanvas.height
     const minDist = parseInt(minDistSlider.value)
+    const lightnessThreshold = 0.15
 
-    // Sample random points weighted by brightness (inverted - bright areas get more dots)
+    // Sample random points weighted by brightness (bright areas get more dots)
     for (let attempt = 0; attempt < 20; attempt++) {
       const x = Math.random() * width
       const y = Math.random() * height
       const brightness = getRegionBrightness(x, y)
       const lightness = brightness / 255
 
-      // Weight by lightness (inverted from original)
+      // Skip if too dark
+      if (lightness < lightnessThreshold) continue
+
+      // Weight by lightness - brighter areas are more likely to accept dots
       if (Math.random() > lightness) continue
 
       // Check minimum distance
@@ -503,15 +507,21 @@ import Layout from '../../layouts/Layout.astro'
     const width = stippledCanvas.width
     const height = stippledCanvas.height
     const minDist = parseInt(minDistSlider.value)
+    const lightnessThreshold = 0.15 // Don't place dots if region is too dark
 
     // Find largest void
     let bestPoint = null
+    let bestLightness = 0
     let maxMinDist = 0
 
     for (let attempt = 0; attempt < 30; attempt++) {
       const x = Math.random() * width
       const y = Math.random() * height
       const brightness = getRegionBrightness(x, y)
+      const lightness = brightness / 255
+
+      // Skip if too dark
+      if (lightness < lightnessThreshold) continue
 
       let minDist = Infinity
       for (const dot of dots) {
@@ -521,17 +531,19 @@ import Layout from '../../layouts/Layout.astro'
         if (dist < minDist) minDist = dist
       }
 
-      const lightness = brightness / 255
       const weighted = minDist * lightness
 
       if (weighted > maxMinDist) {
         maxMinDist = weighted
         bestPoint = { x, y }
+        bestLightness = lightness
       }
     }
 
     if (!bestPoint || dots.length < 3) {
-      if (bestPoint) dots.push(bestPoint)
+      if (bestPoint && bestLightness >= lightnessThreshold) {
+        dots.push(bestPoint)
+      }
       return true
     }
 
@@ -549,6 +561,11 @@ import Layout from '../../layouts/Layout.astro'
       x: (nearest[0].dot.x + nearest[1].dot.x + nearest[2].dot.x) / 3,
       y: (nearest[0].dot.y + nearest[1].dot.y + nearest[2].dot.y) / 3,
     }
+
+    // Check brightness at centroid
+    const centroidBrightness = getRegionBrightness(centroid.x, centroid.y)
+    const centroidLightness = centroidBrightness / 255
+    if (centroidLightness < 0.15) return false
 
     // Check min distance
     const minDistSq = parseInt(minDistSlider.value) ** 2
@@ -573,16 +590,20 @@ import Layout from '../../layouts/Layout.astro'
   function addDotPoisson() {
     const width = stippledCanvas.width
     const height = stippledCanvas.height
+    const lightnessThreshold = 0.15 // Don't place dots if region is too dark
 
     for (let attempt = 0; attempt < 30; attempt++) {
       const x = Math.random() * width
       const y = Math.random() * height
       const brightness = getRegionBrightness(x, y)
-
-      // Variable radius based on brightness (inverted - tighter spacing in bright areas)
       const lightness = brightness / 255
+
+      // Skip if too dark
+      if (lightness < lightnessThreshold) continue
+
+      // Variable radius based on brightness - bright areas get tighter spacing (smaller minDist)
       const baseMinDist = parseInt(minDistSlider.value)
-      const variableMinDist = baseMinDist * (0.5 + lightness * 1.5)
+      const variableMinDist = baseMinDist * (2.0 - lightness * 1.5)
 
       let tooClose = false
       for (const dot of dots) {
@@ -607,9 +628,11 @@ import Layout from '../../layouts/Layout.astro'
     const width = stippledCanvas.width
     const height = stippledCanvas.height
     const minDistVal = parseInt(minDistSlider.value)
+    const lightnessThreshold = 0.15 // Don't place dots if region is too dark
 
     // Sample points weighted by lightness (inverted)
     let bestPoint = null
+    let bestLightness = 0
     let maxScore = 0
 
     for (let attempt = 0; attempt < 30; attempt++) {
@@ -617,6 +640,9 @@ import Layout from '../../layouts/Layout.astro'
       const y = Math.random() * height
       const brightness = getRegionBrightness(x, y)
       const lightness = brightness / 255
+
+      // Skip if too dark
+      if (lightness < lightnessThreshold) continue
 
       // Find distance to nearest dot
       let minDist = Infinity
@@ -631,10 +657,11 @@ import Layout from '../../layouts/Layout.astro'
       if (score > maxScore) {
         maxScore = score
         bestPoint = { x, y }
+        bestLightness = lightness
       }
     }
 
-    if (!bestPoint) return false
+    if (!bestPoint || bestLightness < lightnessThreshold) return false
 
     // If we have enough dots, triangulate
     if (dots.length >= 3) {
@@ -651,6 +678,27 @@ import Layout from '../../layouts/Layout.astro'
         const centroid = {
           x: (nearest[0].dot.x + nearest[1].dot.x + nearest[2].dot.x) / 3,
           y: (nearest[0].dot.y + nearest[1].dot.y + nearest[2].dot.y) / 3,
+        }
+
+        // Check brightness at centroid
+        const centroidBrightness = getRegionBrightness(centroid.x, centroid.y)
+        const centroidLightness = centroidBrightness / 255
+        if (centroidLightness < lightnessThreshold) {
+          // Try fallback point instead
+          let tooClose = false
+          for (const dot of dots) {
+            const dx = dot.x - bestPoint.x
+            const dy = dot.y - bestPoint.y
+            if (dx * dx + dy * dy < minDistVal * minDistVal) {
+              tooClose = true
+              break
+            }
+          }
+          if (!tooClose && bestLightness >= lightnessThreshold) {
+            dots.push(bestPoint)
+            return true
+          }
+          return false
         }
 
         // Check min distance
@@ -682,7 +730,7 @@ import Layout from '../../layouts/Layout.astro'
       }
     }
 
-    if (!tooClose) {
+    if (!tooClose && bestLightness >= lightnessThreshold) {
       dots.push(bestPoint)
       return true
     }
