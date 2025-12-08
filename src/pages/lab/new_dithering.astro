@@ -21,9 +21,9 @@ import Layout from '../../layouts/Layout.astro'
 
           <div class="control-group">
             <label>
-              Region Size: <span class="slider-value" id="regionSizeValue">4</span>px
+              Region Size: <span class="slider-value" id="regionSizeValue">6</span>px
             </label>
-            <input type="range" id="regionSize" min="1" max="50" value="4" step="1" />
+            <input type="range" id="regionSize" min="1" max="12" value="6" step="1" />
           </div>
 
           <div class="control-group">
@@ -986,10 +986,7 @@ import Layout from '../../layouts/Layout.astro'
 
       .control-group label {
         display: block;
-        font-weight: 500;
-        font-size: 0.875rem;
         color: var(--theme-text-subtle);
-        margin-bottom: 0.5rem;
       }
 
       .control-group input[type='file'] {
@@ -1024,11 +1021,9 @@ import Layout from '../../layouts/Layout.astro'
 
       .slider-value {
         display: inline-block;
-        background: var(--theme-accent);
-        color: var(--color-white);
-        padding: 2px 12px;
-        border-radius: 12px;
-        font-size: 0.75rem;
+        color: var(--theme-accent);
+        font-weight: 600;
+        font-size: 1.2rem;
         margin-left: 0.5rem;
       }
 
