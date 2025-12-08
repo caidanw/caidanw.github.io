@@ -175,6 +175,13 @@ import Layout from '../../layouts/Layout.astro'
   const thresholdCanvas = document.getElementById('thresholdCanvas')
   const stippledCanvas = document.getElementById('stippledCanvas')
 
+  // Get CSS variable values
+  const rootStyles = getComputedStyle(document.documentElement)
+  const colorBlack = rootStyles.getPropertyValue('--color-black').trim()
+  const colorWhite = rootStyles.getPropertyValue('--color-white').trim()
+  const colorGrayDark = rootStyles.getPropertyValue('--color-gray-dark').trim()
+  const colorGrayDarker = rootStyles.getPropertyValue('--color-gray-darker').trim()
+
   // Initialize canvases with checkerboard pattern
   function initializeCanvas(canvas) {
     const size = 400 // Square canvas
@@ -187,7 +194,7 @@ import Layout from '../../layouts/Layout.astro'
     for (let y = 0; y < size; y += checkSize) {
       for (let x = 0; x < size; x += checkSize) {
         const isEven = (Math.floor(x / checkSize) + Math.floor(y / checkSize)) % 2 === 0
-        ctx.fillStyle = isEven ? '#2a2a2a' : '#1a1a1a'
+        ctx.fillStyle = isEven ? colorGrayDark : colorGrayDarker
         ctx.fillRect(x, y, checkSize, checkSize)
       }
     }
@@ -537,11 +544,11 @@ import Layout from '../../layouts/Layout.astro'
   function drawDots() {
     const ctx = stippledCanvas.getContext('2d')
     // Fill with dark background
-    ctx.fillStyle = '#000'
+    ctx.fillStyle = colorBlack
     ctx.fillRect(0, 0, stippledCanvas.width, stippledCanvas.height)
 
     // Draw light dots on top
-    ctx.fillStyle = '#fff'
+    ctx.fillStyle = colorWhite
     const dotSize = parseFloat(dotSizeSlider.value)
 
     dots.forEach((dot) => {
@@ -903,7 +910,7 @@ import Layout from '../../layouts/Layout.astro'
     dots = []
     const ctx = stippledCanvas.getContext('2d')
     // Reset to dark background
-    ctx.fillStyle = '#000'
+    ctx.fillStyle = colorBlack
     ctx.fillRect(0, 0, stippledCanvas.width, stippledCanvas.height)
     document.getElementById('dotCount').textContent = '0'
   }
