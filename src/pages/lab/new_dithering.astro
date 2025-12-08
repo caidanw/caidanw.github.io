@@ -54,7 +54,7 @@ import LabLayout from '../../layouts/LabLayout.astro'
           <label>
             Dot Size: <span class="slider-value" id="dotSizeValue">1</span>px
           </label>
-          <input type="range" id="dotSize" min="0.5" max="4" value="1" step="0.5" />
+          <input type="range" id="dotSize" min="0.1" max="4" value="1" step="0.1" />
         </div>
 
         <div class="control-group">
@@ -303,8 +303,11 @@ import LabLayout from '../../layouts/LabLayout.astro'
       const img = new Image()
       img.onload = () => {
         currentImage = img
+
         processBtn.disabled = false
         drawOriginalImage()
+
+        stipplingBtn.disabled = false
         autoProcess()
       }
       img.src = event.target.result
@@ -563,8 +566,6 @@ import LabLayout from '../../layouts/LabLayout.astro'
     // Step 4: Create threshold preview
     createThresholdPreview()
 
-    // Enable stippling controls
-    stipplingBtn.disabled = false
     resetBtn.disabled = false
   })
 
@@ -865,9 +866,7 @@ import LabLayout from '../../layouts/LabLayout.astro'
     if (dots.length >= 3) {
       // Find 3 nearest dots using spatial grid
       // Cap search radius to prevent infinite loops when dots are sparse or bestMinDistSq is Infinity
-      const searchRadius = isFinite(bestMinDistSq) 
-        ? Math.min(Math.sqrt(bestMinDistSq) * 3, baseMinDist * 20)
-        : baseMinDist * 10 // Reasonable default when no nearby dots
+      const searchRadius = isFinite(bestMinDistSq) ? Math.min(Math.sqrt(bestMinDistSq) * 3, baseMinDist * 20) : baseMinDist * 10 // Reasonable default when no nearby dots
       const col = Math.floor(bestPoint.x / gridCellSize)
       const row = Math.floor(bestPoint.y / gridCellSize)
       const cellRadius = Math.min(Math.ceil(searchRadius / gridCellSize), 10) // Cap at 10 cells
