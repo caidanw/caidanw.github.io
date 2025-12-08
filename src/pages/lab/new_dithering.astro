@@ -991,21 +991,18 @@ import LabLayout from '../../layouts/LabLayout.astro'
   .sidebar {
     display: flex;
     flex-direction: column;
-  }
 
-  @media (min-width: 1024px) {
-    .sidebar {
+    @media (min-width: 1024px) {
       flex: 0 0 auto;
-      position: sticky;
       top: 1rem;
-      max-height: calc(100vh - 2rem);
-      overflow-y: auto;
+      margin: 0 1rem;
     }
   }
 
   .controls {
-    background: var(--theme-bg);
-    padding: 1rem;
+    &:not(:last-child) {
+      padding-bottom: 1rem;
+    }
 
     + .controls {
       border-top: 1px solid var(--theme-border);
@@ -1029,15 +1026,17 @@ import LabLayout from '../../layouts/LabLayout.astro'
     color: var(--theme-text-subtle);
   }
 
-  .control-group input[type='file'] {
+  input[type='file'] {
     width: 100%;
-    padding: 0.625rem;
+    padding: 0.5rem;
     border: 2px dashed var(--theme-border);
-    border-radius: 6px;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+  }
+
+  .control-group input[type='file'] {
     cursor: pointer;
-    background: var(--theme-bg);
     color: var(--theme-text);
-    font-size: 0.875rem;
   }
 
   .control-group input[type='range'] {
@@ -1107,16 +1106,16 @@ import LabLayout from '../../layouts/LabLayout.astro'
       grid-template-columns: repeat(2, 1fr);
     }
 
-    @media (min-width: 1024px) {
+    @media (min-width: 768px) {
       flex: 1;
       grid-template-columns: repeat(2, 1fr);
     }
 
-    @media (min-width: 1400px) {
+    @media (min-width: 1440px) {
       grid-template-columns: repeat(3, 1fr);
     }
 
-    @media (min-width: 1600px) {
+    @media (min-width: 2000px) {
       grid-template-columns: repeat(4, 1fr);
     }
   }
@@ -1139,6 +1138,8 @@ import LabLayout from '../../layouts/LabLayout.astro'
   .info-box {
     background: var(--theme-bg);
     color: var(--theme-text-dim);
+    line-height: 1.2;
+    margin-top: 0.25rem;
 
     .description {
       font-size: 0.85rem;
