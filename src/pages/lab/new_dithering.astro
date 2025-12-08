@@ -203,6 +203,8 @@ import LabLayout from '../../layouts/LabLayout.astro'
   let dots = []
   let isRunning = false
   let animationFrame = null
+  let spatialGrid = null
+  let gridCellSize = 0
 
   // Debounce utility
   function debounce(func, wait) {
@@ -329,7 +331,7 @@ import LabLayout from '../../layouts/LabLayout.astro'
 
   // Process image into brightness map
   function createBrightnessMap() {
-    const ctx = originalCanvas.getContext('2d')
+    const ctx = originalCanvas.getContext('2d', { willReadFrequently: true })
     const imageData = ctx.getImageData(0, 0, originalCanvas.width, originalCanvas.height)
     const data = imageData.data
     const width = originalCanvas.width
@@ -427,7 +429,7 @@ import LabLayout from '../../layouts/LabLayout.astro'
   function diffuseRegions(regionMap, diffusionAmount) {
     if (diffusionAmount === 0) {
       // No diffusion, just copy quantized
-      const ctx = quantizedCanvas.getContext('2d')
+      const ctx = quantizedCanvas.getContext('2d', { willReadFrequently: true })
       const quantizedData = ctx.getImageData(0, 0, quantizedCanvas.width, quantizedCanvas.height)
       const diffusedCtx = diffusedCanvas.getContext('2d')
       diffusedCanvas.width = quantizedCanvas.width
@@ -568,6 +570,69 @@ import LabLayout from '../../layouts/LabLayout.astro'
 
   // ========== STIPPLING ALGORITHMS ==========
 
+  // Spatial grid for fast nearest neighbor queries
+  function initializeSpatialGrid(width, height, minDist) {
+    gridCellSize = Math.max(minDist * 2, 10)
+    const cols = Math.ceil(width / gridCellSize)
+    const rows = Math.ceil(height / gridCellSize)
+    spatialGrid = Array.from({ length: rows }, () => Array.from({ length: cols }, () => []))
+  }
+
+  function addToGrid(dot) {
+    if (!spatialGrid || !gridCellSize) return
+    const col = Math.floor(dot.x / gridCellSize)
+    const row = Math.floor(dot.y / gridCellSize)
+    // Bounds check
+    if (row >= 0 && row < spatialGrid.length && col >= 0 && col < spatialGrid[0].length) {
+      spatialGrid[row][col].push(dot)
+    }
+  }
+
+  function clearGrid() {
+    if (spatialGrid) {
+      for (let row of spatialGrid) {
+        for (let cell of row) {
+          cell.length = 0
+        }
+      }
+    }
+  }
+
+  // Fast distance check using spatial grid - returns squared distance to nearest dot
+  function getNearestDotDistSq(x, y) {
+    if (!spatialGrid || dots.length === 0) return Infinity
+
+    const col = Math.floor(x / gridCellSize)
+    const row = Math.floor(y / gridCellSize)
+    let minDistSq = Infinity
+
+    // Check neighboring cells (3x3 grid around point)
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        const r = row + dr
+        const c = col + dc
+        if (r >= 0 && r < spatialGrid.length && c >= 0 && c < spatialGrid[0].length) {
+          const cellDots = spatialGrid[r][c]
+          for (const dot of cellDots) {
+            const dx = dot.x - x
+            const dy = dot.y - y
+            const distSq = dx * dx + dy * dy
+            if (distSq < minDistSq) {
+              minDistSq = distSq
+            }
+          }
+        }
+      }
+    }
+
+    return minDistSq
+  }
+
+  // Check if point is too close to any existing dot using spatial grid
+  function isTooClose(x, y, minDistSq) {
+    return getNearestDotDistSq(x, y) < minDistSq
+  }
+
   function getRegionBrightness(x, y) {
     if (!regionMapData) return 255
     const width = regionMapData.width
@@ -618,21 +683,13 @@ import LabLayout from '../../layouts/LabLayout.astro'
       if (Math.random() > lightness) continue
 
       // Variable min distance based on brightness - bright areas get smaller minDist
-      const variableMinDist = baseMinDist * (3.0 - lightness * 2.8)
+      const variableMinDistSq = Math.pow(baseMinDist * (3.0 - lightness * 2.8), 2)
 
-      // Check minimum distance
-      let tooClose = false
-      for (const dot of dots) {
-        const dx = dot.x - x
-        const dy = dot.y - y
-        if (dx * dx + dy * dy < variableMinDist * variableMinDist) {
-          tooClose = true
-          break
-        }
-      }
-
-      if (!tooClose) {
-        dots.push({ x, y })
+      // Use spatial grid for fast distance check
+      if (!isTooClose(x, y, variableMinDistSq)) {
+        const dot = { x, y }
+        dots.push(dot)
+        addToGrid(dot)
         return true
       }
     }
@@ -643,7 +700,7 @@ import LabLayout from '../../layouts/LabLayout.astro'
     const width = stippledCanvas.width
     const height = stippledCanvas.height
     const baseMinDist = parseInt(minDistSlider.value)
-    const lightnessThreshold = parseFloat(thresholdSlider.value) // Don't place dots if region is too dark
+    const lightnessThreshold = parseFloat(thresholdSlider.value)
 
     // Find largest void
     let bestPoint = null
@@ -659,15 +716,8 @@ import LabLayout from '../../layouts/LabLayout.astro'
       // Skip if too dark
       if (lightness < lightnessThreshold) continue
 
-      let minDist = Infinity
-      for (const dot of dots) {
-        const dx = dot.x - x
-        const dy = dot.y - y
-        const dist = dx * dx + dy * dy
-        if (dist < minDist) minDist = dist
-      }
-
-      const weighted = minDist * lightness
+      const minDistSq = getNearestDotDistSq(x, y)
+      const weighted = minDistSq * lightness
 
       if (weighted > maxMinDist) {
         maxMinDist = weighted
@@ -679,12 +729,39 @@ import LabLayout from '../../layouts/LabLayout.astro'
     if (!bestPoint || dots.length < 3) {
       if (bestPoint && bestLightness >= lightnessThreshold) {
         dots.push(bestPoint)
+        addToGrid(bestPoint)
       }
       return true
     }
 
-    // Find 3 nearest dots
-    const nearest = dots
+    // Find 3 nearest dots - use spatial grid
+    const col = Math.floor(bestPoint.x / gridCellSize)
+    const row = Math.floor(bestPoint.y / gridCellSize)
+    const searchRadius = 5 // Check 5 cells in each direction
+
+    const nearbyDots = []
+    for (let dr = -searchRadius; dr <= searchRadius; dr++) {
+      for (let dc = -searchRadius; dc <= searchRadius; dc++) {
+        const r = row + dr
+        const c = col + dc
+        if (spatialGrid && r >= 0 && r < spatialGrid.length && c >= 0 && c < spatialGrid[0].length) {
+          nearbyDots.push(...spatialGrid[r][c])
+        }
+      }
+    }
+
+    if (nearbyDots.length < 3) {
+      // Not enough nearby dots, just place at bestPoint
+      const variableMinDistSq = Math.pow(baseMinDist * (3.0 - bestLightness * 2.8), 2)
+      if (!isTooClose(bestPoint.x, bestPoint.y, variableMinDistSq)) {
+        dots.push(bestPoint)
+        addToGrid(bestPoint)
+        return true
+      }
+      return false
+    }
+
+    const nearest = nearbyDots
       .map((dot) => ({
         dot,
         dist: (dot.x - bestPoint.x) ** 2 + (dot.y - bestPoint.y) ** 2,
@@ -704,21 +781,12 @@ import LabLayout from '../../layouts/LabLayout.astro'
     if (centroidLightness < lightnessThreshold) return false
 
     // Variable min distance based on centroid brightness
-    const variableMinDist = baseMinDist * (3.0 - centroidLightness * 2.8)
+    const variableMinDistSq = Math.pow(baseMinDist * (3.0 - centroidLightness * 2.8), 2)
 
-    // Check min distance
-    let tooClose = false
-    for (const dot of dots) {
-      const dx = dot.x - centroid.x
-      const dy = dot.y - centroid.y
-      if (dx * dx + dy * dy < variableMinDist * variableMinDist) {
-        tooClose = true
-        break
-      }
-    }
-
-    if (!tooClose) {
+    // Use spatial grid for distance check
+    if (!isTooClose(centroid.x, centroid.y, variableMinDistSq)) {
       dots.push(centroid)
+      addToGrid(centroid)
       return true
     }
     return false
@@ -727,7 +795,7 @@ import LabLayout from '../../layouts/LabLayout.astro'
   function addDotPoisson() {
     const width = stippledCanvas.width
     const height = stippledCanvas.height
-    const lightnessThreshold = parseFloat(thresholdSlider.value) // Don't place dots if region is too dark
+    const lightnessThreshold = parseFloat(thresholdSlider.value)
 
     for (let attempt = 0; attempt < 30; attempt++) {
       const x = Math.random() * width
@@ -740,37 +808,35 @@ import LabLayout from '../../layouts/LabLayout.astro'
 
       // Variable radius based on brightness - bright areas get tighter spacing (smaller minDist)
       const baseMinDist = parseInt(minDistSlider.value)
-      const variableMinDist = baseMinDist * (3.0 - lightness * 2.8)
+      const variableMinDistSq = Math.pow(baseMinDist * (3.0 - lightness * 2.8), 2)
 
-      let tooClose = false
-      for (const dot of dots) {
-        const dx = dot.x - x
-        const dy = dot.y - y
-        if (dx * dx + dy * dy < variableMinDist * variableMinDist) {
-          tooClose = true
-          break
-        }
-      }
-
-      if (!tooClose) {
-        dots.push({ x, y })
+      // Use spatial grid for fast distance check
+      if (!isTooClose(x, y, variableMinDistSq)) {
+        const dot = { x, y }
+        dots.push(dot)
+        addToGrid(dot)
         return true
       }
     }
     return false
   }
 
-  // Algorithm 4: Hybrid
+  // Algorithm 4: Hybrid (Optimized)
   function addDotHybrid() {
     const width = stippledCanvas.width
     const height = stippledCanvas.height
     const baseMinDist = parseInt(minDistSlider.value)
-    const lightnessThreshold = parseFloat(thresholdSlider.value) // Don't place dots if region is too dark
+    const lightnessThreshold = parseFloat(thresholdSlider.value)
 
     // Sample points weighted by lightness
     let bestPoint = null
     let bestLightness = 0
+    let bestMinDistSq = 0 // Memoize for reuse (Optimization 2)
     let maxScore = 0
+
+    // Optimization 3: Early exit if we've hit max dots
+    const maxDots = parseInt(maxDotsSlider.value)
+    if (dots.length >= maxDots) return false
 
     for (let attempt = 0; attempt < 30; attempt++) {
       const x = Math.random() * width
@@ -778,23 +844,18 @@ import LabLayout from '../../layouts/LabLayout.astro'
       const brightness = getRegionBrightness(x, y)
       const lightness = brightness / 255
 
-      // Skip if too dark
+      // Optimization 3: Early exit if too dark
       if (lightness < lightnessThreshold) continue
 
-      // Find distance to nearest dot
-      let minDist = Infinity
-      for (const dot of dots) {
-        const dx = dot.x - x
-        const dy = dot.y - y
-        const dist = dx * dx + dy * dy
-        if (dist < minDist) minDist = dist
-      }
+      // Optimization 1: Use spatial grid for fast nearest neighbor query
+      const minDistSq = getNearestDotDistSq(x, y)
 
-      const score = minDist * (0.3 + lightness * 0.7)
+      const score = minDistSq * (0.3 + lightness * 0.7)
       if (score > maxScore) {
         maxScore = score
         bestPoint = { x, y }
         bestLightness = lightness
+        bestMinDistSq = minDistSq // Store for later reuse
       }
     }
 
@@ -802,16 +863,35 @@ import LabLayout from '../../layouts/LabLayout.astro'
 
     // If we have enough dots, triangulate
     if (dots.length >= 3) {
-      const nearest = dots
-        .map((dot) => ({
-          dot,
-          dist: (dot.x - bestPoint.x) ** 2 + (dot.y - bestPoint.y) ** 2,
-        }))
-        .filter((d) => d.dist < 10000) // Within ~100px
-        .sort((a, b) => a.dist - b.dist)
-        .slice(0, 3)
+      // Find 3 nearest dots using spatial grid
+      // Cap search radius to prevent infinite loops when dots are sparse or bestMinDistSq is Infinity
+      const searchRadius = isFinite(bestMinDistSq) 
+        ? Math.min(Math.sqrt(bestMinDistSq) * 3, baseMinDist * 20)
+        : baseMinDist * 10 // Reasonable default when no nearby dots
+      const col = Math.floor(bestPoint.x / gridCellSize)
+      const row = Math.floor(bestPoint.y / gridCellSize)
+      const cellRadius = Math.min(Math.ceil(searchRadius / gridCellSize), 10) // Cap at 10 cells
 
-      if (nearest.length >= 3) {
+      const nearbyDots = []
+      for (let dr = -cellRadius; dr <= cellRadius; dr++) {
+        for (let dc = -cellRadius; dc <= cellRadius; dc++) {
+          const r = row + dr
+          const c = col + dc
+          if (spatialGrid && r >= 0 && r < spatialGrid.length && c >= 0 && c < spatialGrid[0].length) {
+            nearbyDots.push(...spatialGrid[r][c])
+          }
+        }
+      }
+
+      if (nearbyDots.length >= 3) {
+        const nearest = nearbyDots
+          .map((dot) => ({
+            dot,
+            dist: (dot.x - bestPoint.x) ** 2 + (dot.y - bestPoint.y) ** 2,
+          }))
+          .sort((a, b) => a.dist - b.dist)
+          .slice(0, 3)
+
         const centroid = {
           x: (nearest[0].dot.x + nearest[1].dot.x + nearest[2].dot.x) / 3,
           y: (nearest[0].dot.y + nearest[1].dot.y + nearest[2].dot.y) / 3,
@@ -820,78 +900,59 @@ import LabLayout from '../../layouts/LabLayout.astro'
         // Check brightness at centroid
         const centroidBrightness = getRegionBrightness(centroid.x, centroid.y)
         const centroidLightness = centroidBrightness / 255
-        if (centroidLightness < lightnessThreshold) {
-          // Try fallback point instead with variable minDist
-          const fallbackMinDist = baseMinDist * (3.0 - bestLightness * 2.8)
-          let tooClose = false
-          for (const dot of dots) {
-            const dx = dot.x - bestPoint.x
-            const dy = dot.y - bestPoint.y
-            if (dx * dx + dy * dy < fallbackMinDist * fallbackMinDist) {
-              tooClose = true
-              break
-            }
-          }
-          if (!tooClose && bestLightness >= lightnessThreshold) {
-            dots.push(bestPoint)
+
+        if (centroidLightness >= lightnessThreshold) {
+          // Variable min distance based on centroid brightness
+          const variableMinDistSq = Math.pow(baseMinDist * (3.0 - centroidLightness * 2.8), 2)
+
+          // Optimization 1: Use spatial grid for distance check
+          if (!isTooClose(centroid.x, centroid.y, variableMinDistSq)) {
+            dots.push(centroid)
+            addToGrid(centroid)
             return true
           }
-          return false
-        }
-
-        // Variable min distance based on centroid brightness
-        const variableMinDist = baseMinDist * (3.0 - centroidLightness * 2.8)
-
-        // Check min distance
-        let tooClose = false
-        for (const dot of dots) {
-          const dx = dot.x - centroid.x
-          const dy = dot.y - centroid.y
-          if (dx * dx + dy * dy < variableMinDist * variableMinDist) {
-            tooClose = true
-            break
-          }
-        }
-
-        if (!tooClose) {
-          dots.push(centroid)
-          return true
         }
       }
     }
 
     // Fallback: place at best point with variable minDist
-    const fallbackMinDist = baseMinDist * (3.0 - bestLightness * 2.8)
-    let tooClose = false
-    for (const dot of dots) {
-      const dx = dot.x - bestPoint.x
-      const dy = dot.y - bestPoint.y
-      if (dx * dx + dy * dy < fallbackMinDist * fallbackMinDist) {
-        tooClose = true
-        break
-      }
-    }
+    const fallbackMinDistSq = Math.pow(baseMinDist * (3.0 - bestLightness * 2.8), 2)
 
-    if (!tooClose && bestLightness >= lightnessThreshold) {
+    // Optimization 1 & 2: Use spatial grid and already-computed distance
+    if (bestMinDistSq >= fallbackMinDistSq && bestLightness >= lightnessThreshold) {
       dots.push(bestPoint)
+      addToGrid(bestPoint)
       return true
     }
+
     return false
   }
-  // Animation loop
+  // Animation loop (Optimization 4: Improved batch processing)
   function animate() {
-    if (!isRunning) return
+    if (!isRunning) {
+      console.log('[ANIMATE] isRunning is false, stopping')
+      return
+    }
 
     const maxDots = parseInt(maxDotsSlider.value)
     if (dots.length >= maxDots) {
+      console.log('[ANIMATE] Max dots reached:', dots.length, '>=', maxDots)
       stopStippling()
       return
     }
 
-    // Add multiple dots per frame
-    for (let i = 0; i < 10; i++) {
-      if (dots.length >= maxDots) break
+    // Optimization 4: Adaptive batch size - start with more dots per frame, reduce as we get fuller
+    const fillRatio = dots.length / maxDots
+    const batchSize = fillRatio < 0.5 ? 20 : fillRatio < 0.8 ? 10 : 5
 
+    const startTime = performance.now()
+    let successCount = 0
+    let attemptCount = 0
+    const maxAttempts = batchSize * 3 // Allow some failures before giving up
+
+    console.log('[ANIMATE] Batch starting. Dots:', dots.length, 'FillRatio:', fillRatio.toFixed(2), 'BatchSize:', batchSize)
+
+    while (successCount < batchSize && attemptCount < maxAttempts && dots.length < maxDots) {
       const algorithm = algorithmSelect.value
       let success = false
 
@@ -910,25 +971,44 @@ import LabLayout from '../../layouts/LabLayout.astro'
           break
       }
 
-      if (!success && dots.length < maxDots * 0.9) {
-        // If struggling to place dots, try a few more times
-        i--
+      if (success) successCount++
+      attemptCount++
+
+      // Emergency brake - if batch takes > 100ms, something's wrong
+      if (performance.now() - startTime > 100) {
+        console.error('[ANIMATE] Batch timeout! Took more than 100ms. SuccessCount:', successCount, 'AttemptCount:', attemptCount)
+        break
       }
     }
+
+    const elapsed = performance.now() - startTime
+    console.log('[ANIMATE] Batch complete. Success:', successCount, 'Attempts:', attemptCount, 'Time:', elapsed.toFixed(2), 'ms')
 
     drawDots()
     animationFrame = requestAnimationFrame(animate)
   }
 
   function startStippling() {
-    if (!regionMapData) return
+    console.log('[START] Starting stippling...')
+    if (!regionMapData) {
+      console.error('[START] No regionMapData!')
+      return
+    }
 
     stippledCanvas.width = diffusedCanvas.width
     stippledCanvas.height = diffusedCanvas.height
+    console.log('[START] Canvas size:', stippledCanvas.width, 'x', stippledCanvas.height)
+
+    // Initialize spatial grid with canvas dimensions
+    const baseMinDist = parseFloat(minDistSlider.value)
+    console.log('[START] Base min distance:', baseMinDist)
+    initializeSpatialGrid(stippledCanvas.width, stippledCanvas.height, baseMinDist)
+    console.log('[START] Grid initialized. Cell size:', gridCellSize, 'Grid dimensions:', spatialGrid?.length, 'x', spatialGrid?.[0]?.length)
 
     isRunning = true
     stipplingBtn.disabled = true
     stopBtn.disabled = false
+    console.log('[START] Calling animate()...')
     animate()
   }
 
@@ -945,6 +1025,7 @@ import LabLayout from '../../layouts/LabLayout.astro'
   function resetDots() {
     stopStippling()
     dots = []
+    clearGrid() // Clear the spatial grid
     const ctx = stippledCanvas.getContext('2d')
     // Reset to dark background
     ctx.fillStyle = colorBlack
