@@ -9,76 +9,80 @@ import Layout from '../../layouts/Layout.astro'
       <p class="subtitle">Segment images into brightness regions and apply different stippling algorithms</p>
     </header>
 
-    <div class="controls">
-      <div class="control-group">
-        <label>Upload Image</label>
-        <input type="file" id="imageInput" accept="image/*" />
+    <div class="controls-wrapper">
+      <div class="controls">
+        <div class="control-group">
+          <label>Upload Image</label>
+          <input type="file" id="imageInput" accept="image/*" />
+        </div>
+
+        <div class="control-group">
+          <label>
+            Region Size: <span class="slider-value" id="regionSizeValue">20</span>px
+          </label>
+          <input type="range" id="regionSize" min="1" max="50" value="20" step="1" />
+        </div>
+
+        <div class="control-group">
+          <label>
+            Brightness Levels: <span class="slider-value" id="levelsValue">5</span>
+          </label>
+          <input type="range" id="levels" min="3" max="10" value="5" step="1" />
+        </div>
+
+        <div class="control-group">
+          <label>
+            Diffusion Amount: <span class="slider-value" id="diffusionValue">3</span>
+          </label>
+          <input type="range" id="diffusion" min="0" max="10" value="3" step="1" />
+        </div>
+
+        <button id="processBtn" disabled>Process Region Map</button>
       </div>
 
-      <div class="control-group">
-        <label>
-          Region Size: <span class="slider-value" id="regionSizeValue">20</span>px
-        </label>
-        <input type="range" id="regionSize" min="1" max="50" value="20" step="1" />
-      </div>
+      <div class="controls">
+        <h2>Stippling Settings</h2>
 
-      <div class="control-group">
-        <label>
-          Brightness Levels: <span class="slider-value" id="levelsValue">5</span>
-        </label>
-        <input type="range" id="levels" min="3" max="10" value="5" step="1" />
-      </div>
+        <div class="control-group">
+          <label>Stippling Algorithm</label>
+          <select id="algorithmSelect">
+            <option value="density">Option 1: Direct Density Mapping</option>
+            <option value="triangulation">Option 2: Region-Based Triangulation</option>
+            <option value="poisson">Option 3: Poisson Disk Sampling</option>
+            <option value="hybrid" selected>Option 4: Hybrid (Recommended)</option>
+          </select>
+        </div>
 
-      <div class="control-group">
-        <label>
-          Diffusion Amount: <span class="slider-value" id="diffusionValue">3</span>
-        </label>
-        <input type="range" id="diffusion" min="0" max="10" value="3" step="1" />
-      </div>
+        <div class="control-group">
+          <label>
+            Dot Size: <span class="slider-value" id="dotSizeValue">1.5</span>px
+          </label>
+          <input type="range" id="dotSize" min="0.5" max="4" value="1.5" step="0.5" />
+        </div>
 
-      <button id="processBtn" disabled>Process Region Map</button>
-    </div>
+        <div class="control-group">
+          <label>
+            Min Distance: <span class="slider-value" id="minDistValue">6</span>px
+          </label>
+          <input type="range" id="minDist" min="2" max="15" value="6" step="1" />
+        </div>
 
-    <div class="controls">
-      <h2>Stippling Settings</h2>
+        <div class="control-group">
+          <label>
+            Max Dots: <span class="slider-value" id="maxDotsValue">3000</span>
+          </label>
+          <input type="range" id="maxDots" min="500" max="50000" value="3000" step="500" />
+        </div>
 
-      <div class="control-group">
-        <label>Stippling Algorithm</label>
-        <select id="algorithmSelect">
-          <option value="density">Option 1: Direct Density Mapping</option>
-          <option value="triangulation">Option 2: Region-Based Triangulation</option>
-          <option value="poisson">Option 3: Poisson Disk Sampling</option>
-          <option value="hybrid" selected>Option 4: Hybrid (Recommended)</option>
-        </select>
-      </div>
+        <div class="control-group">
+          <button id="stipplingBtn" disabled>Start Stippling</button>
+          <button id="stopBtn" disabled>Stop</button>
+          <button id="resetBtn" disabled>Reset Dots</button>
+        </div>
 
-      <div class="control-group">
-        <label>
-          Dot Size: <span class="slider-value" id="dotSizeValue">1.5</span>px
-        </label>
-        <input type="range" id="dotSize" min="0.5" max="4" value="1.5" step="0.5" />
-      </div>
-
-      <div class="control-group">
-        <label>
-          Min Distance: <span class="slider-value" id="minDistValue">6</span>px
-        </label>
-        <input type="range" id="minDist" min="2" max="15" value="6" step="1" />
-      </div>
-
-      <div class="control-group">
-        <label>
-          Max Dots: <span class="slider-value" id="maxDotsValue">3000</span>
-        </label>
-        <input type="range" id="maxDots" min="500" max="50000" value="3000" step="500" />
-      </div>
-
-      <button id="stipplingBtn" disabled>Start Stippling</button>
-      <button id="stopBtn" disabled>Stop</button>
-      <button id="resetBtn" disabled>Reset Dots</button>
-
-      <div class="info-box">
-        <strong>Current dots: <span id="dotCount">0</span></strong>
+        <div class="info-box">
+          <strong>Current dots: <span id="dotCount">0</span></strong>
+        </div>
       </div>
     </div>
 
@@ -826,7 +830,7 @@ import Layout from '../../layouts/Layout.astro'
 
   header {
     text-align: center;
-    margin-bottom: 2rem;
+    flex: 1 1 400px;
   }
 
   h1 {
@@ -839,12 +843,19 @@ import Layout from '../../layouts/Layout.astro'
     font-size: 0.875rem;
   }
 
+  .controls-wrapper {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin: 1rem 0;
+  }
+
   .controls {
     background: var(--theme-bg);
     border: 1px solid var(--theme-border);
     padding: 1.5rem;
     border-radius: 8px;
-    margin-bottom: 2rem;
   }
 
   .controls h2 {
@@ -855,6 +866,7 @@ import Layout from '../../layouts/Layout.astro'
 
   .control-group {
     margin-bottom: 1.25rem;
+    flex-shrink: 0;
   }
 
   .control-group label {
@@ -936,7 +948,7 @@ import Layout from '../../layouts/Layout.astro'
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
     gap: 1.5rem;
-    margin-bottom: 2rem;
+    flex: 1 1 400px;
   }
 
   .canvas-container {
