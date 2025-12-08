@@ -9,89 +9,92 @@ import Layout from '../../layouts/Layout.astro'
       <p class="subtitle">Segment images into brightness regions and apply different stippling algorithms</p>
     </header>
 
-    <div class="controls-wrapper">
-      <div class="controls">
-        <div class="control-group">
-          <label>Upload Image</label>
-          <input type="file" id="imageInput" accept="image/*" />
+    <div class="main-layout">
+      <aside class="sidebar">
+        <div class="controls">
+          <h2>Image Processing</h2>
+
+          <div class="control-group">
+            <label>Upload Image</label>
+            <input type="file" id="imageInput" accept="image/*" />
+          </div>
+
+          <div class="control-group">
+            <label>
+              Region Size: <span class="slider-value" id="regionSizeValue">4</span>px
+            </label>
+            <input type="range" id="regionSize" min="1" max="50" value="4" step="1" />
+          </div>
+
+          <div class="control-group">
+            <label>
+              Brightness Levels: <span class="slider-value" id="levelsValue">15</span>
+            </label>
+            <input type="range" id="levels" min="3" max="50" value="15" step="1" />
+          </div>
+
+          <div class="control-group">
+            <label>
+              Diffusion Amount: <span class="slider-value" id="diffusionValue">0</span>
+            </label>
+            <input type="range" id="diffusion" min="0" max="10" value="0" step="1" />
+          </div>
+
+          <button id="processBtn" disabled>Process Region Map</button>
         </div>
 
-        <div class="control-group">
-          <label>
-            Region Size: <span class="slider-value" id="regionSizeValue">4</span>px
-          </label>
-          <input type="range" id="regionSize" min="1" max="50" value="4" step="1" />
+        <div class="controls">
+          <h2>Stippling Settings</h2>
+
+          <div class="control-group">
+            <label>Stippling Algorithm</label>
+            <select id="algorithmSelect">
+              <option value="density">Option 1: Direct Density Mapping</option>
+              <option value="triangulation">Option 2: Region-Based Triangulation</option>
+              <option value="poisson">Option 3: Poisson Disk Sampling</option>
+              <option value="hybrid" selected>Option 4: Hybrid (Recommended)</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label>
+              Dot Size: <span class="slider-value" id="dotSizeValue">1</span>px
+            </label>
+            <input type="range" id="dotSize" min="0.5" max="4" value="1" step="0.5" />
+          </div>
+
+          <div class="control-group">
+            <label>
+              Base Spacing: <span class="slider-value" id="minDistValue">1.5</span>px
+            </label>
+            <input type="range" id="minDist" min="1" max="16" value="1.5" step="0.5" />
+          </div>
+
+          <div class="control-group">
+            <label>
+              Darkness Threshold: <span class="slider-value" id="thresholdValue">0.01</span>
+            </label>
+            <input type="range" id="threshold" min="0" max="1" value="0.01" step="0.01" />
+          </div>
+
+          <div class="control-group">
+            <label>
+              Max Dots: <span class="slider-value" id="maxDotsValue">30000</span>
+            </label>
+            <input type="range" id="maxDots" min="500" max="50000" value="30000" step="500" />
+          </div>
+
+          <button id="stipplingBtn" disabled>Start Stippling</button>
+          <button id="stopBtn" disabled>Stop</button>
+          <button id="resetBtn" disabled>Reset Dots</button>
+
+          <div class="info-box">
+            <strong>Current dots: <span id="dotCount">0</span></strong>
+          </div>
         </div>
+      </aside>
 
-        <div class="control-group">
-          <label>
-            Brightness Levels: <span class="slider-value" id="levelsValue">15</span>
-          </label>
-          <input type="range" id="levels" min="3" max="50" value="15" step="1" />
-        </div>
-
-        <div class="control-group">
-          <label>
-            Diffusion Amount: <span class="slider-value" id="diffusionValue">0</span>
-          </label>
-          <input type="range" id="diffusion" min="0" max="10" value="0" step="1" />
-        </div>
-
-        <button id="processBtn" disabled>Process Region Map</button>
-      </div>
-
-      <div class="controls">
-        <h2>Stippling Settings</h2>
-
-        <div class="control-group">
-          <label>Stippling Algorithm</label>
-          <select id="algorithmSelect">
-            <option value="density">Option 1: Direct Density Mapping</option>
-            <option value="triangulation">Option 2: Region-Based Triangulation</option>
-            <option value="poisson">Option 3: Poisson Disk Sampling</option>
-            <option value="hybrid" selected>Option 4: Hybrid (Recommended)</option>
-          </select>
-        </div>
-
-        <div class="control-group">
-          <label>
-            Dot Size: <span class="slider-value" id="dotSizeValue">1</span>px
-          </label>
-          <input type="range" id="dotSize" min="0.5" max="4" value="1" step="0.5" />
-        </div>
-
-        <div class="control-group">
-          <label>
-            Base Spacing: <span class="slider-value" id="minDistValue">1.5</span>px
-          </label>
-          <input type="range" id="minDist" min="1" max="16" value="1.5" step="0.5" />
-        </div>
-
-        <div class="control-group">
-          <label>
-            Darkness Threshold: <span class="slider-value" id="thresholdValue">0.01</span>
-          </label>
-          <input type="range" id="threshold" min="0" max="1" value="0.01" step="0.01" />
-        </div>
-
-        <div class="control-group">
-          <label>
-            Max Dots: <span class="slider-value" id="maxDotsValue">30000</span>
-          </label>
-          <input type="range" id="maxDots" min="500" max="50000" value="30000" step="500" />
-        </div>
-
-        <button id="stipplingBtn" disabled>Start Stippling</button>
-        <button id="stopBtn" disabled>Stop</button>
-        <button id="resetBtn" disabled>Reset Dots</button>
-
-        <div class="info-box">
-          <strong>Current dots: <span id="dotCount">0</span></strong>
-        </div>
-      </div>
-    </div>
-
-    <div class="canvas-grid">
+      <div class="canvas-grid">
       <div class="canvas-container">
         <h3>Original Image</h3>
         <canvas id="originalCanvas"></canvas>
@@ -144,6 +147,7 @@ import Layout from '../../layouts/Layout.astro'
           <strong>Dot placement visualization</strong>
           Algorithm: <span id="currentAlgorithm">Hybrid</span>
         </div>
+      </div>
       </div>
     </div>
   </div>
@@ -906,11 +910,33 @@ import Layout from '../../layouts/Layout.astro'
     font-size: 0.875rem;
   }
 
-  .controls-wrapper {
+  .main-layout {
     display: flex;
     gap: 1.5rem;
-    flex-wrap: wrap;
-    margin-bottom: 2rem;
+    flex-direction: column;
+  }
+
+  @media (min-width: 1024px) {
+    .main-layout {
+      flex-direction: row;
+      align-items: flex-start;
+    }
+  }
+
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  @media (min-width: 1024px) {
+    .sidebar {
+      flex: 0 0 320px;
+      position: sticky;
+      top: 1rem;
+      max-height: calc(100vh - 2rem);
+      overflow-y: auto;
+    }
   }
 
   .controls {
@@ -918,8 +944,6 @@ import Layout from '../../layouts/Layout.astro'
     border: 1px solid var(--theme-border);
     padding: 1rem;
     border-radius: 8px;
-    flex: 1 1 auto;
-    min-width: 400px;
   }
 
   .controls h2 {
@@ -1010,10 +1034,27 @@ import Layout from '../../layouts/Layout.astro'
 
   .canvas-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    grid-template-columns: 1fr;
     gap: 1.5rem;
-    margin-bottom: 2rem;
   }
+
+  @media (min-width: 640px) {
+    .canvas-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .canvas-grid {
+      flex: 1;
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (min-width: 1400px) {
+    .canvas-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
   }
 
   .canvas-container {
