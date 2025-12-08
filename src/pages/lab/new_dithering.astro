@@ -204,26 +204,70 @@ import LabLayout from '../../layouts/LabLayout.astro'
   let isRunning = false
   let animationFrame = null
 
+  // Debounce utility
+  function debounce(func, wait) {
+    let timeout
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout)
+        func(...args)
+      }
+      clearTimeout(timeout)
+      timeout = setTimeout(later, wait)
+    }
+  }
+
+  // Auto-process function (skips stippling)
+  function autoProcess() {
+    if (!currentImage) return
+
+    const numLevels = parseInt(levelsSlider.value)
+    const diffusionAmount = parseInt(diffusionSlider.value)
+
+    // Step 1: Create brightness map
+    const brightnessData = createBrightnessMap()
+
+    // Step 2: Quantize into regions
+    const regionMap = quantizeRegions(brightnessData, numLevels)
+
+    // Step 3: Apply diffusion
+    diffuseRegions(regionMap, diffusionAmount)
+
+    // Step 4: Create threshold preview
+    createThresholdPreview()
+  }
+
+  // Debounced version for sliders
+  const debouncedAutoProcess = debounce(autoProcess, 100)
+
   // Update slider values
   regionSizeSlider.addEventListener('input', (e) => {
     document.getElementById('regionSizeValue').textContent = e.target.value
+    debouncedAutoProcess()
   })
 
   levelsSlider.addEventListener('input', (e) => {
     document.getElementById('levelsValue').textContent = e.target.value
     document.getElementById('currentLevels').textContent = e.target.value
+    debouncedAutoProcess()
   })
 
   diffusionSlider.addEventListener('input', (e) => {
     document.getElementById('diffusionValue').textContent = e.target.value
+    debouncedAutoProcess()
   })
 
   dotSizeSlider.addEventListener('input', (e) => {
     document.getElementById('dotSizeValue').textContent = parseFloat(e.target.value).toFixed(1)
+    // Redraw dots if they exist
+    if (dots.length > 0) {
+      drawDots()
+    }
   })
 
   minDistSlider.addEventListener('input', (e) => {
     document.getElementById('minDistValue').textContent = e.target.value
+    // No auto-update for stippling parameters
   })
 
   thresholdSlider.addEventListener('input', (e) => {
@@ -233,6 +277,7 @@ import LabLayout from '../../layouts/LabLayout.astro'
 
   maxDotsSlider.addEventListener('input', (e) => {
     document.getElementById('maxDotsValue').textContent = e.target.value
+    // No auto-update for stippling parameters
   })
 
   algorithmSelect.addEventListener('change', (e) => {
@@ -257,6 +302,7 @@ import LabLayout from '../../layouts/LabLayout.astro'
         currentImage = img
         processBtn.disabled = false
         drawOriginalImage()
+        autoProcess()
       }
       img.src = event.target.result
     }
@@ -1086,8 +1132,7 @@ import LabLayout from '../../layouts/LabLayout.astro'
     aspect-ratio: 1 / 1; /* Maintain square aspect ratio */
     display: block;
     object-fit: contain;
-    border: 1px solid var(--theme-border);
-    border-radius: 4px;
+    border-radius: 0.25rem;
   }
 
   .info-box {
