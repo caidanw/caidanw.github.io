@@ -64,7 +64,7 @@ import Layout from '../../layouts/Layout.astro'
           <label>
             Base Spacing: <span class="slider-value" id="minDistValue">1</span>px
           </label>
-          <input type="range" id="minDist" min="1" max="16" value="1" step="1" />
+          <input type="range" id="minDist" min="1" max="16" value="1" step="0.5" />
         </div>
 
         <div class="control-group">
@@ -481,7 +481,7 @@ import Layout from '../../layouts/Layout.astro'
   function addDotDensity() {
     const width = stippledCanvas.width
     const height = stippledCanvas.height
-    const baseMinDist = parseInt(minDistSlider.value)
+    const baseMinDist = parseFloat(minDistSlider.value)
     const lightnessThreshold = parseFloat(thresholdSlider.value)
 
     // Sample random points weighted by brightness (bright areas get more dots)
@@ -498,7 +498,7 @@ import Layout from '../../layouts/Layout.astro'
       if (Math.random() > lightness) continue
 
       // Variable min distance based on brightness - bright areas get smaller minDist
-      const variableMinDist = baseMinDist * (2.0 - lightness * 1.5)
+      const variableMinDist = baseMinDist * (2.5 - lightness * 2.0)
 
       // Check minimum distance
       let tooClose = false
@@ -584,7 +584,7 @@ import Layout from '../../layouts/Layout.astro'
     if (centroidLightness < lightnessThreshold) return false
 
     // Variable min distance based on centroid brightness
-    const variableMinDist = baseMinDist * (2.0 - centroidLightness * 1.5)
+    const variableMinDist = baseMinDist * (2.5 - centroidLightness * 2.0)
 
     // Check min distance
     let tooClose = false
@@ -620,7 +620,7 @@ import Layout from '../../layouts/Layout.astro'
 
       // Variable radius based on brightness - bright areas get tighter spacing (smaller minDist)
       const baseMinDist = parseInt(minDistSlider.value)
-      const variableMinDist = baseMinDist * (2.0 - lightness * 1.5)
+      const variableMinDist = baseMinDist * (2.5 - lightness * 2.0)
 
       let tooClose = false
       for (const dot of dots) {
@@ -702,7 +702,7 @@ import Layout from '../../layouts/Layout.astro'
         const centroidLightness = centroidBrightness / 255
         if (centroidLightness < lightnessThreshold) {
           // Try fallback point instead with variable minDist
-          const fallbackMinDist = baseMinDist * (2.0 - bestLightness * 1.5)
+          const fallbackMinDist = baseMinDist * (2.5 - bestLightness * 2.0)
           let tooClose = false
           for (const dot of dots) {
             const dx = dot.x - bestPoint.x
@@ -720,7 +720,7 @@ import Layout from '../../layouts/Layout.astro'
         }
 
         // Variable min distance based on centroid brightness
-        const variableMinDist = baseMinDist * (2.0 - centroidLightness * 1.5)
+        const variableMinDist = baseMinDist * (2.5 - centroidLightness * 2.0)
 
         // Check min distance
         let tooClose = false
@@ -741,7 +741,7 @@ import Layout from '../../layouts/Layout.astro'
     }
 
     // Fallback: place at best point with variable minDist
-    const fallbackMinDist = baseMinDist * (2.0 - bestLightness * 1.5)
+    const fallbackMinDist = baseMinDist * (2.5 - bestLightness * 2.0)
     let tooClose = false
     for (const dot of dots) {
       const dx = dot.x - bestPoint.x
