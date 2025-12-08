@@ -99,702 +99,564 @@ import Layout from '../../layouts/Layout.astro'
           <canvas id="originalCanvas"></canvas>
           <div class="info-box">
             <strong>Original source image</strong>
-            Upload an image to begin
+            <span class="description">Upload an image to begin</span>
           </div>
-        </div>
 
-        <div class="canvas-container">
-          <canvas id="brightnessCanvas"></canvas>
-          <div class="info-box">
-            <strong>Grayscale conversion</strong>
-            Shows average brightness values
-          </div>
-        </div>
+          <div class="canvas-container">
+            <canvas id="brightnessCanvas"></canvas>
+            <div class="info-box">
+              <strong>Grayscale conversion</strong>
+              <span class="description">Shows average brightness values</span>
+            </div>
 
-        <div class="canvas-container">
-          <canvas id="quantizedCanvas"></canvas>
-          <div class="info-box">
-            <strong>Discrete brightness levels</strong>
-            Image divided into <span id="currentLevels">5</span> brightness regions
-          </div>
-        </div>
+            <div class="canvas-container">
+              <canvas id="quantizedCanvas"></canvas>
+              <div class="info-box">
+                <strong>Discrete brightness levels</strong>
+                <span class="description">Image divided into <span id="currentLevels">5</span> brightness regions</span>
+              </div>
+            </div>
 
-        <div class="canvas-container">
-          <canvas id="diffusedCanvas"></canvas>
-          <div class="info-box">
-            <strong>Smoothed transitions</strong>
-            Gradual changes between regions
-          </div>
-        </div>
+            <div class="canvas-container">
+              <canvas id="diffusedCanvas"></canvas>
+              <div class="info-box">
+                <strong>Smoothed transitions</strong>
+                <span class="description">Gradual changes between regions</span>
+              </div>
+            </div>
 
-        <div class="canvas-container">
-          <canvas id="thresholdCanvas"></canvas>
-          <div class="info-box">
-            <strong>Darkness threshold mask</strong>
-            White areas will receive dots, black areas will be pure black
-          </div>
-        </div>
+            <div class="canvas-container">
+              <canvas id="thresholdCanvas"></canvas>
+              <div class="info-box">
+                <strong>Darkness threshold mask</strong>
+                <span class="description">White areas will receive dots, black areas will be pure black</span>
+              </div>
+            </div>
 
-        <div class="canvas-container">
-          <canvas id="stippledCanvas"></canvas>
-          <div class="info-box">
-            <strong>Dot placement visualization</strong>
-            Algorithm: <span id="currentAlgorithm">Hybrid</span>
+            <div class="canvas-container">
+              <canvas id="stippledCanvas"></canvas>
+              <div class="info-box">
+                <strong>Dot placement visualization</strong>
+                <span class="description">Algorithm: <span id="currentAlgorithm">Hybrid</span></span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
-</Layout>
 
-<script>
-  const imageInput = document.getElementById('imageInput')
-  const processBtn = document.getElementById('processBtn')
-  const stipplingBtn = document.getElementById('stipplingBtn')
-  const stopBtn = document.getElementById('stopBtn')
-  const resetBtn = document.getElementById('resetBtn')
-  const regionSizeSlider = document.getElementById('regionSize')
-  const levelsSlider = document.getElementById('levels')
-  const diffusionSlider = document.getElementById('diffusion')
-  const algorithmSelect = document.getElementById('algorithmSelect')
-  const dotSizeSlider = document.getElementById('dotSize')
-  const minDistSlider = document.getElementById('minDist')
-  const thresholdSlider = document.getElementById('threshold')
-  const maxDotsSlider = document.getElementById('maxDots')
+    <script>
+      const imageInput = document.getElementById('imageInput')
+      const processBtn = document.getElementById('processBtn')
+      const stipplingBtn = document.getElementById('stipplingBtn')
+      const stopBtn = document.getElementById('stopBtn')
+      const resetBtn = document.getElementById('resetBtn')
+      const regionSizeSlider = document.getElementById('regionSize')
+      const levelsSlider = document.getElementById('levels')
+      const diffusionSlider = document.getElementById('diffusion')
+      const algorithmSelect = document.getElementById('algorithmSelect')
+      const dotSizeSlider = document.getElementById('dotSize')
+      const minDistSlider = document.getElementById('minDist')
+      const thresholdSlider = document.getElementById('threshold')
+      const maxDotsSlider = document.getElementById('maxDots')
 
-  const originalCanvas = document.getElementById('originalCanvas')
-  const brightnessCanvas = document.getElementById('brightnessCanvas')
-  const quantizedCanvas = document.getElementById('quantizedCanvas')
-  const diffusedCanvas = document.getElementById('diffusedCanvas')
-  const thresholdCanvas = document.getElementById('thresholdCanvas')
-  const stippledCanvas = document.getElementById('stippledCanvas')
+      const originalCanvas = document.getElementById('originalCanvas')
+      const brightnessCanvas = document.getElementById('brightnessCanvas')
+      const quantizedCanvas = document.getElementById('quantizedCanvas')
+      const diffusedCanvas = document.getElementById('diffusedCanvas')
+      const thresholdCanvas = document.getElementById('thresholdCanvas')
+      const stippledCanvas = document.getElementById('stippledCanvas')
 
-  // Get CSS variable values
-  const rootStyles = getComputedStyle(document.documentElement)
-  const colorBlack = rootStyles.getPropertyValue('--color-black').trim()
-  const colorWhite = rootStyles.getPropertyValue('--color-white').trim()
-  const colorGrayDark = rootStyles.getPropertyValue('--color-gray-dark').trim()
-  const colorGrayDarker = rootStyles.getPropertyValue('--color-gray-darker').trim()
+      // Get CSS variable values
+      const rootStyles = getComputedStyle(document.documentElement)
+      const colorBlack = rootStyles.getPropertyValue('--color-black').trim()
+      const colorWhite = rootStyles.getPropertyValue('--color-white').trim()
+      const colorGrayDark = rootStyles.getPropertyValue('--color-gray-dark').trim()
+      const colorGrayDarker = rootStyles.getPropertyValue('--color-gray-darker').trim()
 
-  // Initialize canvases with checkerboard pattern
-  function initializeCanvas(canvas) {
-    const size = 400 // Square canvas
-    canvas.width = size
-    canvas.height = size
+      // Initialize canvases with checkerboard pattern
+      function initializeCanvas(canvas) {
+        const size = 400 // Square canvas
+        canvas.width = size
+        canvas.height = size
 
-    const ctx = canvas.getContext('2d')
-    const checkSize = 20 // Size of each checker square
+        const ctx = canvas.getContext('2d')
+        const checkSize = 20 // Size of each checker square
 
-    for (let y = 0; y < size; y += checkSize) {
-      for (let x = 0; x < size; x += checkSize) {
-        const isEven = (Math.floor(x / checkSize) + Math.floor(y / checkSize)) % 2 === 0
-        ctx.fillStyle = isEven ? colorGrayDark : colorGrayDarker
-        ctx.fillRect(x, y, checkSize, checkSize)
-      }
-    }
-  }
-
-  // Initialize all canvases
-  initializeCanvas(originalCanvas)
-  initializeCanvas(brightnessCanvas)
-  initializeCanvas(quantizedCanvas)
-  initializeCanvas(diffusedCanvas)
-  initializeCanvas(thresholdCanvas)
-  initializeCanvas(stippledCanvas)
-
-  let currentImage = null
-  let regionMapData = null
-  let dots = []
-  let isRunning = false
-  let animationFrame = null
-
-  // Update slider values
-  regionSizeSlider.addEventListener('input', (e) => {
-    document.getElementById('regionSizeValue').textContent = e.target.value
-  })
-
-  levelsSlider.addEventListener('input', (e) => {
-    document.getElementById('levelsValue').textContent = e.target.value
-    document.getElementById('currentLevels').textContent = e.target.value
-  })
-
-  diffusionSlider.addEventListener('input', (e) => {
-    document.getElementById('diffusionValue').textContent = e.target.value
-  })
-
-  dotSizeSlider.addEventListener('input', (e) => {
-    document.getElementById('dotSizeValue').textContent = e.target.value
-  })
-
-  minDistSlider.addEventListener('input', (e) => {
-    document.getElementById('minDistValue').textContent = e.target.value
-  })
-
-  thresholdSlider.addEventListener('input', (e) => {
-    document.getElementById('thresholdValue').textContent = e.target.value
-    createThresholdPreview()
-  })
-
-  maxDotsSlider.addEventListener('input', (e) => {
-    document.getElementById('maxDotsValue').textContent = e.target.value
-  })
-
-  algorithmSelect.addEventListener('change', (e) => {
-    const algoNames = {
-      density: 'Direct Density Mapping',
-      triangulation: 'Region-Based Triangulation',
-      poisson: 'Poisson Disk Sampling',
-      hybrid: 'Hybrid',
-    }
-    document.getElementById('currentAlgorithm').textContent = algoNames[e.target.value]
-  })
-
-  // Handle image upload
-  imageInput.addEventListener('change', (e) => {
-    const file = e.target.files[0]
-    if (!file) return
-
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      const img = new Image()
-      img.onload = () => {
-        currentImage = img
-        processBtn.disabled = false
-        drawOriginalImage()
-      }
-      img.src = event.target.result
-    }
-    reader.readAsDataURL(file)
-  })
-
-  // Draw original image
-  function drawOriginalImage() {
-    const ctx = originalCanvas.getContext('2d')
-    const maxWidth = 500
-    const scale = Math.min(1, maxWidth / currentImage.width)
-
-    originalCanvas.width = currentImage.width * scale
-    originalCanvas.height = currentImage.height * scale
-
-    ctx.drawImage(currentImage, 0, 0, originalCanvas.width, originalCanvas.height)
-  }
-
-  // Get brightness value from RGB
-  function getBrightness(r, g, b) {
-    return (r + g + b) / 3
-  }
-
-  // Process image into brightness map
-  function createBrightnessMap() {
-    const ctx = originalCanvas.getContext('2d')
-    const imageData = ctx.getImageData(0, 0, originalCanvas.width, originalCanvas.height)
-    const data = imageData.data
-    const width = originalCanvas.width
-    const height = originalCanvas.height
-
-    // Create brightness canvas
-    brightnessCanvas.width = width
-    brightnessCanvas.height = height
-    const brightCtx = brightnessCanvas.getContext('2d')
-    const brightImageData = brightCtx.createImageData(width, height)
-    const brightData = brightImageData.data
-
-    // Convert to grayscale brightness
-    for (let i = 0; i < data.length; i += 4) {
-      const brightness = getBrightness(data[i], data[i + 1], data[i + 2])
-      brightData[i] = brightness
-      brightData[i + 1] = brightness
-      brightData[i + 2] = brightness
-      brightData[i + 3] = 255
-    }
-
-    brightCtx.putImageData(brightImageData, 0, 0)
-    return brightImageData
-  }
-
-  // Quantize into discrete regions
-  function quantizeRegions(brightnessData, numLevels) {
-    const regionSize = parseInt(regionSizeSlider.value)
-    const width = brightnessData.width
-    const height = brightnessData.height
-    const data = brightnessData.data
-
-    quantizedCanvas.width = width
-    quantizedCanvas.height = height
-    const ctx = quantizedCanvas.getContext('2d')
-    const quantizedImageData = ctx.createImageData(width, height)
-    const quantizedData = quantizedImageData.data
-
-    // Create grid of regions
-    const cols = Math.ceil(width / regionSize)
-    const rows = Math.ceil(height / regionSize)
-    const regionMap = []
-
-    // Calculate average brightness for each region
-    for (let ry = 0; ry < rows; ry++) {
-      regionMap[ry] = []
-      for (let rx = 0; rx < cols; rx++) {
-        let sum = 0
-        let count = 0
-
-        // Sample all pixels in this region
-        for (let py = ry * regionSize; py < Math.min((ry + 1) * regionSize, height); py++) {
-          for (let px = rx * regionSize; px < Math.min((rx + 1) * regionSize, width); px++) {
-            const idx = (py * width + px) * 4
-            sum += data[idx]
-            count++
-          }
-        }
-
-        const avgBrightness = sum / count
-
-        // Quantize to discrete level
-        const level = Math.floor((avgBrightness / 255) * numLevels)
-        const quantizedValue = (level / numLevels) * 255
-
-        regionMap[ry][rx] = {
-          brightness: quantizedValue,
-          level: level,
-        }
-      }
-    }
-
-    // Draw quantized regions
-    for (let ry = 0; ry < rows; ry++) {
-      for (let rx = 0; rx < cols; rx++) {
-        const value = regionMap[ry][rx].brightness
-
-        for (let py = ry * regionSize; py < Math.min((ry + 1) * regionSize, height); py++) {
-          for (let px = rx * regionSize; px < Math.min((rx + 1) * regionSize, width); px++) {
-            const idx = (py * width + px) * 4
-            quantizedData[idx] = value
-            quantizedData[idx + 1] = value
-            quantizedData[idx + 2] = value
-            quantizedData[idx + 3] = 255
+        for (let y = 0; y < size; y += checkSize) {
+          for (let x = 0; x < size; x += checkSize) {
+            const isEven = (Math.floor(x / checkSize) + Math.floor(y / checkSize)) % 2 === 0
+            ctx.fillStyle = isEven ? colorGrayDark : colorGrayDarker
+            ctx.fillRect(x, y, checkSize, checkSize)
           }
         }
       }
-    }
 
-    ctx.putImageData(quantizedImageData, 0, 0)
-    return regionMap
-  }
+      // Initialize all canvases
+      initializeCanvas(originalCanvas)
+      initializeCanvas(brightnessCanvas)
+      initializeCanvas(quantizedCanvas)
+      initializeCanvas(diffusedCanvas)
+      initializeCanvas(thresholdCanvas)
+      initializeCanvas(stippledCanvas)
 
-  // Apply diffusion for smooth transitions
-  function diffuseRegions(regionMap, diffusionAmount) {
-    if (diffusionAmount === 0) {
-      // No diffusion, just copy quantized
-      const ctx = quantizedCanvas.getContext('2d')
-      const quantizedData = ctx.getImageData(0, 0, quantizedCanvas.width, quantizedCanvas.height)
-      const diffusedCtx = diffusedCanvas.getContext('2d')
-      diffusedCanvas.width = quantizedCanvas.width
-      diffusedCanvas.height = quantizedCanvas.height
-      diffusedCtx.putImageData(quantizedData, 0, 0)
-      regionMapData = quantizedData
-      return
-    }
+      let currentImage = null
+      let regionMapData = null
+      let dots = []
+      let isRunning = false
+      let animationFrame = null
 
-    const rows = regionMap.length
-    const cols = regionMap[0].length
-    const regionSize = parseInt(regionSizeSlider.value)
-    const width = quantizedCanvas.width
-    const height = quantizedCanvas.height
+      // Update slider values
+      regionSizeSlider.addEventListener('input', (e) => {
+        document.getElementById('regionSizeValue').textContent = e.target.value
+      })
 
-    diffusedCanvas.width = width
-    diffusedCanvas.height = height
-    const ctx = diffusedCanvas.getContext('2d')
-    const diffusedImageData = ctx.createImageData(width, height)
-    const diffusedData = diffusedImageData.data
+      levelsSlider.addEventListener('input', (e) => {
+        document.getElementById('levelsValue').textContent = e.target.value
+        document.getElementById('currentLevels').textContent = e.target.value
+      })
 
-    // Apply gaussian-like blur multiple times
-    let currentMap = regionMap.map((row) => row.map((cell) => cell.brightness))
+      diffusionSlider.addEventListener('input', (e) => {
+        document.getElementById('diffusionValue').textContent = e.target.value
+      })
 
-    for (let iteration = 0; iteration < diffusionAmount; iteration++) {
-      const newMap = []
+      dotSizeSlider.addEventListener('input', (e) => {
+        document.getElementById('dotSizeValue').textContent = e.target.value
+      })
 
-      for (let ry = 0; ry < rows; ry++) {
-        newMap[ry] = []
-        for (let rx = 0; rx < cols; rx++) {
-          let sum = currentMap[ry][rx]
-          let count = 1
+      minDistSlider.addEventListener('input', (e) => {
+        document.getElementById('minDistValue').textContent = e.target.value
+      })
 
-          // Average with neighbors
-          const neighbors = [
-            [-1, -1],
-            [-1, 0],
-            [-1, 1],
-            [0, -1],
-            [0, 1],
-            [1, -1],
-            [1, 0],
-            [1, 1],
-          ]
+      thresholdSlider.addEventListener('input', (e) => {
+        document.getElementById('thresholdValue').textContent = e.target.value
+        createThresholdPreview()
+      })
 
-          for (const [dy, dx] of neighbors) {
-            const ny = ry + dy
-            const nx = rx + dx
-            if (ny >= 0 && ny < rows && nx >= 0 && nx < cols) {
-              sum += currentMap[ny][nx]
-              count++
+      maxDotsSlider.addEventListener('input', (e) => {
+        document.getElementById('maxDotsValue').textContent = e.target.value
+      })
+
+      algorithmSelect.addEventListener('change', (e) => {
+        const algoNames = {
+          density: 'Direct Density Mapping',
+          triangulation: 'Region-Based Triangulation',
+          poisson: 'Poisson Disk Sampling',
+          hybrid: 'Hybrid',
+        }
+        document.getElementById('currentAlgorithm').textContent = algoNames[e.target.value]
+      })
+
+      // Handle image upload
+      imageInput.addEventListener('change', (e) => {
+        const file = e.target.files[0]
+        if (!file) return
+
+        const reader = new FileReader()
+        reader.onload = (event) => {
+          const img = new Image()
+          img.onload = () => {
+            currentImage = img
+            processBtn.disabled = false
+            drawOriginalImage()
+          }
+          img.src = event.target.result
+        }
+        reader.readAsDataURL(file)
+      })
+
+      // Draw original image
+      function drawOriginalImage() {
+        const ctx = originalCanvas.getContext('2d')
+        const maxWidth = 500
+        const scale = Math.min(1, maxWidth / currentImage.width)
+
+        originalCanvas.width = currentImage.width * scale
+        originalCanvas.height = currentImage.height * scale
+
+        ctx.drawImage(currentImage, 0, 0, originalCanvas.width, originalCanvas.height)
+      }
+
+      // Get brightness value from RGB
+      function getBrightness(r, g, b) {
+        return (r + g + b) / 3
+      }
+
+      // Process image into brightness map
+      function createBrightnessMap() {
+        const ctx = originalCanvas.getContext('2d')
+        const imageData = ctx.getImageData(0, 0, originalCanvas.width, originalCanvas.height)
+        const data = imageData.data
+        const width = originalCanvas.width
+        const height = originalCanvas.height
+
+        // Create brightness canvas
+        brightnessCanvas.width = width
+        brightnessCanvas.height = height
+        const brightCtx = brightnessCanvas.getContext('2d')
+        const brightImageData = brightCtx.createImageData(width, height)
+        const brightData = brightImageData.data
+
+        // Convert to grayscale brightness
+        for (let i = 0; i < data.length; i += 4) {
+          const brightness = getBrightness(data[i], data[i + 1], data[i + 2])
+          brightData[i] = brightness
+          brightData[i + 1] = brightness
+          brightData[i + 2] = brightness
+          brightData[i + 3] = 255
+        }
+
+        brightCtx.putImageData(brightImageData, 0, 0)
+        return brightImageData
+      }
+
+      // Quantize into discrete regions
+      function quantizeRegions(brightnessData, numLevels) {
+        const regionSize = parseInt(regionSizeSlider.value)
+        const width = brightnessData.width
+        const height = brightnessData.height
+        const data = brightnessData.data
+
+        quantizedCanvas.width = width
+        quantizedCanvas.height = height
+        const ctx = quantizedCanvas.getContext('2d')
+        const quantizedImageData = ctx.createImageData(width, height)
+        const quantizedData = quantizedImageData.data
+
+        // Create grid of regions
+        const cols = Math.ceil(width / regionSize)
+        const rows = Math.ceil(height / regionSize)
+        const regionMap = []
+
+        // Calculate average brightness for each region
+        for (let ry = 0; ry < rows; ry++) {
+          regionMap[ry] = []
+          for (let rx = 0; rx < cols; rx++) {
+            let sum = 0
+            let count = 0
+
+            // Sample all pixels in this region
+            for (let py = ry * regionSize; py < Math.min((ry + 1) * regionSize, height); py++) {
+              for (let px = rx * regionSize; px < Math.min((rx + 1) * regionSize, width); px++) {
+                const idx = (py * width + px) * 4
+                sum += data[idx]
+                count++
+              }
+            }
+
+            const avgBrightness = sum / count
+
+            // Quantize to discrete level
+            const level = Math.floor((avgBrightness / 255) * numLevels)
+            const quantizedValue = (level / numLevels) * 255
+
+            regionMap[ry][rx] = {
+              brightness: quantizedValue,
+              level: level,
+            }
+          }
+        }
+
+        // Draw quantized regions
+        for (let ry = 0; ry < rows; ry++) {
+          for (let rx = 0; rx < cols; rx++) {
+            const value = regionMap[ry][rx].brightness
+
+            for (let py = ry * regionSize; py < Math.min((ry + 1) * regionSize, height); py++) {
+              for (let px = rx * regionSize; px < Math.min((rx + 1) * regionSize, width); px++) {
+                const idx = (py * width + px) * 4
+                quantizedData[idx] = value
+                quantizedData[idx + 1] = value
+                quantizedData[idx + 2] = value
+                quantizedData[idx + 3] = 255
+              }
+            }
+          }
+        }
+
+        ctx.putImageData(quantizedImageData, 0, 0)
+        return regionMap
+      }
+
+      // Apply diffusion for smooth transitions
+      function diffuseRegions(regionMap, diffusionAmount) {
+        if (diffusionAmount === 0) {
+          // No diffusion, just copy quantized
+          const ctx = quantizedCanvas.getContext('2d')
+          const quantizedData = ctx.getImageData(0, 0, quantizedCanvas.width, quantizedCanvas.height)
+          const diffusedCtx = diffusedCanvas.getContext('2d')
+          diffusedCanvas.width = quantizedCanvas.width
+          diffusedCanvas.height = quantizedCanvas.height
+          diffusedCtx.putImageData(quantizedData, 0, 0)
+          regionMapData = quantizedData
+          return
+        }
+
+        const rows = regionMap.length
+        const cols = regionMap[0].length
+        const regionSize = parseInt(regionSizeSlider.value)
+        const width = quantizedCanvas.width
+        const height = quantizedCanvas.height
+
+        diffusedCanvas.width = width
+        diffusedCanvas.height = height
+        const ctx = diffusedCanvas.getContext('2d')
+        const diffusedImageData = ctx.createImageData(width, height)
+        const diffusedData = diffusedImageData.data
+
+        // Apply gaussian-like blur multiple times
+        let currentMap = regionMap.map((row) => row.map((cell) => cell.brightness))
+
+        for (let iteration = 0; iteration < diffusionAmount; iteration++) {
+          const newMap = []
+
+          for (let ry = 0; ry < rows; ry++) {
+            newMap[ry] = []
+            for (let rx = 0; rx < cols; rx++) {
+              let sum = currentMap[ry][rx]
+              let count = 1
+
+              // Average with neighbors
+              const neighbors = [
+                [-1, -1],
+                [-1, 0],
+                [-1, 1],
+                [0, -1],
+                [0, 1],
+                [1, -1],
+                [1, 0],
+                [1, 1],
+              ]
+
+              for (const [dy, dx] of neighbors) {
+                const ny = ry + dy
+                const nx = rx + dx
+                if (ny >= 0 && ny < rows && nx >= 0 && nx < cols) {
+                  sum += currentMap[ny][nx]
+                  count++
+                }
+              }
+
+              newMap[ry][rx] = sum / count
             }
           }
 
-          newMap[ry][rx] = sum / count
+          currentMap = newMap
         }
-      }
 
-      currentMap = newMap
-    }
+        // Draw diffused regions
+        for (let ry = 0; ry < rows; ry++) {
+          for (let rx = 0; rx < cols; rx++) {
+            const value = currentMap[ry][rx]
 
-    // Draw diffused regions
-    for (let ry = 0; ry < rows; ry++) {
-      for (let rx = 0; rx < cols; rx++) {
-        const value = currentMap[ry][rx]
-
-        for (let py = ry * regionSize; py < Math.min((ry + 1) * regionSize, height); py++) {
-          for (let px = rx * regionSize; px < Math.min((rx + 1) * regionSize, width); px++) {
-            const idx = (py * width + px) * 4
-            diffusedData[idx] = value
-            diffusedData[idx + 1] = value
-            diffusedData[idx + 2] = value
-            diffusedData[idx + 3] = 255
+            for (let py = ry * regionSize; py < Math.min((ry + 1) * regionSize, height); py++) {
+              for (let px = rx * regionSize; px < Math.min((rx + 1) * regionSize, width); px++) {
+                const idx = (py * width + px) * 4
+                diffusedData[idx] = value
+                diffusedData[idx + 1] = value
+                diffusedData[idx + 2] = value
+                diffusedData[idx + 3] = 255
+              }
+            }
           }
         }
+
+        ctx.putImageData(diffusedImageData, 0, 0)
+        regionMapData = diffusedImageData
       }
-    }
 
-    ctx.putImageData(diffusedImageData, 0, 0)
-    regionMapData = diffusedImageData
-  }
+      // Create threshold preview showing which areas will receive dots
+      function createThresholdPreview() {
+        if (!regionMapData) return
 
-  // Create threshold preview showing which areas will receive dots
-  function createThresholdPreview() {
-    if (!regionMapData) return
+        const threshold = parseFloat(thresholdSlider.value)
+        const width = regionMapData.width
+        const height = regionMapData.height
+        const data = regionMapData.data
 
-    const threshold = parseFloat(thresholdSlider.value)
-    const width = regionMapData.width
-    const height = regionMapData.height
-    const data = regionMapData.data
+        thresholdCanvas.width = width
+        thresholdCanvas.height = height
+        const ctx = thresholdCanvas.getContext('2d')
+        const thresholdImageData = ctx.createImageData(width, height)
+        const thresholdData = thresholdImageData.data
 
-    thresholdCanvas.width = width
-    thresholdCanvas.height = height
-    const ctx = thresholdCanvas.getContext('2d')
-    const thresholdImageData = ctx.createImageData(width, height)
-    const thresholdData = thresholdImageData.data
+        // Create black/white mask based on threshold
+        for (let i = 0; i < data.length; i += 4) {
+          const brightness = data[i]
+          const lightness = brightness / 255
 
-    // Create black/white mask based on threshold
-    for (let i = 0; i < data.length; i += 4) {
-      const brightness = data[i]
-      const lightness = brightness / 255
+          // White if above threshold (will receive dots), black if below (pure black)
+          const value = lightness >= threshold ? 255 : 0
 
-      // White if above threshold (will receive dots), black if below (pure black)
-      const value = lightness >= threshold ? 255 : 0
-
-      thresholdData[i] = value
-      thresholdData[i + 1] = value
-      thresholdData[i + 2] = value
-      thresholdData[i + 3] = 255
-    }
-
-    ctx.putImageData(thresholdImageData, 0, 0)
-  }
-
-  // Process button
-  processBtn.addEventListener('click', () => {
-    if (!currentImage) return
-
-    const numLevels = parseInt(levelsSlider.value)
-    const diffusionAmount = parseInt(diffusionSlider.value)
-
-    // Step 1: Create brightness map
-    const brightnessData = createBrightnessMap()
-
-    // Step 2: Quantize into regions
-    const regionMap = quantizeRegions(brightnessData, numLevels)
-
-    // Step 3: Apply diffusion
-    diffuseRegions(regionMap, diffusionAmount)
-
-    // Step 4: Create threshold preview
-    createThresholdPreview()
-
-    // Enable stippling controls
-    stipplingBtn.disabled = false
-    resetBtn.disabled = false
-  })
-
-  // ========== STIPPLING ALGORITHMS ==========
-
-  function getRegionBrightness(x, y) {
-    if (!regionMapData) return 255
-    const width = regionMapData.width
-    const height = regionMapData.height
-    const px = Math.max(0, Math.min(Math.floor(x), width - 1))
-    const py = Math.max(0, Math.min(Math.floor(y), height - 1))
-    const idx = (py * width + px) * 4
-    return regionMapData.data[idx]
-  }
-
-  function drawDots() {
-    const ctx = stippledCanvas.getContext('2d')
-    // Fill with dark background
-    ctx.fillStyle = colorBlack
-    ctx.fillRect(0, 0, stippledCanvas.width, stippledCanvas.height)
-
-    // Draw light dots on top
-    ctx.fillStyle = colorWhite
-    const dotSize = parseFloat(dotSizeSlider.value)
-
-    dots.forEach((dot) => {
-      ctx.beginPath()
-      ctx.arc(dot.x, dot.y, dotSize, 0, Math.PI * 2)
-      ctx.fill()
-    })
-
-    document.getElementById('dotCount').textContent = dots.length
-  }
-
-  // Algorithm 1: Direct Density Mapping
-  function addDotDensity() {
-    const width = stippledCanvas.width
-    const height = stippledCanvas.height
-    const baseMinDist = parseFloat(minDistSlider.value)
-    const lightnessThreshold = parseFloat(thresholdSlider.value)
-
-    // Sample random points weighted by brightness (bright areas get more dots)
-    for (let attempt = 0; attempt < 20; attempt++) {
-      const x = Math.random() * width
-      const y = Math.random() * height
-      const brightness = getRegionBrightness(x, y)
-      const lightness = brightness / 255
-
-      // Skip if too dark
-      if (lightness < lightnessThreshold) continue
-
-      // Weight by lightness - brighter areas are more likely to accept dots
-      if (Math.random() > lightness) continue
-
-      // Variable min distance based on brightness - bright areas get smaller minDist
-      const variableMinDist = baseMinDist * (3.0 - lightness * 2.8)
-
-      // Check minimum distance
-      let tooClose = false
-      for (const dot of dots) {
-        const dx = dot.x - x
-        const dy = dot.y - y
-        if (dx * dx + dy * dy < variableMinDist * variableMinDist) {
-          tooClose = true
-          break
+          thresholdData[i] = value
+          thresholdData[i + 1] = value
+          thresholdData[i + 2] = value
+          thresholdData[i + 3] = 255
         }
+
+        ctx.putImageData(thresholdImageData, 0, 0)
       }
 
-      if (!tooClose) {
-        dots.push({ x, y })
-        return true
+      // Process button
+      processBtn.addEventListener('click', () => {
+        if (!currentImage) return
+
+        const numLevels = parseInt(levelsSlider.value)
+        const diffusionAmount = parseInt(diffusionSlider.value)
+
+        // Step 1: Create brightness map
+        const brightnessData = createBrightnessMap()
+
+        // Step 2: Quantize into regions
+        const regionMap = quantizeRegions(brightnessData, numLevels)
+
+        // Step 3: Apply diffusion
+        diffuseRegions(regionMap, diffusionAmount)
+
+        // Step 4: Create threshold preview
+        createThresholdPreview()
+
+        // Enable stippling controls
+        stipplingBtn.disabled = false
+        resetBtn.disabled = false
+      })
+
+      // ========== STIPPLING ALGORITHMS ==========
+
+      function getRegionBrightness(x, y) {
+        if (!regionMapData) return 255
+        const width = regionMapData.width
+        const height = regionMapData.height
+        const px = Math.max(0, Math.min(Math.floor(x), width - 1))
+        const py = Math.max(0, Math.min(Math.floor(y), height - 1))
+        const idx = (py * width + px) * 4
+        return regionMapData.data[idx]
       }
-    }
-    return false
-  }
-  // Algorithm 2: Region-Based Triangulation
-  function addDotTriangulation() {
-    const width = stippledCanvas.width
-    const height = stippledCanvas.height
-    const baseMinDist = parseInt(minDistSlider.value)
-    const lightnessThreshold = parseFloat(thresholdSlider.value) // Don't place dots if region is too dark
 
-    // Find largest void
-    let bestPoint = null
-    let bestLightness = 0
-    let maxMinDist = 0
+      function drawDots() {
+        const ctx = stippledCanvas.getContext('2d')
+        // Fill with dark background
+        ctx.fillStyle = colorBlack
+        ctx.fillRect(0, 0, stippledCanvas.width, stippledCanvas.height)
 
-    for (let attempt = 0; attempt < 30; attempt++) {
-      const x = Math.random() * width
-      const y = Math.random() * height
-      const brightness = getRegionBrightness(x, y)
-      const lightness = brightness / 255
+        // Draw light dots on top
+        ctx.fillStyle = colorWhite
+        const dotSize = parseFloat(dotSizeSlider.value)
 
-      // Skip if too dark
-      if (lightness < lightnessThreshold) continue
+        dots.forEach((dot) => {
+          ctx.beginPath()
+          ctx.arc(dot.x, dot.y, dotSize, 0, Math.PI * 2)
+          ctx.fill()
+        })
 
-      let minDist = Infinity
-      for (const dot of dots) {
-        const dx = dot.x - x
-        const dy = dot.y - y
-        const dist = dx * dx + dy * dy
-        if (dist < minDist) minDist = dist
+        document.getElementById('dotCount').textContent = dots.length
       }
 
-      const weighted = minDist * lightness
+      // Algorithm 1: Direct Density Mapping
+      function addDotDensity() {
+        const width = stippledCanvas.width
+        const height = stippledCanvas.height
+        const baseMinDist = parseFloat(minDistSlider.value)
+        const lightnessThreshold = parseFloat(thresholdSlider.value)
 
-      if (weighted > maxMinDist) {
-        maxMinDist = weighted
-        bestPoint = { x, y }
-        bestLightness = lightness
-      }
-    }
+        // Sample random points weighted by brightness (bright areas get more dots)
+        for (let attempt = 0; attempt < 20; attempt++) {
+          const x = Math.random() * width
+          const y = Math.random() * height
+          const brightness = getRegionBrightness(x, y)
+          const lightness = brightness / 255
 
-    if (!bestPoint || dots.length < 3) {
-      if (bestPoint && bestLightness >= lightnessThreshold) {
-        dots.push(bestPoint)
-      }
-      return true
-    }
+          // Skip if too dark
+          if (lightness < lightnessThreshold) continue
 
-    // Find 3 nearest dots
-    const nearest = dots
-      .map((dot) => ({
-        dot,
-        dist: (dot.x - bestPoint.x) ** 2 + (dot.y - bestPoint.y) ** 2,
-      }))
-      .sort((a, b) => a.dist - b.dist)
-      .slice(0, 3)
+          // Weight by lightness - brighter areas are more likely to accept dots
+          if (Math.random() > lightness) continue
 
-    // Triangulate
-    const centroid = {
-      x: (nearest[0].dot.x + nearest[1].dot.x + nearest[2].dot.x) / 3,
-      y: (nearest[0].dot.y + nearest[1].dot.y + nearest[2].dot.y) / 3,
-    }
+          // Variable min distance based on brightness - bright areas get smaller minDist
+          const variableMinDist = baseMinDist * (3.0 - lightness * 2.8)
 
-    // Check brightness at centroid and calculate variable min distance
-    const centroidBrightness = getRegionBrightness(centroid.x, centroid.y)
-    const centroidLightness = centroidBrightness / 255
-    if (centroidLightness < lightnessThreshold) return false
+          // Check minimum distance
+          let tooClose = false
+          for (const dot of dots) {
+            const dx = dot.x - x
+            const dy = dot.y - y
+            if (dx * dx + dy * dy < variableMinDist * variableMinDist) {
+              tooClose = true
+              break
+            }
+          }
 
-    // Variable min distance based on centroid brightness
-    const variableMinDist = baseMinDist * (3.0 - centroidLightness * 2.8)
-
-    // Check min distance
-    let tooClose = false
-    for (const dot of dots) {
-      const dx = dot.x - centroid.x
-      const dy = dot.y - centroid.y
-      if (dx * dx + dy * dy < variableMinDist * variableMinDist) {
-        tooClose = true
-        break
-      }
-    }
-
-    if (!tooClose) {
-      dots.push(centroid)
-      return true
-    }
-    return false
-  }
-  // Algorithm 3: Poisson Disk Sampling
-  function addDotPoisson() {
-    const width = stippledCanvas.width
-    const height = stippledCanvas.height
-    const lightnessThreshold = parseFloat(thresholdSlider.value) // Don't place dots if region is too dark
-
-    for (let attempt = 0; attempt < 30; attempt++) {
-      const x = Math.random() * width
-      const y = Math.random() * height
-      const brightness = getRegionBrightness(x, y)
-      const lightness = brightness / 255
-
-      // Skip if too dark
-      if (lightness < lightnessThreshold) continue
-
-      // Variable radius based on brightness - bright areas get tighter spacing (smaller minDist)
-      const baseMinDist = parseInt(minDistSlider.value)
-      const variableMinDist = baseMinDist * (3.0 - lightness * 2.8)
-
-      let tooClose = false
-      for (const dot of dots) {
-        const dx = dot.x - x
-        const dy = dot.y - y
-        if (dx * dx + dy * dy < variableMinDist * variableMinDist) {
-          tooClose = true
-          break
+          if (!tooClose) {
+            dots.push({ x, y })
+            return true
+          }
         }
+        return false
       }
+      // Algorithm 2: Region-Based Triangulation
+      function addDotTriangulation() {
+        const width = stippledCanvas.width
+        const height = stippledCanvas.height
+        const baseMinDist = parseInt(minDistSlider.value)
+        const lightnessThreshold = parseFloat(thresholdSlider.value) // Don't place dots if region is too dark
 
-      if (!tooClose) {
-        dots.push({ x, y })
-        return true
-      }
-    }
-    return false
-  }
+        // Find largest void
+        let bestPoint = null
+        let bestLightness = 0
+        let maxMinDist = 0
 
-  // Algorithm 4: Hybrid
-  function addDotHybrid() {
-    const width = stippledCanvas.width
-    const height = stippledCanvas.height
-    const baseMinDist = parseInt(minDistSlider.value)
-    const lightnessThreshold = parseFloat(thresholdSlider.value) // Don't place dots if region is too dark
+        for (let attempt = 0; attempt < 30; attempt++) {
+          const x = Math.random() * width
+          const y = Math.random() * height
+          const brightness = getRegionBrightness(x, y)
+          const lightness = brightness / 255
 
-    // Sample points weighted by lightness
-    let bestPoint = null
-    let bestLightness = 0
-    let maxScore = 0
+          // Skip if too dark
+          if (lightness < lightnessThreshold) continue
 
-    for (let attempt = 0; attempt < 30; attempt++) {
-      const x = Math.random() * width
-      const y = Math.random() * height
-      const brightness = getRegionBrightness(x, y)
-      const lightness = brightness / 255
+          let minDist = Infinity
+          for (const dot of dots) {
+            const dx = dot.x - x
+            const dy = dot.y - y
+            const dist = dx * dx + dy * dy
+            if (dist < minDist) minDist = dist
+          }
 
-      // Skip if too dark
-      if (lightness < lightnessThreshold) continue
+          const weighted = minDist * lightness
 
-      // Find distance to nearest dot
-      let minDist = Infinity
-      for (const dot of dots) {
-        const dx = dot.x - x
-        const dy = dot.y - y
-        const dist = dx * dx + dy * dy
-        if (dist < minDist) minDist = dist
-      }
+          if (weighted > maxMinDist) {
+            maxMinDist = weighted
+            bestPoint = { x, y }
+            bestLightness = lightness
+          }
+        }
 
-      const score = minDist * (0.3 + lightness * 0.7)
-      if (score > maxScore) {
-        maxScore = score
-        bestPoint = { x, y }
-        bestLightness = lightness
-      }
-    }
+        if (!bestPoint || dots.length < 3) {
+          if (bestPoint && bestLightness >= lightnessThreshold) {
+            dots.push(bestPoint)
+          }
+          return true
+        }
 
-    if (!bestPoint || bestLightness < lightnessThreshold) return false
+        // Find 3 nearest dots
+        const nearest = dots
+          .map((dot) => ({
+            dot,
+            dist: (dot.x - bestPoint.x) ** 2 + (dot.y - bestPoint.y) ** 2,
+          }))
+          .sort((a, b) => a.dist - b.dist)
+          .slice(0, 3)
 
-    // If we have enough dots, triangulate
-    if (dots.length >= 3) {
-      const nearest = dots
-        .map((dot) => ({
-          dot,
-          dist: (dot.x - bestPoint.x) ** 2 + (dot.y - bestPoint.y) ** 2,
-        }))
-        .filter((d) => d.dist < 10000) // Within ~100px
-        .sort((a, b) => a.dist - b.dist)
-        .slice(0, 3)
-
-      if (nearest.length >= 3) {
+        // Triangulate
         const centroid = {
           x: (nearest[0].dot.x + nearest[1].dot.x + nearest[2].dot.x) / 3,
           y: (nearest[0].dot.y + nearest[1].dot.y + nearest[2].dot.y) / 3,
         }
 
-        // Check brightness at centroid
+        // Check brightness at centroid and calculate variable min distance
         const centroidBrightness = getRegionBrightness(centroid.x, centroid.y)
         const centroidLightness = centroidBrightness / 255
-        if (centroidLightness < lightnessThreshold) {
-          // Try fallback point instead with variable minDist
-          const fallbackMinDist = baseMinDist * (3.0 - bestLightness * 2.8)
-          let tooClose = false
-          for (const dot of dots) {
-            const dx = dot.x - bestPoint.x
-            const dy = dot.y - bestPoint.y
-            if (dx * dx + dy * dy < fallbackMinDist * fallbackMinDist) {
-              tooClose = true
-              break
-            }
-          }
-          if (!tooClose && bestLightness >= lightnessThreshold) {
-            dots.push(bestPoint)
-            return true
-          }
-          return false
-        }
+        if (centroidLightness < lightnessThreshold) return false
 
         // Variable min distance based on centroid brightness
         const variableMinDist = baseMinDist * (3.0 - centroidLightness * 2.8)
@@ -814,301 +676,440 @@ import Layout from '../../layouts/Layout.astro'
           dots.push(centroid)
           return true
         }
+        return false
       }
-    }
+      // Algorithm 3: Poisson Disk Sampling
+      function addDotPoisson() {
+        const width = stippledCanvas.width
+        const height = stippledCanvas.height
+        const lightnessThreshold = parseFloat(thresholdSlider.value) // Don't place dots if region is too dark
 
-    // Fallback: place at best point with variable minDist
-    const fallbackMinDist = baseMinDist * (3.0 - bestLightness * 2.8)
-    let tooClose = false
-    for (const dot of dots) {
-      const dx = dot.x - bestPoint.x
-      const dy = dot.y - bestPoint.y
-      if (dx * dx + dy * dy < fallbackMinDist * fallbackMinDist) {
-        tooClose = true
-        break
-      }
-    }
+        for (let attempt = 0; attempt < 30; attempt++) {
+          const x = Math.random() * width
+          const y = Math.random() * height
+          const brightness = getRegionBrightness(x, y)
+          const lightness = brightness / 255
 
-    if (!tooClose && bestLightness >= lightnessThreshold) {
-      dots.push(bestPoint)
-      return true
-    }
-    return false
-  }
-  // Animation loop
-  function animate() {
-    if (!isRunning) return
+          // Skip if too dark
+          if (lightness < lightnessThreshold) continue
 
-    const maxDots = parseInt(maxDotsSlider.value)
-    if (dots.length >= maxDots) {
-      stopStippling()
-      return
-    }
+          // Variable radius based on brightness - bright areas get tighter spacing (smaller minDist)
+          const baseMinDist = parseInt(minDistSlider.value)
+          const variableMinDist = baseMinDist * (3.0 - lightness * 2.8)
 
-    // Add multiple dots per frame
-    for (let i = 0; i < 10; i++) {
-      if (dots.length >= maxDots) break
+          let tooClose = false
+          for (const dot of dots) {
+            const dx = dot.x - x
+            const dy = dot.y - y
+            if (dx * dx + dy * dy < variableMinDist * variableMinDist) {
+              tooClose = true
+              break
+            }
+          }
 
-      const algorithm = algorithmSelect.value
-      let success = false
-
-      switch (algorithm) {
-        case 'density':
-          success = addDotDensity()
-          break
-        case 'triangulation':
-          success = addDotTriangulation()
-          break
-        case 'poisson':
-          success = addDotPoisson()
-          break
-        case 'hybrid':
-          success = addDotHybrid()
-          break
+          if (!tooClose) {
+            dots.push({ x, y })
+            return true
+          }
+        }
+        return false
       }
 
-      if (!success && dots.length < maxDots * 0.9) {
-        // If struggling to place dots, try a few more times
-        i--
+      // Algorithm 4: Hybrid
+      function addDotHybrid() {
+        const width = stippledCanvas.width
+        const height = stippledCanvas.height
+        const baseMinDist = parseInt(minDistSlider.value)
+        const lightnessThreshold = parseFloat(thresholdSlider.value) // Don't place dots if region is too dark
+
+        // Sample points weighted by lightness
+        let bestPoint = null
+        let bestLightness = 0
+        let maxScore = 0
+
+        for (let attempt = 0; attempt < 30; attempt++) {
+          const x = Math.random() * width
+          const y = Math.random() * height
+          const brightness = getRegionBrightness(x, y)
+          const lightness = brightness / 255
+
+          // Skip if too dark
+          if (lightness < lightnessThreshold) continue
+
+          // Find distance to nearest dot
+          let minDist = Infinity
+          for (const dot of dots) {
+            const dx = dot.x - x
+            const dy = dot.y - y
+            const dist = dx * dx + dy * dy
+            if (dist < minDist) minDist = dist
+          }
+
+          const score = minDist * (0.3 + lightness * 0.7)
+          if (score > maxScore) {
+            maxScore = score
+            bestPoint = { x, y }
+            bestLightness = lightness
+          }
+        }
+
+        if (!bestPoint || bestLightness < lightnessThreshold) return false
+
+        // If we have enough dots, triangulate
+        if (dots.length >= 3) {
+          const nearest = dots
+            .map((dot) => ({
+              dot,
+              dist: (dot.x - bestPoint.x) ** 2 + (dot.y - bestPoint.y) ** 2,
+            }))
+            .filter((d) => d.dist < 10000) // Within ~100px
+            .sort((a, b) => a.dist - b.dist)
+            .slice(0, 3)
+
+          if (nearest.length >= 3) {
+            const centroid = {
+              x: (nearest[0].dot.x + nearest[1].dot.x + nearest[2].dot.x) / 3,
+              y: (nearest[0].dot.y + nearest[1].dot.y + nearest[2].dot.y) / 3,
+            }
+
+            // Check brightness at centroid
+            const centroidBrightness = getRegionBrightness(centroid.x, centroid.y)
+            const centroidLightness = centroidBrightness / 255
+            if (centroidLightness < lightnessThreshold) {
+              // Try fallback point instead with variable minDist
+              const fallbackMinDist = baseMinDist * (3.0 - bestLightness * 2.8)
+              let tooClose = false
+              for (const dot of dots) {
+                const dx = dot.x - bestPoint.x
+                const dy = dot.y - bestPoint.y
+                if (dx * dx + dy * dy < fallbackMinDist * fallbackMinDist) {
+                  tooClose = true
+                  break
+                }
+              }
+              if (!tooClose && bestLightness >= lightnessThreshold) {
+                dots.push(bestPoint)
+                return true
+              }
+              return false
+            }
+
+            // Variable min distance based on centroid brightness
+            const variableMinDist = baseMinDist * (3.0 - centroidLightness * 2.8)
+
+            // Check min distance
+            let tooClose = false
+            for (const dot of dots) {
+              const dx = dot.x - centroid.x
+              const dy = dot.y - centroid.y
+              if (dx * dx + dy * dy < variableMinDist * variableMinDist) {
+                tooClose = true
+                break
+              }
+            }
+
+            if (!tooClose) {
+              dots.push(centroid)
+              return true
+            }
+          }
+        }
+
+        // Fallback: place at best point with variable minDist
+        const fallbackMinDist = baseMinDist * (3.0 - bestLightness * 2.8)
+        let tooClose = false
+        for (const dot of dots) {
+          const dx = dot.x - bestPoint.x
+          const dy = dot.y - bestPoint.y
+          if (dx * dx + dy * dy < fallbackMinDist * fallbackMinDist) {
+            tooClose = true
+            break
+          }
+        }
+
+        if (!tooClose && bestLightness >= lightnessThreshold) {
+          dots.push(bestPoint)
+          return true
+        }
+        return false
       }
-    }
+      // Animation loop
+      function animate() {
+        if (!isRunning) return
 
-    drawDots()
-    animationFrame = requestAnimationFrame(animate)
-  }
+        const maxDots = parseInt(maxDotsSlider.value)
+        if (dots.length >= maxDots) {
+          stopStippling()
+          return
+        }
 
-  function startStippling() {
-    if (!regionMapData) return
+        // Add multiple dots per frame
+        for (let i = 0; i < 10; i++) {
+          if (dots.length >= maxDots) break
 
-    stippledCanvas.width = diffusedCanvas.width
-    stippledCanvas.height = diffusedCanvas.height
+          const algorithm = algorithmSelect.value
+          let success = false
 
-    isRunning = true
-    stipplingBtn.disabled = true
-    stopBtn.disabled = false
-    animate()
-  }
+          switch (algorithm) {
+            case 'density':
+              success = addDotDensity()
+              break
+            case 'triangulation':
+              success = addDotTriangulation()
+              break
+            case 'poisson':
+              success = addDotPoisson()
+              break
+            case 'hybrid':
+              success = addDotHybrid()
+              break
+          }
 
-  function stopStippling() {
-    isRunning = false
-    stipplingBtn.disabled = false
-    stopBtn.disabled = true
-    if (animationFrame) {
-      cancelAnimationFrame(animationFrame)
-      animationFrame = null
-    }
-  }
+          if (!success && dots.length < maxDots * 0.9) {
+            // If struggling to place dots, try a few more times
+            i--
+          }
+        }
 
-  function resetDots() {
-    stopStippling()
-    dots = []
-    const ctx = stippledCanvas.getContext('2d')
-    // Reset to dark background
-    ctx.fillStyle = colorBlack
-    ctx.fillRect(0, 0, stippledCanvas.width, stippledCanvas.height)
-    document.getElementById('dotCount').textContent = '0'
-  }
+        drawDots()
+        animationFrame = requestAnimationFrame(animate)
+      }
 
-  stipplingBtn.addEventListener('click', startStippling)
-  stopBtn.addEventListener('click', stopStippling)
-  resetBtn.addEventListener('click', resetDots)
-</script>
+      function startStippling() {
+        if (!regionMapData) return
 
-<style>
-  .container {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 2rem;
-    min-height: 100dvh;
-  }
+        stippledCanvas.width = diffusedCanvas.width
+        stippledCanvas.height = diffusedCanvas.height
 
-  header {
-    text-align: center;
-    margin-bottom: 2rem;
-  }
+        isRunning = true
+        stipplingBtn.disabled = true
+        stopBtn.disabled = false
+        animate()
+      }
 
-  h1 {
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-  }
+      function stopStippling() {
+        isRunning = false
+        stipplingBtn.disabled = false
+        stopBtn.disabled = true
+        if (animationFrame) {
+          cancelAnimationFrame(animationFrame)
+          animationFrame = null
+        }
+      }
 
-  .subtitle {
-    color: var(--theme-text-subtle);
-    font-size: 0.875rem;
-  }
+      function resetDots() {
+        stopStippling()
+        dots = []
+        const ctx = stippledCanvas.getContext('2d')
+        // Reset to dark background
+        ctx.fillStyle = colorBlack
+        ctx.fillRect(0, 0, stippledCanvas.width, stippledCanvas.height)
+        document.getElementById('dotCount').textContent = '0'
+      }
 
-  .main-layout {
-    display: flex;
-    gap: 1.5rem;
-    flex-direction: column;
-  }
+      stipplingBtn.addEventListener('click', startStippling)
+      stopBtn.addEventListener('click', stopStippling)
+      resetBtn.addEventListener('click', resetDots)
+    </script>
 
-  @media (min-width: 1024px) {
-    .main-layout {
-      flex-direction: row;
-      align-items: flex-start;
-    }
-  }
+    <style>
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+        min-height: 100dvh;
+      }
 
-  .sidebar {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-  }
+      header {
+        text-align: center;
+        margin-bottom: 2rem;
+      }
 
-  @media (min-width: 1024px) {
-    .sidebar {
-      flex: 0 0 auto;
-      position: sticky;
-      top: 1rem;
-      max-height: calc(100vh - 2rem);
-      overflow-y: auto;
-    }
-  }
+      h1 {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+      }
 
-  .controls {
-    background: var(--theme-bg);
-    border: 1px solid var(--theme-border);
-    padding: 1rem;
-    border-radius: 8px;
-  }
+      .subtitle {
+        color: var(--theme-text-subtle);
+        font-size: 0.875rem;
+      }
 
-  .controls h2 {
-    margin-bottom: 1rem;
-    font-size: 1rem;
-    font-weight: 600;
-  }
+      .main-layout {
+        display: flex;
+        gap: 1.5rem;
+        flex-direction: column;
+      }
 
-  .control-group {
-    margin-bottom: 1.25rem;
-    flex-shrink: 0;
-  }
+      @media (min-width: 1024px) {
+        .main-layout {
+          flex-direction: row;
+          align-items: flex-start;
+        }
+      }
 
-  .control-group label {
-    display: block;
-    font-weight: 500;
-    font-size: 0.875rem;
-    color: var(--theme-text-subtle);
-    margin-bottom: 0.5rem;
-  }
+      .sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+      }
 
-  .control-group input[type='file'] {
-    width: 100%;
-    padding: 0.625rem;
-    border: 2px dashed var(--theme-border);
-    border-radius: 6px;
-    cursor: pointer;
-    background: var(--theme-bg);
-    color: var(--theme-text);
-    font-size: 0.875rem;
-  }
+      @media (min-width: 1024px) {
+        .sidebar {
+          flex: 0 0 auto;
+          position: sticky;
+          top: 1rem;
+          max-height: calc(100vh - 2rem);
+          overflow-y: auto;
+        }
+      }
 
-  .control-group input[type='range'] {
-    width: 100%;
-    height: 6px;
-    border-radius: 3px;
-    background: var(--theme-border);
-    outline: none;
-  }
+      .controls {
+        background: var(--theme-bg);
+        border: 1px solid var(--theme-border);
+        padding: 1rem;
+        border-radius: 8px;
+      }
 
-  .control-group select {
-    width: 100%;
-    padding: 0.625rem;
-    border: 1px solid var(--theme-border);
-    border-radius: 6px;
-    background: var(--theme-bg);
-    color: var(--theme-text);
-    font-size: 0.875rem;
-    cursor: pointer;
-  }
+      .controls h2 {
+        margin-bottom: 1rem;
+        font-size: 1rem;
+        font-weight: 600;
+      }
 
-  .slider-value {
-    display: inline-block;
-    background: var(--theme-accent);
-    color: var(--color-white);
-    padding: 2px 12px;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    margin-left: 0.5rem;
-  }
+      .control-group {
+        margin-bottom: 1.25rem;
+        flex-shrink: 0;
+      }
 
-  button {
-    background: var(--theme-accent);
-    color: var(--color-white);
-    border: none;
-    padding: 0.25rem 0.75rem;
-    border-radius: 6px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s;
-    margin-right: 0.5rem;
-  }
+      .control-group label {
+        display: block;
+        font-weight: 500;
+        font-size: 0.875rem;
+        color: var(--theme-text-subtle);
+        margin-bottom: 0.5rem;
+      }
 
-  button:hover {
-    background: var(--theme-accent-light);
-  }
+      .control-group input[type='file'] {
+        width: 100%;
+        padding: 0.625rem;
+        border: 2px dashed var(--theme-border);
+        border-radius: 6px;
+        cursor: pointer;
+        background: var(--theme-bg);
+        color: var(--theme-text);
+        font-size: 0.875rem;
+      }
 
-  button:active {
-    background: var(--theme-accent-dark);
-  }
+      .control-group input[type='range'] {
+        width: 100%;
+        height: 6px;
+        border-radius: 3px;
+        background: var(--theme-border);
+        outline: none;
+      }
 
-  button:disabled {
-    background: var(--color-gray);
-    cursor: not-allowed;
-    opacity: 0.5;
-  }
+      .control-group select {
+        width: 100%;
+        padding: 0.625rem;
+        border: 1px solid var(--theme-border);
+        border-radius: 6px;
+        background: var(--theme-bg);
+        color: var(--theme-text);
+        font-size: 0.875rem;
+        cursor: pointer;
+      }
 
-  .canvas-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
+      .slider-value {
+        display: inline-block;
+        background: var(--theme-accent);
+        color: var(--color-white);
+        padding: 2px 12px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        margin-left: 0.5rem;
+      }
 
-  @media (min-width: 640px) {
-    .canvas-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
-  }
+      button {
+        background: var(--theme-accent);
+        color: var(--color-white);
+        border: none;
+        padding: 0.25rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+        margin-right: 0.5rem;
+      }
 
-  @media (min-width: 1024px) {
-    .canvas-grid {
-      flex: 1;
-      grid-template-columns: repeat(2, 1fr);
-    }
-  }
+      button:hover {
+        background: var(--theme-accent-light);
+      }
 
-  @media (min-width: 1400px) {
-    .canvas-grid {
-      grid-template-columns: repeat(3, 1fr);
-    }
-  }
+      button:active {
+        background: var(--theme-accent-dark);
+      }
 
-  .canvas-container {
-    display: flex;
-    flex-direction: column;
-  }
+      button:disabled {
+        background: var(--color-gray);
+        cursor: not-allowed;
+        opacity: 0.5;
+      }
 
-  canvas {
-    width: 100%;
-    height: auto;
-    display: block;
-    object-fit: contain;
-  }
+      .canvas-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+      }
 
-  .info-box {
-    background: var(--theme-bg);
-    border: 1px solid var(--theme-border);
-    padding: 0.75rem;
-    border-radius: 6px;
-    margin-top: 0.75rem;
-    font-size: 0.75rem;
-    color: var(--theme-text-dim);
-  }
+      @media (min-width: 640px) {
+        .canvas-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
 
-  .info-box strong {
-    display: block;
-    margin-bottom: 0.25rem;
-    color: var(--theme-text);
-  }
-</style>
+      @media (min-width: 1024px) {
+        .canvas-grid {
+          flex: 1;
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+
+      @media (min-width: 1400px) {
+        .canvas-grid {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+
+      .canvas-container {
+        display: flex;
+        flex-direction: column;
+      }
+
+      canvas {
+        width: 100%;
+        height: auto;
+        display: block;
+        object-fit: contain;
+      }
+
+      .info-box {
+        background: var(--theme-bg);
+        color: var(--theme-text-dim);
+        margin-top: 0.5rem;
+        font-size: 0.75rem;
+
+        .description {
+          font-size: 0.75rem;
+        }
+      }
+
+      .info-box strong {
+        display: block;
+        margin-bottom: 0.25rem;
+        color: var(--theme-text);
+      }
+    </style>
+  </div></Layout
+>
