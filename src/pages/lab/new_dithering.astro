@@ -129,6 +129,15 @@ import Layout from '../../layouts/Layout.astro'
       </div>
 
       <div class="canvas-container">
+        <h3>Threshold Preview</h3>
+        <canvas id="thresholdCanvas"></canvas>
+        <div class="info-box">
+          <strong>Darkness threshold mask</strong>
+          White areas will receive dots, black areas will be pure black
+        </div>
+      </div>
+
+      <div class="canvas-container">
         <h3>Stippled Result</h3>
         <canvas id="stippledCanvas"></canvas>
         <div class="info-box">
@@ -159,6 +168,7 @@ import Layout from '../../layouts/Layout.astro'
   const brightnessCanvas = document.getElementById('brightnessCanvas')
   const quantizedCanvas = document.getElementById('quantizedCanvas')
   const diffusedCanvas = document.getElementById('diffusedCanvas')
+  const thresholdCanvas = document.getElementById('thresholdCanvas')
   const stippledCanvas = document.getElementById('stippledCanvas')
 
   let currentImage = null
