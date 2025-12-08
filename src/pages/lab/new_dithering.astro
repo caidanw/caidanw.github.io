@@ -175,6 +175,32 @@ import Layout from '../../layouts/Layout.astro'
   const thresholdCanvas = document.getElementById('thresholdCanvas')
   const stippledCanvas = document.getElementById('stippledCanvas')
 
+  // Initialize canvases with checkerboard pattern
+  function initializeCanvas(canvas) {
+    const size = 400 // Square canvas
+    canvas.width = size
+    canvas.height = size
+
+    const ctx = canvas.getContext('2d')
+    const checkSize = 20 // Size of each checker square
+
+    for (let y = 0; y < size; y += checkSize) {
+      for (let x = 0; x < size; x += checkSize) {
+        const isEven = (Math.floor(x / checkSize) + Math.floor(y / checkSize)) % 2 === 0
+        ctx.fillStyle = isEven ? '#2a2a2a' : '#1a1a1a'
+        ctx.fillRect(x, y, checkSize, checkSize)
+      }
+    }
+  }
+
+  // Initialize all canvases
+  initializeCanvas(originalCanvas)
+  initializeCanvas(brightnessCanvas)
+  initializeCanvas(quantizedCanvas)
+  initializeCanvas(diffusedCanvas)
+  initializeCanvas(thresholdCanvas)
+  initializeCanvas(stippledCanvas)
+
   let currentImage = null
   let regionMapData = null
   let dots = []
@@ -1060,12 +1086,6 @@ import Layout from '../../layouts/Layout.astro'
   .canvas-container {
     display: flex;
     flex-direction: column;
-  }
-
-  .canvas-container h3 {
-    margin-bottom: 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 600;
   }
 
   canvas {
