@@ -238,7 +238,8 @@ import LabLayout from '../../layouts/LabLayout.astro'
   }
 
   // Debounced version for sliders
-  const debouncedAutoProcess = debounce(autoProcess, 100)
+  // const debouncedAutoProcess = debounce(autoProcess, 10)
+  const debouncedAutoProcess = autoProcess
 
   // Update slider values
   regionSizeSlider.addEventListener('input', (e) => {
