@@ -931,7 +931,7 @@ import Layout from '../../layouts/Layout.astro'
 
   @media (min-width: 1024px) {
     .sidebar {
-      flex: 0 0 320px;
+      flex: 0 0 400px;
       position: sticky;
       top: 1rem;
       max-height: calc(100vh - 2rem);
@@ -1062,6 +1062,8 @@ import Layout from '../../layouts/Layout.astro'
     border: 1px solid var(--theme-border);
     padding: 1.25rem;
     border-radius: 8px;
+    display: flex;
+    flex-direction: column;
   }
 
   .canvas-container h3 {
@@ -1071,10 +1073,12 @@ import Layout from '../../layouts/Layout.astro'
   }
 
   canvas {
-    max-width: 100%;
+    width: 100%;
+    height: auto;
     border: 1px solid var(--theme-border);
     border-radius: 6px;
     display: block;
+    object-fit: contain;
   }
 
   .info-box {
