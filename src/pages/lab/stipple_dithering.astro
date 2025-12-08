@@ -678,7 +678,7 @@ import Layout from '../../layouts/Layout.astro'
 
   // METHOD 6: Organic Random (Dart Throwing + Poisson Disk)
   function organicRandomSampling(w: number, h: number) {
-    const targetDots = density * 50  // Significantly increased for better coverage
+    const targetDots = density * 100  // Massively increased for solid coverage
     const maxAttempts = targetDots * 50
 
     const baseMinRadius = calculateMinRadius()
@@ -704,13 +704,15 @@ import Layout from '../../layouts/Layout.astro'
 
       if (minRadiusForPoint > 0 && isTooClose(x, y, minRadiusForPoint, grid)) continue
 
-      // Very dark areas get pure black, others use scaled opacity
+      // Very dark areas get pure black with larger dots for solid coverage
+      // Others use scaled opacity with normal dots
       const opacity = darkness > 0.8 ? 1.0 : Math.pow(darkness, 0.6)
+      const size = darkness > 0.8 ? dotSize * 2.5 : dotSize
       const dot = {
         x: x,
         y: y,
         opacity: opacity,
-        size: dotSize,
+        size: size,
       }
 
       dots.push(dot)
