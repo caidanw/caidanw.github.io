@@ -221,7 +221,7 @@ import LabLayout from '../../layouts/LabLayout.astro'
   })
 
   dotSizeSlider.addEventListener('input', (e) => {
-    document.getElementById('dotSizeValue').textContent = e.target.value
+    document.getElementById('dotSizeValue').textContent = parseFloat(e.target.value).toFixed(1)
   })
 
   minDistSlider.addEventListener('input', (e) => {
@@ -960,9 +960,12 @@ import LabLayout from '../../layouts/LabLayout.astro'
 
   .controls {
     background: var(--theme-bg);
-    border: 1px solid var(--theme-border);
     padding: 1rem;
-    border-radius: 8px;
+
+    + .controls {
+      border-top: 1px solid var(--theme-border);
+      padding-top: 1rem;
+    }
   }
 
   .controls h2 {
@@ -1014,7 +1017,7 @@ import LabLayout from '../../layouts/LabLayout.astro'
   .slider-value {
     display: inline-block;
     color: var(--theme-accent);
-    font-weight: 600;
+    font-family: var(--font-mono);
     font-size: 1.2rem;
     margin-left: 0.5rem;
   }
