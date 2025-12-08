@@ -201,6 +201,7 @@ import Layout from '../../layouts/Layout.astro'
 
   thresholdSlider.addEventListener('input', (e) => {
     document.getElementById('thresholdValue').textContent = e.target.value
+    createThresholdPreview()
   })
 
   maxDotsSlider.addEventListener('input', (e) => {
@@ -435,6 +436,38 @@ import Layout from '../../layouts/Layout.astro'
     regionMapData = diffusedImageData
   }
 
+  // Create threshold preview showing which areas will receive dots
+  function createThresholdPreview() {
+    if (!regionMapData) return
+
+    const threshold = parseFloat(thresholdSlider.value)
+    const width = regionMapData.width
+    const height = regionMapData.height
+    const data = regionMapData.data
+
+    thresholdCanvas.width = width
+    thresholdCanvas.height = height
+    const ctx = thresholdCanvas.getContext('2d')
+    const thresholdImageData = ctx.createImageData(width, height)
+    const thresholdData = thresholdImageData.data
+
+    // Create black/white mask based on threshold
+    for (let i = 0; i < data.length; i += 4) {
+      const brightness = data[i]
+      const lightness = brightness / 255
+
+      // White if above threshold (will receive dots), black if below (pure black)
+      const value = lightness >= threshold ? 255 : 0
+
+      thresholdData[i] = value
+      thresholdData[i + 1] = value
+      thresholdData[i + 2] = value
+      thresholdData[i + 3] = 255
+    }
+
+    ctx.putImageData(thresholdImageData, 0, 0)
+  }
+
   // Process button
   processBtn.addEventListener('click', () => {
     if (!currentImage) return
@@ -450,6 +483,9 @@ import Layout from '../../layouts/Layout.astro'
 
     // Step 3: Apply diffusion
     diffuseRegions(regionMap, diffusionAmount)
+
+    // Step 4: Create threshold preview
+    createThresholdPreview()
 
     // Enable stippling controls
     stipplingBtn.disabled = false
