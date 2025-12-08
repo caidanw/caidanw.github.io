@@ -95,59 +95,59 @@ import Layout from '../../layouts/Layout.astro'
       </aside>
 
       <div class="canvas-grid">
-      <div class="canvas-container">
-        <h3>Original Image</h3>
-        <canvas id="originalCanvas"></canvas>
-        <div class="info-box">
-          <strong>Original source image</strong>
-          Upload an image to begin
+        <div class="canvas-container">
+          <h3>Original Image</h3>
+          <canvas id="originalCanvas"></canvas>
+          <div class="info-box">
+            <strong>Original source image</strong>
+            Upload an image to begin
+          </div>
         </div>
-      </div>
 
-      <div class="canvas-container">
-        <h3>Brightness Map</h3>
-        <canvas id="brightnessCanvas"></canvas>
-        <div class="info-box">
-          <strong>Grayscale conversion</strong>
-          Shows average brightness values
+        <div class="canvas-container">
+          <h3>Brightness Map</h3>
+          <canvas id="brightnessCanvas"></canvas>
+          <div class="info-box">
+            <strong>Grayscale conversion</strong>
+            Shows average brightness values
+          </div>
         </div>
-      </div>
 
-      <div class="canvas-container">
-        <h3>Region Map (Quantized)</h3>
-        <canvas id="quantizedCanvas"></canvas>
-        <div class="info-box">
-          <strong>Discrete brightness levels</strong>
-          Image divided into <span id="currentLevels">5</span> brightness regions
+        <div class="canvas-container">
+          <h3>Region Map (Quantized)</h3>
+          <canvas id="quantizedCanvas"></canvas>
+          <div class="info-box">
+            <strong>Discrete brightness levels</strong>
+            Image divided into <span id="currentLevels">5</span> brightness regions
+          </div>
         </div>
-      </div>
 
-      <div class="canvas-container">
-        <h3>Region Map (Diffused)</h3>
-        <canvas id="diffusedCanvas"></canvas>
-        <div class="info-box">
-          <strong>Smoothed transitions</strong>
-          Gradual changes between regions
+        <div class="canvas-container">
+          <h3>Region Map (Diffused)</h3>
+          <canvas id="diffusedCanvas"></canvas>
+          <div class="info-box">
+            <strong>Smoothed transitions</strong>
+            Gradual changes between regions
+          </div>
         </div>
-      </div>
 
-      <div class="canvas-container">
-        <h3>Threshold Preview</h3>
-        <canvas id="thresholdCanvas"></canvas>
-        <div class="info-box">
-          <strong>Darkness threshold mask</strong>
-          White areas will receive dots, black areas will be pure black
+        <div class="canvas-container">
+          <h3>Threshold Preview</h3>
+          <canvas id="thresholdCanvas"></canvas>
+          <div class="info-box">
+            <strong>Darkness threshold mask</strong>
+            White areas will receive dots, black areas will be pure black
+          </div>
         </div>
-      </div>
 
-      <div class="canvas-container">
-        <h3>Stippled Result</h3>
-        <canvas id="stippledCanvas"></canvas>
-        <div class="info-box">
-          <strong>Dot placement visualization</strong>
-          Algorithm: <span id="currentAlgorithm">Hybrid</span>
+        <div class="canvas-container">
+          <h3>Stippled Result</h3>
+          <canvas id="stippledCanvas"></canvas>
+          <div class="info-box">
+            <strong>Dot placement visualization</strong>
+            Algorithm: <span id="currentAlgorithm">Hybrid</span>
+          </div>
         </div>
-      </div>
       </div>
     </div>
   </div>
@@ -931,7 +931,7 @@ import Layout from '../../layouts/Layout.astro'
 
   @media (min-width: 1024px) {
     .sidebar {
-      flex: 0 0 400px;
+      flex: 0 0 auto;
       position: sticky;
       top: 1rem;
       max-height: calc(100vh - 2rem);
@@ -1009,9 +1009,9 @@ import Layout from '../../layouts/Layout.astro'
     background: var(--theme-accent);
     color: var(--color-white);
     border: none;
-    padding: 0.625rem 1.25rem;
+    padding: 0.25rem 0.75rem;
     border-radius: 6px;
-    font-size: 0.875rem;
+    font-size: 0.75rem;
     font-weight: 600;
     cursor: pointer;
     transition: background 0.2s;
