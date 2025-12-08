@@ -471,7 +471,7 @@ import Layout from '../../layouts/Layout.astro'
   function addDotDensity() {
     const width = stippledCanvas.width
     const height = stippledCanvas.height
-    const minDist = parseInt(minDistSlider.value)
+    const baseMinDist = parseInt(minDistSlider.value)
     const lightnessThreshold = 0.15
 
     // Sample random points weighted by brightness (bright areas get more dots)
@@ -487,12 +487,15 @@ import Layout from '../../layouts/Layout.astro'
       // Weight by lightness - brighter areas are more likely to accept dots
       if (Math.random() > lightness) continue
 
+      // Variable min distance based on brightness - bright areas get smaller minDist
+      const variableMinDist = baseMinDist * (2.0 - lightness * 1.5)
+
       // Check minimum distance
       let tooClose = false
       for (const dot of dots) {
         const dx = dot.x - x
         const dy = dot.y - y
-        if (dx * dx + dy * dy < minDist * minDist) {
+        if (dx * dx + dy * dy < variableMinDist * variableMinDist) {
           tooClose = true
           break
         }
@@ -505,12 +508,11 @@ import Layout from '../../layouts/Layout.astro'
     }
     return false
   }
-
   // Algorithm 2: Region-Based Triangulation
   function addDotTriangulation() {
     const width = stippledCanvas.width
     const height = stippledCanvas.height
-    const minDist = parseInt(minDistSlider.value)
+    const baseMinDist = parseInt(minDistSlider.value)
     const lightnessThreshold = 0.15 // Don't place dots if region is too dark
 
     // Find largest void
@@ -566,18 +568,20 @@ import Layout from '../../layouts/Layout.astro'
       y: (nearest[0].dot.y + nearest[1].dot.y + nearest[2].dot.y) / 3,
     }
 
-    // Check brightness at centroid
+    // Check brightness at centroid and calculate variable min distance
     const centroidBrightness = getRegionBrightness(centroid.x, centroid.y)
     const centroidLightness = centroidBrightness / 255
-    if (centroidLightness < 0.15) return false
+    if (centroidLightness < lightnessThreshold) return false
+
+    // Variable min distance based on centroid brightness
+    const variableMinDist = baseMinDist * (2.0 - centroidLightness * 1.5)
 
     // Check min distance
-    const minDistSq = parseInt(minDistSlider.value) ** 2
     let tooClose = false
     for (const dot of dots) {
       const dx = dot.x - centroid.x
       const dy = dot.y - centroid.y
-      if (dx * dx + dy * dy < minDistSq) {
+      if (dx * dx + dy * dy < variableMinDist * variableMinDist) {
         tooClose = true
         break
       }
@@ -589,7 +593,6 @@ import Layout from '../../layouts/Layout.astro'
     }
     return false
   }
-
   // Algorithm 3: Poisson Disk Sampling
   function addDotPoisson() {
     const width = stippledCanvas.width
@@ -631,10 +634,10 @@ import Layout from '../../layouts/Layout.astro'
   function addDotHybrid() {
     const width = stippledCanvas.width
     const height = stippledCanvas.height
-    const minDistVal = parseInt(minDistSlider.value)
+    const baseMinDist = parseInt(minDistSlider.value)
     const lightnessThreshold = 0.15 // Don't place dots if region is too dark
 
-    // Sample points weighted by lightness (inverted)
+    // Sample points weighted by lightness
     let bestPoint = null
     let bestLightness = 0
     let maxScore = 0
@@ -688,12 +691,13 @@ import Layout from '../../layouts/Layout.astro'
         const centroidBrightness = getRegionBrightness(centroid.x, centroid.y)
         const centroidLightness = centroidBrightness / 255
         if (centroidLightness < lightnessThreshold) {
-          // Try fallback point instead
+          // Try fallback point instead with variable minDist
+          const fallbackMinDist = baseMinDist * (2.0 - bestLightness * 1.5)
           let tooClose = false
           for (const dot of dots) {
             const dx = dot.x - bestPoint.x
             const dy = dot.y - bestPoint.y
-            if (dx * dx + dy * dy < minDistVal * minDistVal) {
+            if (dx * dx + dy * dy < fallbackMinDist * fallbackMinDist) {
               tooClose = true
               break
             }
@@ -705,12 +709,15 @@ import Layout from '../../layouts/Layout.astro'
           return false
         }
 
+        // Variable min distance based on centroid brightness
+        const variableMinDist = baseMinDist * (2.0 - centroidLightness * 1.5)
+
         // Check min distance
         let tooClose = false
         for (const dot of dots) {
           const dx = dot.x - centroid.x
           const dy = dot.y - centroid.y
-          if (dx * dx + dy * dy < minDistVal * minDistVal) {
+          if (dx * dx + dy * dy < variableMinDist * variableMinDist) {
             tooClose = true
             break
           }
@@ -723,12 +730,13 @@ import Layout from '../../layouts/Layout.astro'
       }
     }
 
-    // Fallback: place at best point
+    // Fallback: place at best point with variable minDist
+    const fallbackMinDist = baseMinDist * (2.0 - bestLightness * 1.5)
     let tooClose = false
     for (const dot of dots) {
       const dx = dot.x - bestPoint.x
       const dy = dot.y - bestPoint.y
-      if (dx * dx + dy * dy < minDistVal * minDistVal) {
+      if (dx * dx + dy * dy < fallbackMinDist * fallbackMinDist) {
         tooClose = true
         break
       }
@@ -740,7 +748,6 @@ import Layout from '../../layouts/Layout.astro'
     }
     return false
   }
-
   // Animation loop
   function animate() {
     if (!isRunning) return
