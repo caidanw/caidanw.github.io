@@ -18,23 +18,23 @@ import Layout from '../../layouts/Layout.astro'
 
         <div class="control-group">
           <label>
-            Region Size: <span class="slider-value" id="regionSizeValue">20</span>px
+            Region Size: <span class="slider-value" id="regionSizeValue">4</span>px
           </label>
-          <input type="range" id="regionSize" min="1" max="50" value="20" step="1" />
+          <input type="range" id="regionSize" min="1" max="50" value="4" step="1" />
         </div>
 
         <div class="control-group">
           <label>
-            Brightness Levels: <span class="slider-value" id="levelsValue">5</span>
+            Brightness Levels: <span class="slider-value" id="levelsValue">10</span>
           </label>
-          <input type="range" id="levels" min="3" max="10" value="5" step="1" />
+          <input type="range" id="levels" min="3" max="50" value="10" step="1" />
         </div>
 
         <div class="control-group">
           <label>
-            Diffusion Amount: <span class="slider-value" id="diffusionValue">3</span>
+            Diffusion Amount: <span class="slider-value" id="diffusionValue">0</span>
           </label>
-          <input type="range" id="diffusion" min="0" max="10" value="3" step="1" />
+          <input type="range" id="diffusion" min="0" max="10" value="0" step="1" />
         </div>
 
         <button id="processBtn" disabled>Process Region Map</button>
@@ -55,30 +55,35 @@ import Layout from '../../layouts/Layout.astro'
 
         <div class="control-group">
           <label>
-            Dot Size: <span class="slider-value" id="dotSizeValue">1.5</span>px
+            Dot Size: <span class="slider-value" id="dotSizeValue">1</span>px
           </label>
-          <input type="range" id="dotSize" min="0.5" max="4" value="1.5" step="0.5" />
+          <input type="range" id="dotSize" min="0.5" max="4" value="1" step="0.5" />
         </div>
 
         <div class="control-group">
           <label>
-            Min Distance: <span class="slider-value" id="minDistValue">6</span>px
+            Base Spacing: <span class="slider-value" id="minDistValue">1</span>px
           </label>
-          <input type="range" id="minDist" min="2" max="15" value="6" step="1" />
+          <input type="range" id="minDist" min="1" max="16" value="1" step="1" />
         </div>
 
         <div class="control-group">
           <label>
-            Max Dots: <span class="slider-value" id="maxDotsValue">3000</span>
+            Darkness Threshold: <span class="slider-value" id="thresholdValue">0.01</span>
           </label>
-          <input type="range" id="maxDots" min="500" max="50000" value="3000" step="500" />
+          <input type="range" id="threshold" min="0" max="1" value="0.01" step="0.01" />
         </div>
 
         <div class="control-group">
-          <button id="stipplingBtn" disabled>Start Stippling</button>
-          <button id="stopBtn" disabled>Stop</button>
-          <button id="resetBtn" disabled>Reset Dots</button>
+          <label>
+            Max Dots: <span class="slider-value" id="maxDotsValue">20000</span>
+          </label>
+          <input type="range" id="maxDots" min="500" max="50000" value="20000" step="500" />
         </div>
+
+        <button id="stipplingBtn" disabled>Start Stippling</button>
+        <button id="stopBtn" disabled>Stop</button>
+        <button id="resetBtn" disabled>Reset Dots</button>
 
         <div class="info-box">
           <strong>Current dots: <span id="dotCount">0</span></strong>
@@ -147,6 +152,7 @@ import Layout from '../../layouts/Layout.astro'
   const algorithmSelect = document.getElementById('algorithmSelect')
   const dotSizeSlider = document.getElementById('dotSize')
   const minDistSlider = document.getElementById('minDist')
+  const thresholdSlider = document.getElementById('threshold')
   const maxDotsSlider = document.getElementById('maxDots')
 
   const originalCanvas = document.getElementById('originalCanvas')
@@ -181,6 +187,10 @@ import Layout from '../../layouts/Layout.astro'
 
   minDistSlider.addEventListener('input', (e) => {
     document.getElementById('minDistValue').textContent = e.target.value
+  })
+
+  thresholdSlider.addEventListener('input', (e) => {
+    document.getElementById('thresholdValue').textContent = e.target.value
   })
 
   maxDotsSlider.addEventListener('input', (e) => {
@@ -472,7 +482,7 @@ import Layout from '../../layouts/Layout.astro'
     const width = stippledCanvas.width
     const height = stippledCanvas.height
     const baseMinDist = parseInt(minDistSlider.value)
-    const lightnessThreshold = 0.15
+    const lightnessThreshold = parseFloat(thresholdSlider.value)
 
     // Sample random points weighted by brightness (bright areas get more dots)
     for (let attempt = 0; attempt < 20; attempt++) {
@@ -513,7 +523,7 @@ import Layout from '../../layouts/Layout.astro'
     const width = stippledCanvas.width
     const height = stippledCanvas.height
     const baseMinDist = parseInt(minDistSlider.value)
-    const lightnessThreshold = 0.15 // Don't place dots if region is too dark
+    const lightnessThreshold = parseFloat(thresholdSlider.value) // Don't place dots if region is too dark
 
     // Find largest void
     let bestPoint = null
@@ -597,7 +607,7 @@ import Layout from '../../layouts/Layout.astro'
   function addDotPoisson() {
     const width = stippledCanvas.width
     const height = stippledCanvas.height
-    const lightnessThreshold = 0.15 // Don't place dots if region is too dark
+    const lightnessThreshold = parseFloat(thresholdSlider.value) // Don't place dots if region is too dark
 
     for (let attempt = 0; attempt < 30; attempt++) {
       const x = Math.random() * width
@@ -635,7 +645,7 @@ import Layout from '../../layouts/Layout.astro'
     const width = stippledCanvas.width
     const height = stippledCanvas.height
     const baseMinDist = parseInt(minDistSlider.value)
-    const lightnessThreshold = 0.15 // Don't place dots if region is too dark
+    const lightnessThreshold = parseFloat(thresholdSlider.value) // Don't place dots if region is too dark
 
     // Sample points weighted by lightness
     let bestPoint = null
