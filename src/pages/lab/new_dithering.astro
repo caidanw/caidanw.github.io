@@ -131,7 +131,7 @@ import Layout from '../../layouts/Layout.astro'
           <canvas id="thresholdCanvas"></canvas>
           <div class="info-box">
             <strong>Darkness threshold mask</strong>
-            <span class="description">White areas will receive dots, black areas will be pure black</span>
+            <span class="description">White areas receive dots, black areas do not</span>
           </div>
         </div>
 
@@ -176,7 +176,10 @@ import Layout from '../../layouts/Layout.astro'
 
       // Initialize canvases with checkerboard pattern
       function initializeCanvas(canvas) {
-        const size = 400 // Square canvas
+        // Get the display size (CSS size) of the canvas
+        const rect = canvas.getBoundingClientRect()
+        const size = Math.max(rect.width, 300) // Minimum 300px, but grow with container
+
         canvas.width = size
         canvas.height = size
 
@@ -914,9 +917,9 @@ import Layout from '../../layouts/Layout.astro'
 
     <style>
       .container {
-        max-width: 1400px;
+        max-width: fit-content;
         margin: 0 auto;
-        padding: 2rem;
+        padding: 0.5rem;
         min-height: 100dvh;
       }
 
@@ -1085,13 +1088,17 @@ import Layout from '../../layouts/Layout.astro'
       .canvas-container {
         display: flex;
         flex-direction: column;
+        min-width: 0; /* Allow flex items to shrink below content size */
       }
 
       canvas {
         width: 100%;
         height: auto;
+        aspect-ratio: 1 / 1; /* Maintain square aspect ratio */
         display: block;
         object-fit: contain;
+        border: 1px solid var(--theme-border);
+        border-radius: 4px;
       }
 
       .info-box {
