@@ -830,7 +830,7 @@ import Layout from '../../layouts/Layout.astro'
 
   header {
     text-align: center;
-    flex: 1 1 400px;
+    margin-bottom: 2rem;
   }
 
   h1 {
@@ -845,17 +845,18 @@ import Layout from '../../layouts/Layout.astro'
 
   .controls-wrapper {
     display: flex;
-    gap: 1rem;
+    gap: 1.5rem;
     flex-wrap: wrap;
-    justify-content: center;
-    margin: 1rem 0;
+    margin-bottom: 2rem;
   }
 
   .controls {
     background: var(--theme-bg);
     border: 1px solid var(--theme-border);
-    padding: 1.5rem;
+    padding: 1rem;
     border-radius: 8px;
+    flex: 1 1 auto;
+    min-width: 400px;
   }
 
   .controls h2 {
@@ -948,7 +949,8 @@ import Layout from '../../layouts/Layout.astro'
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
     gap: 1.5rem;
-    flex: 1 1 400px;
+    margin-bottom: 2rem;
+  }
   }
 
   .canvas-container {
