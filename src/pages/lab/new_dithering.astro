@@ -196,19 +196,6 @@ import LabLayout from '../../layouts/LabLayout.astro'
   let spatialGrid: { x: number; y: number }[][][] | null = null
   let gridCellSize = 0
 
-  // Debounce utility
-  function debounce(func: (...args: any[]) => void, wait: number) {
-    let timeout: ReturnType<typeof setTimeout> | undefined
-    return function executedFunction(...args: any[]) {
-      const later = () => {
-        clearTimeout(timeout)
-        func(...args)
-      }
-      clearTimeout(timeout)
-      timeout = setTimeout(later, wait)
-    }
-  }
-
   // Auto-process function (skips stippling)
   function autoProcess() {
     if (!currentImage) return
