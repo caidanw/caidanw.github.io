@@ -146,18 +146,18 @@ import LabLayout from '../../layouts/LabLayout.astro'
     stopBtn = getButtonElement('stopBtn'),
     resetBtn = getButtonElement('resetBtn')
 
+  const rootStyles = getComputedStyle(document.documentElement),
+    colorBlack = rootStyles.getPropertyValue('--color-black').trim(),
+    colorWhite = rootStyles.getPropertyValue('--color-white').trim(),
+    colorGrayDark = rootStyles.getPropertyValue('--color-gray-dark').trim(),
+    colorGrayDarker = rootStyles.getPropertyValue('--color-gray-darker').trim()
+
   const originalCanvas = getCanvasElement('originalCanvas'),
     brightnessCanvas = getCanvasElement('brightnessCanvas'),
     quantizedCanvas = getCanvasElement('quantizedCanvas'),
     diffusedCanvas = getCanvasElement('diffusedCanvas'),
     thresholdCanvas = getCanvasElement('thresholdCanvas'),
     stippledCanvas = getCanvasElement('stippledCanvas')
-
-  const rootStyles = getComputedStyle(document.documentElement),
-    colorBlack = rootStyles.getPropertyValue('--color-black').trim(),
-    colorWhite = rootStyles.getPropertyValue('--color-white').trim(),
-    colorGrayDark = rootStyles.getPropertyValue('--color-gray-dark').trim(),
-    colorGrayDarker = rootStyles.getPropertyValue('--color-gray-darker').trim()
 
   function initializeCanvas(canvas: HTMLCanvasElement) {
     const checkSize = 16 // Size of each checker square
@@ -179,7 +179,6 @@ import LabLayout from '../../layouts/LabLayout.astro'
     }
   }
 
-  // Initialize all canvases
   initializeCanvas(originalCanvas)
   initializeCanvas(brightnessCanvas)
   initializeCanvas(quantizedCanvas)
