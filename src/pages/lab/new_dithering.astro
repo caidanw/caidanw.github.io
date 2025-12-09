@@ -130,34 +130,35 @@ import LabLayout from '../../layouts/LabLayout.astro'
 </LabLayout>
 
 <script>
-  const imageInput = document.getElementById('imageInput') as HTMLInputElement
-  const processBtn = document.getElementById('processBtn') as HTMLButtonElement
-  const stipplingBtn = document.getElementById('stipplingBtn') as HTMLButtonElement
-  const stopBtn = document.getElementById('stopBtn') as HTMLButtonElement
-  const resetBtn = document.getElementById('resetBtn') as HTMLButtonElement
-  const regionSizeSlider = document.getElementById('regionSize') as HTMLInputElement
-  const levelsSlider = document.getElementById('levels') as HTMLInputElement
-  const diffusionSlider = document.getElementById('diffusion') as HTMLInputElement
-  const dotSizeSlider = document.getElementById('dotSize') as HTMLInputElement
-  const minDistSlider = document.getElementById('minDist') as HTMLInputElement
-  const thresholdSlider = document.getElementById('threshold') as HTMLInputElement
-  const maxDotsSlider = document.getElementById('maxDots') as HTMLInputElement
+  import { getInputElement, getButtonElement, getCanvasElement } from '../../lib/dom.ts'
 
-  const originalCanvas = document.getElementById('originalCanvas') as HTMLCanvasElement
-  const brightnessCanvas = document.getElementById('brightnessCanvas') as HTMLCanvasElement
-  const quantizedCanvas = document.getElementById('quantizedCanvas') as HTMLCanvasElement
-  const diffusedCanvas = document.getElementById('diffusedCanvas') as HTMLCanvasElement
-  const thresholdCanvas = document.getElementById('thresholdCanvas') as HTMLCanvasElement
-  const stippledCanvas = document.getElementById('stippledCanvas') as HTMLCanvasElement
+  const imageInput = getInputElement('imageInput'),
+    regionSizeSlider = getInputElement('regionSize'),
+    levelsSlider = getInputElement('levels'),
+    diffusionSlider = getInputElement('diffusion'),
+    dotSizeSlider = getInputElement('dotSize'),
+    minDistSlider = getInputElement('minDist'),
+    thresholdSlider = getInputElement('threshold'),
+    maxDotsSlider = getInputElement('maxDots')
 
-  // Get CSS variable values
-  const rootStyles = getComputedStyle(document.documentElement)
-  const colorBlack = rootStyles.getPropertyValue('--color-black').trim()
-  const colorWhite = rootStyles.getPropertyValue('--color-white').trim()
-  const colorGrayDark = rootStyles.getPropertyValue('--color-gray-dark').trim()
-  const colorGrayDarker = rootStyles.getPropertyValue('--color-gray-darker').trim()
+  const processBtn = getButtonElement('processBtn'),
+    stipplingBtn = getButtonElement('stipplingBtn'),
+    stopBtn = getButtonElement('stopBtn'),
+    resetBtn = getButtonElement('resetBtn')
 
-  // Initialize canvases with checkerboard pattern
+  const originalCanvas = getCanvasElement('originalCanvas'),
+    brightnessCanvas = getCanvasElement('brightnessCanvas'),
+    quantizedCanvas = getCanvasElement('quantizedCanvas'),
+    diffusedCanvas = getCanvasElement('diffusedCanvas'),
+    thresholdCanvas = getCanvasElement('thresholdCanvas'),
+    stippledCanvas = getCanvasElement('stippledCanvas')
+
+  const rootStyles = getComputedStyle(document.documentElement),
+    colorBlack = rootStyles.getPropertyValue('--color-black').trim(),
+    colorWhite = rootStyles.getPropertyValue('--color-white').trim(),
+    colorGrayDark = rootStyles.getPropertyValue('--color-gray-dark').trim(),
+    colorGrayDarker = rootStyles.getPropertyValue('--color-gray-darker').trim()
+
   function initializeCanvas(canvas: HTMLCanvasElement) {
     // Get the display size (CSS size) of the canvas
     const rect = canvas.getBoundingClientRect()
