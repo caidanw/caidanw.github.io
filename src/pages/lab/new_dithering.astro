@@ -52,16 +52,16 @@ import LabLayout from '../../layouts/LabLayout.astro'
 
         <div class="control-group">
           <label>
-            Dot Size: <span class="slider-value" id="dotSizeValue">1</span>px
+            Dot Size: <span class="slider-value" id="dotSizeValue">0.8</span>px
           </label>
-          <input type="range" id="dotSize" min="0.1" max="4" value="1" step="0.1" />
+          <input type="range" id="dotSize" min="0.1" max="4" value="0.8" step="0.1" />
         </div>
 
         <div class="control-group">
           <label>
-            Base Spacing: <span class="slider-value" id="minDistValue">1.5</span>px
+            Base Spacing: <span class="slider-value" id="minDistValue">1</span>px
           </label>
-          <input type="range" id="minDist" min="1" max="16" value="1.5" step="0.5" />
+          <input type="range" id="minDist" min="0" max="16" value="1" step="0.1" />
         </div>
 
         <div class="control-group">
@@ -269,7 +269,7 @@ import LabLayout from '../../layouts/LabLayout.astro'
   })
 
   minDistSlider.addEventListener('input', (e) => {
-    document.getElementById('minDistValue').textContent = e.target.value
+    document.getElementById('minDistValue').textContent = parseFloat(e.target.value).toFixed(1)
     // No auto-update for stippling parameters
   })
 
@@ -306,9 +306,10 @@ import LabLayout from '../../layouts/LabLayout.astro'
 
         processBtn.disabled = false
         drawOriginalImage()
+        autoProcess()
 
         stipplingBtn.disabled = false
-        autoProcess()
+        resetBtn.disabled = false
       }
       img.src = event.target.result
     }
@@ -565,8 +566,6 @@ import LabLayout from '../../layouts/LabLayout.astro'
 
     // Step 4: Create threshold preview
     createThresholdPreview()
-
-    resetBtn.disabled = false
   })
 
   // ========== STIPPLING ALGORITHMS ==========
