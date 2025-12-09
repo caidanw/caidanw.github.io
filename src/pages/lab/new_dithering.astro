@@ -160,20 +160,18 @@ import LabLayout from '../../layouts/LabLayout.astro'
     colorGrayDarker = rootStyles.getPropertyValue('--color-gray-darker').trim()
 
   function initializeCanvas(canvas: HTMLCanvasElement) {
-    // Get the display size (CSS size) of the canvas
-    const rect = canvas.getBoundingClientRect()
-    const size = Math.max(rect.width, 300) // Minimum 300px, but grow with container
+    const checkSize = 16 // Size of each checker square
+    const canvasSize = 480 // Initial size for checkerboard background, will be updated on image load
 
-    canvas.width = size
-    canvas.height = size
+    canvas.width = canvasSize
+    canvas.height = canvasSize
 
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    const checkSize = 20 // Size of each checker square
-
-    for (let y = 0; y < size; y += checkSize) {
-      for (let x = 0; x < size; x += checkSize) {
+    // Draw checkerboard background
+    for (let y = 0; y < canvasSize; y += checkSize) {
+      for (let x = 0; x < canvasSize; x += checkSize) {
         const isEven = (Math.floor(x / checkSize) + Math.floor(y / checkSize)) % 2 === 0
         ctx.fillStyle = isEven ? colorGrayDark : colorGrayDarker
         ctx.fillRect(x, y, checkSize, checkSize)
@@ -197,7 +195,6 @@ import LabLayout from '../../layouts/LabLayout.astro'
   let spatialGrid: { x: number; y: number }[][][] | null = null
   let gridCellSize = 0
 
-  // Auto-process function (skips stippling)
   function autoProcess() {
     if (!currentImage) return
 
@@ -217,16 +214,12 @@ import LabLayout from '../../layouts/LabLayout.astro'
     createThresholdPreview()
   }
 
-  // Debounced version for sliders
-  // const debouncedAutoProcess = debounce(autoProcess, 10)
-  const debouncedAutoProcess = autoProcess
-
   // Update slider values
   regionSizeSlider.addEventListener('input', (e) => {
     const target = e.target as HTMLInputElement
     const el = document.getElementById('regionSizeValue')
     if (el) el.textContent = target.value
-    debouncedAutoProcess()
+    autoProcess()
   })
 
   levelsSlider.addEventListener('input', (e) => {
@@ -235,14 +228,14 @@ import LabLayout from '../../layouts/LabLayout.astro'
     const el2 = document.getElementById('currentLevels')
     if (el1) el1.textContent = target.value
     if (el2) el2.textContent = target.value
-    debouncedAutoProcess()
+    autoProcess()
   })
 
   diffusionSlider.addEventListener('input', (e) => {
     const target = e.target as HTMLInputElement
     const el = document.getElementById('diffusionValue')
     if (el) el.textContent = target.value
-    debouncedAutoProcess()
+    autoProcess()
   })
 
   dotSizeSlider.addEventListener('input', (e) => {
