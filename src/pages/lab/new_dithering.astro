@@ -130,25 +130,25 @@ import LabLayout from '../../layouts/LabLayout.astro'
 </LabLayout>
 
 <script>
-  const imageInput = document.getElementById('imageInput')
-  const processBtn = document.getElementById('processBtn')
-  const stipplingBtn = document.getElementById('stipplingBtn')
-  const stopBtn = document.getElementById('stopBtn')
-  const resetBtn = document.getElementById('resetBtn')
-  const regionSizeSlider = document.getElementById('regionSize')
-  const levelsSlider = document.getElementById('levels')
-  const diffusionSlider = document.getElementById('diffusion')
-  const dotSizeSlider = document.getElementById('dotSize')
-  const minDistSlider = document.getElementById('minDist')
-  const thresholdSlider = document.getElementById('threshold')
-  const maxDotsSlider = document.getElementById('maxDots')
+  const imageInput = document.getElementById('imageInput') as HTMLInputElement
+  const processBtn = document.getElementById('processBtn') as HTMLButtonElement
+  const stipplingBtn = document.getElementById('stipplingBtn') as HTMLButtonElement
+  const stopBtn = document.getElementById('stopBtn') as HTMLButtonElement
+  const resetBtn = document.getElementById('resetBtn') as HTMLButtonElement
+  const regionSizeSlider = document.getElementById('regionSize') as HTMLInputElement
+  const levelsSlider = document.getElementById('levels') as HTMLInputElement
+  const diffusionSlider = document.getElementById('diffusion') as HTMLInputElement
+  const dotSizeSlider = document.getElementById('dotSize') as HTMLInputElement
+  const minDistSlider = document.getElementById('minDist') as HTMLInputElement
+  const thresholdSlider = document.getElementById('threshold') as HTMLInputElement
+  const maxDotsSlider = document.getElementById('maxDots') as HTMLInputElement
 
-  const originalCanvas = document.getElementById('originalCanvas')
-  const brightnessCanvas = document.getElementById('brightnessCanvas')
-  const quantizedCanvas = document.getElementById('quantizedCanvas')
-  const diffusedCanvas = document.getElementById('diffusedCanvas')
-  const thresholdCanvas = document.getElementById('thresholdCanvas')
-  const stippledCanvas = document.getElementById('stippledCanvas')
+  const originalCanvas = document.getElementById('originalCanvas') as HTMLCanvasElement
+  const brightnessCanvas = document.getElementById('brightnessCanvas') as HTMLCanvasElement
+  const quantizedCanvas = document.getElementById('quantizedCanvas') as HTMLCanvasElement
+  const diffusedCanvas = document.getElementById('diffusedCanvas') as HTMLCanvasElement
+  const thresholdCanvas = document.getElementById('thresholdCanvas') as HTMLCanvasElement
+  const stippledCanvas = document.getElementById('stippledCanvas') as HTMLCanvasElement
 
   // Get CSS variable values
   const rootStyles = getComputedStyle(document.documentElement)
@@ -158,7 +158,7 @@ import LabLayout from '../../layouts/LabLayout.astro'
   const colorGrayDarker = rootStyles.getPropertyValue('--color-gray-darker').trim()
 
   // Initialize canvases with checkerboard pattern
-  function initializeCanvas(canvas) {
+  function initializeCanvas(canvas: HTMLCanvasElement) {
     // Get the display size (CSS size) of the canvas
     const rect = canvas.getBoundingClientRect()
     const size = Math.max(rect.width, 300) // Minimum 300px, but grow with container
@@ -167,6 +167,8 @@ import LabLayout from '../../layouts/LabLayout.astro'
     canvas.height = size
 
     const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
     const checkSize = 20 // Size of each checker square
 
     for (let y = 0; y < size; y += checkSize) {
@@ -186,18 +188,18 @@ import LabLayout from '../../layouts/LabLayout.astro'
   initializeCanvas(thresholdCanvas)
   initializeCanvas(stippledCanvas)
 
-  let currentImage = null
-  let regionMapData = null
-  let dots = []
+  let currentImage: HTMLImageElement | null = null
+  let regionMapData: ImageData | null = null
+  let dots: { x: number; y: number }[] = []
   let isRunning = false
-  let animationFrame = null
-  let spatialGrid = null
+  let animationFrame: number | null = null
+  let spatialGrid: { x: number; y: number }[][][] | null = null
   let gridCellSize = 0
 
   // Debounce utility
-  function debounce(func, wait) {
-    let timeout
-    return function executedFunction(...args) {
+  function debounce(func: (...args: any[]) => void, wait: number) {
+    let timeout: ReturnType<typeof setTimeout> | undefined
+    return function executedFunction(...args: any[]) {
       const later = () => {
         clearTimeout(timeout)
         func(...args)
@@ -233,23 +235,32 @@ import LabLayout from '../../layouts/LabLayout.astro'
 
   // Update slider values
   regionSizeSlider.addEventListener('input', (e) => {
-    document.getElementById('regionSizeValue').textContent = e.target.value
+    const target = e.target as HTMLInputElement
+    const el = document.getElementById('regionSizeValue')
+    if (el) el.textContent = target.value
     debouncedAutoProcess()
   })
 
   levelsSlider.addEventListener('input', (e) => {
-    document.getElementById('levelsValue').textContent = e.target.value
-    document.getElementById('currentLevels').textContent = e.target.value
+    const target = e.target as HTMLInputElement
+    const el1 = document.getElementById('levelsValue')
+    const el2 = document.getElementById('currentLevels')
+    if (el1) el1.textContent = target.value
+    if (el2) el2.textContent = target.value
     debouncedAutoProcess()
   })
 
   diffusionSlider.addEventListener('input', (e) => {
-    document.getElementById('diffusionValue').textContent = e.target.value
+    const target = e.target as HTMLInputElement
+    const el = document.getElementById('diffusionValue')
+    if (el) el.textContent = target.value
     debouncedAutoProcess()
   })
 
   dotSizeSlider.addEventListener('input', (e) => {
-    document.getElementById('dotSizeValue').textContent = parseFloat(e.target.value).toFixed(1)
+    const target = e.target as HTMLInputElement
+    const el = document.getElementById('dotSizeValue')
+    if (el) el.textContent = parseFloat(target.value).toFixed(1)
     // Redraw dots if they exist
     if (dots.length > 0) {
       drawDots()
@@ -257,23 +268,30 @@ import LabLayout from '../../layouts/LabLayout.astro'
   })
 
   minDistSlider.addEventListener('input', (e) => {
-    document.getElementById('minDistValue').textContent = parseFloat(e.target.value).toFixed(1)
+    const target = e.target as HTMLInputElement
+    const el = document.getElementById('minDistValue')
+    if (el) el.textContent = parseFloat(target.value).toFixed(1)
     // No auto-update for stippling parameters
   })
 
   thresholdSlider.addEventListener('input', (e) => {
-    document.getElementById('thresholdValue').textContent = e.target.value
+    const target = e.target as HTMLInputElement
+    const el = document.getElementById('thresholdValue')
+    if (el) el.textContent = target.value
     createThresholdPreview()
   })
 
   maxDotsSlider.addEventListener('input', (e) => {
-    document.getElementById('maxDotsValue').textContent = e.target.value
+    const target = e.target as HTMLInputElement
+    const el = document.getElementById('maxDotsValue')
+    if (el) el.textContent = target.value
     // No auto-update for stippling parameters
   })
 
   // Handle image upload
   imageInput.addEventListener('change', (e) => {
-    const file = e.target.files[0]
+    const target = e.target as HTMLInputElement
+    const file = target.files?.[0]
     if (!file) return
 
     const reader = new FileReader()
@@ -289,14 +307,20 @@ import LabLayout from '../../layouts/LabLayout.astro'
         stipplingBtn.disabled = false
         resetBtn.disabled = false
       }
-      img.src = event.target.result
+      const result = event.target?.result
+      if (typeof result === 'string') {
+        img.src = result
+      }
     }
     reader.readAsDataURL(file)
   })
 
   // Draw original image
   function drawOriginalImage() {
+    if (!currentImage) return
     const ctx = originalCanvas.getContext('2d')
+    if (!ctx) return
+
     const maxWidth = 500
     const scale = Math.min(1, maxWidth / currentImage.width)
 
@@ -307,13 +331,15 @@ import LabLayout from '../../layouts/LabLayout.astro'
   }
 
   // Get brightness value from RGB
-  function getBrightness(r, g, b) {
+  function getBrightness(r: number, g: number, b: number) {
     return (r + g + b) / 3
   }
 
   // Process image into brightness map
   function createBrightnessMap() {
     const ctx = originalCanvas.getContext('2d', { willReadFrequently: true })
+    if (!ctx) return null
+
     const imageData = ctx.getImageData(0, 0, originalCanvas.width, originalCanvas.height)
     const data = imageData.data
     const width = originalCanvas.width
@@ -323,6 +349,8 @@ import LabLayout from '../../layouts/LabLayout.astro'
     brightnessCanvas.width = width
     brightnessCanvas.height = height
     const brightCtx = brightnessCanvas.getContext('2d')
+    if (!brightCtx) return null
+
     const brightImageData = brightCtx.createImageData(width, height)
     const brightData = brightImageData.data
 
@@ -340,7 +368,9 @@ import LabLayout from '../../layouts/LabLayout.astro'
   }
 
   // Quantize into discrete regions
-  function quantizeRegions(brightnessData, numLevels) {
+  function quantizeRegions(brightnessData: ImageData | null, numLevels: number) {
+    if (!brightnessData) return []
+
     const regionSize = parseInt(regionSizeSlider.value)
     const width = brightnessData.width
     const height = brightnessData.height
@@ -349,13 +379,15 @@ import LabLayout from '../../layouts/LabLayout.astro'
     quantizedCanvas.width = width
     quantizedCanvas.height = height
     const ctx = quantizedCanvas.getContext('2d')
+    if (!ctx) return []
+
     const quantizedImageData = ctx.createImageData(width, height)
     const quantizedData = quantizedImageData.data
 
     // Create grid of regions
     const cols = Math.ceil(width / regionSize)
     const rows = Math.ceil(height / regionSize)
-    const regionMap = []
+    const regionMap: { brightness: number; level: number }[][] = []
 
     // Calculate average brightness for each region
     for (let ry = 0; ry < rows; ry++) {
@@ -408,12 +440,14 @@ import LabLayout from '../../layouts/LabLayout.astro'
   }
 
   // Apply diffusion for smooth transitions
-  function diffuseRegions(regionMap, diffusionAmount) {
+  function diffuseRegions(regionMap: { brightness: number; level: number }[][], diffusionAmount: number) {
     if (diffusionAmount === 0) {
       // No diffusion, just copy quantized
       const ctx = quantizedCanvas.getContext('2d', { willReadFrequently: true })
+      if (!ctx) return
       const quantizedData = ctx.getImageData(0, 0, quantizedCanvas.width, quantizedCanvas.height)
       const diffusedCtx = diffusedCanvas.getContext('2d')
+      if (!diffusedCtx) return
       diffusedCanvas.width = quantizedCanvas.width
       diffusedCanvas.height = quantizedCanvas.height
       diffusedCtx.putImageData(quantizedData, 0, 0)
@@ -430,6 +464,7 @@ import LabLayout from '../../layouts/LabLayout.astro'
     diffusedCanvas.width = width
     diffusedCanvas.height = height
     const ctx = diffusedCanvas.getContext('2d')
+    if (!ctx) return
     const diffusedImageData = ctx.createImageData(width, height)
     const diffusedData = diffusedImageData.data
 
@@ -437,7 +472,7 @@ import LabLayout from '../../layouts/LabLayout.astro'
     let currentMap = regionMap.map((row) => row.map((cell) => cell.brightness))
 
     for (let iteration = 0; iteration < diffusionAmount; iteration++) {
-      const newMap = []
+      const newMap: number[][] = []
 
       for (let ry = 0; ry < rows; ry++) {
         newMap[ry] = []
@@ -506,6 +541,7 @@ import LabLayout from '../../layouts/LabLayout.astro'
     thresholdCanvas.width = width
     thresholdCanvas.height = height
     const ctx = thresholdCanvas.getContext('2d')
+    if (!ctx) return
     const thresholdImageData = ctx.createImageData(width, height)
     const thresholdData = thresholdImageData.data
 
@@ -549,14 +585,14 @@ import LabLayout from '../../layouts/LabLayout.astro'
   // ========== STIPPLING ALGORITHMS ==========
 
   // Spatial grid for fast nearest neighbor queries
-  function initializeSpatialGrid(width, height, minDist) {
+  function initializeSpatialGrid(width: number, height: number, minDist: number) {
     gridCellSize = Math.max(minDist * 2, 10)
     const cols = Math.ceil(width / gridCellSize)
     const rows = Math.ceil(height / gridCellSize)
     spatialGrid = Array.from({ length: rows }, () => Array.from({ length: cols }, () => []))
   }
 
-  function addToGrid(dot) {
+  function addToGrid(dot: { x: number; y: number }) {
     if (!spatialGrid || !gridCellSize) return
     const col = Math.floor(dot.x / gridCellSize)
     const row = Math.floor(dot.y / gridCellSize)
@@ -577,7 +613,7 @@ import LabLayout from '../../layouts/LabLayout.astro'
   }
 
   // Fast distance check using spatial grid - returns squared distance to nearest dot
-  function getNearestDotDistSq(x, y) {
+  function getNearestDotDistSq(x: number, y: number): number {
     if (!spatialGrid || dots.length === 0) return Infinity
 
     const col = Math.floor(x / gridCellSize)
@@ -607,11 +643,11 @@ import LabLayout from '../../layouts/LabLayout.astro'
   }
 
   // Check if point is too close to any existing dot using spatial grid
-  function isTooClose(x, y, minDistSq) {
+  function isTooClose(x: number, y: number, minDistSq: number): boolean {
     return getNearestDotDistSq(x, y) < minDistSq
   }
 
-  function getRegionBrightness(x, y) {
+  function getRegionBrightness(x: number, y: number): number {
     if (!regionMapData) return 255
     const width = regionMapData.width
     const height = regionMapData.height
@@ -623,6 +659,7 @@ import LabLayout from '../../layouts/LabLayout.astro'
 
   function drawDots() {
     const ctx = stippledCanvas.getContext('2d')
+    if (!ctx) return
     // Fill with dark background
     ctx.fillStyle = colorBlack
     ctx.fillRect(0, 0, stippledCanvas.width, stippledCanvas.height)
@@ -637,7 +674,8 @@ import LabLayout from '../../layouts/LabLayout.astro'
       ctx.fill()
     })
 
-    document.getElementById('dotCount').textContent = dots.length
+    const dotCountEl = document.getElementById('dotCount')
+    if (dotCountEl) dotCountEl.textContent = String(dots.length)
   }
 
   // Algorithm 4: Hybrid (Optimized)
@@ -828,10 +866,12 @@ import LabLayout from '../../layouts/LabLayout.astro'
     dots = []
     clearGrid() // Clear the spatial grid
     const ctx = stippledCanvas.getContext('2d')
+    if (!ctx) return
     // Reset to dark background
     ctx.fillStyle = colorBlack
     ctx.fillRect(0, 0, stippledCanvas.width, stippledCanvas.height)
-    document.getElementById('dotCount').textContent = '0'
+    const dotCountEl = document.getElementById('dotCount')
+    if (dotCountEl) dotCountEl.textContent = '0'
   }
 
   stipplingBtn.addEventListener('click', startStippling)
