@@ -41,16 +41,6 @@ import LabLayout from '../../layouts/LabLayout.astro'
         <h2>Stippling Settings</h2>
 
         <div class="control-group">
-          <label>Stippling Algorithm</label>
-          <select id="algorithmSelect">
-            <option value="density">Option 1: Direct Density Mapping</option>
-            <option value="triangulation">Option 2: Region-Based Triangulation</option>
-            <option value="poisson">Option 3: Poisson Disk Sampling</option>
-            <option value="hybrid" selected>Option 4: Hybrid (Recommended)</option>
-          </select>
-        </div>
-
-        <div class="control-group">
           <label>
             Dot Size: <span class="slider-value" id="dotSizeValue">0.8</span>px
           </label>
@@ -133,7 +123,6 @@ import LabLayout from '../../layouts/LabLayout.astro'
         <canvas id="stippledCanvas"></canvas>
         <div class="info-box">
           <strong>Dot placement visualization</strong>
-          <span class="description">Algorithm: <span id="currentAlgorithm">Hybrid</span></span>
         </div>
       </div>
     </div>
@@ -149,7 +138,6 @@ import LabLayout from '../../layouts/LabLayout.astro'
   const regionSizeSlider = document.getElementById('regionSize')
   const levelsSlider = document.getElementById('levels')
   const diffusionSlider = document.getElementById('diffusion')
-  const algorithmSelect = document.getElementById('algorithmSelect')
   const dotSizeSlider = document.getElementById('dotSize')
   const minDistSlider = document.getElementById('minDist')
   const thresholdSlider = document.getElementById('threshold')
@@ -281,16 +269,6 @@ import LabLayout from '../../layouts/LabLayout.astro'
   maxDotsSlider.addEventListener('input', (e) => {
     document.getElementById('maxDotsValue').textContent = e.target.value
     // No auto-update for stippling parameters
-  })
-
-  algorithmSelect.addEventListener('change', (e) => {
-    const algoNames = {
-      density: 'Direct Density Mapping',
-      triangulation: 'Region-Based Triangulation',
-      poisson: 'Poisson Disk Sampling',
-      hybrid: 'Hybrid',
-    }
-    document.getElementById('currentAlgorithm').textContent = algoNames[e.target.value]
   })
 
   // Handle image upload
@@ -662,165 +640,6 @@ import LabLayout from '../../layouts/LabLayout.astro'
     document.getElementById('dotCount').textContent = dots.length
   }
 
-  // Algorithm 1: Direct Density Mapping
-  function addDotDensity() {
-    const width = stippledCanvas.width
-    const height = stippledCanvas.height
-    const baseMinDist = parseFloat(minDistSlider.value)
-    const lightnessThreshold = parseFloat(thresholdSlider.value)
-
-    // Sample random points weighted by brightness (bright areas get more dots)
-    for (let attempt = 0; attempt < 20; attempt++) {
-      const x = Math.random() * width
-      const y = Math.random() * height
-      const brightness = getRegionBrightness(x, y)
-      const lightness = brightness / 255
-
-      // Skip if too dark
-      if (lightness < lightnessThreshold) continue
-
-      // Weight by lightness - brighter areas are more likely to accept dots
-      if (Math.random() > lightness) continue
-
-      // Variable min distance based on brightness - bright areas get smaller minDist
-      const variableMinDistSq = Math.pow(baseMinDist * (3.0 - lightness * 2.8), 2)
-
-      // Use spatial grid for fast distance check
-      if (!isTooClose(x, y, variableMinDistSq)) {
-        const dot = { x, y }
-        dots.push(dot)
-        addToGrid(dot)
-        return true
-      }
-    }
-    return false
-  }
-  // Algorithm 2: Region-Based Triangulation
-  function addDotTriangulation() {
-    const width = stippledCanvas.width
-    const height = stippledCanvas.height
-    const baseMinDist = parseInt(minDistSlider.value)
-    const lightnessThreshold = parseFloat(thresholdSlider.value)
-
-    // Find largest void
-    let bestPoint = null
-    let bestLightness = 0
-    let maxMinDist = 0
-
-    for (let attempt = 0; attempt < 30; attempt++) {
-      const x = Math.random() * width
-      const y = Math.random() * height
-      const brightness = getRegionBrightness(x, y)
-      const lightness = brightness / 255
-
-      // Skip if too dark
-      if (lightness < lightnessThreshold) continue
-
-      const minDistSq = getNearestDotDistSq(x, y)
-      const weighted = minDistSq * lightness
-
-      if (weighted > maxMinDist) {
-        maxMinDist = weighted
-        bestPoint = { x, y }
-        bestLightness = lightness
-      }
-    }
-
-    if (!bestPoint || dots.length < 3) {
-      if (bestPoint && bestLightness >= lightnessThreshold) {
-        dots.push(bestPoint)
-        addToGrid(bestPoint)
-      }
-      return true
-    }
-
-    // Find 3 nearest dots - use spatial grid
-    const col = Math.floor(bestPoint.x / gridCellSize)
-    const row = Math.floor(bestPoint.y / gridCellSize)
-    const searchRadius = 5 // Check 5 cells in each direction
-
-    const nearbyDots = []
-    for (let dr = -searchRadius; dr <= searchRadius; dr++) {
-      for (let dc = -searchRadius; dc <= searchRadius; dc++) {
-        const r = row + dr
-        const c = col + dc
-        if (spatialGrid && r >= 0 && r < spatialGrid.length && c >= 0 && c < spatialGrid[0].length) {
-          nearbyDots.push(...spatialGrid[r][c])
-        }
-      }
-    }
-
-    if (nearbyDots.length < 3) {
-      // Not enough nearby dots, just place at bestPoint
-      const variableMinDistSq = Math.pow(baseMinDist * (3.0 - bestLightness * 2.8), 2)
-      if (!isTooClose(bestPoint.x, bestPoint.y, variableMinDistSq)) {
-        dots.push(bestPoint)
-        addToGrid(bestPoint)
-        return true
-      }
-      return false
-    }
-
-    const nearest = nearbyDots
-      .map((dot) => ({
-        dot,
-        dist: (dot.x - bestPoint.x) ** 2 + (dot.y - bestPoint.y) ** 2,
-      }))
-      .sort((a, b) => a.dist - b.dist)
-      .slice(0, 3)
-
-    // Triangulate
-    const centroid = {
-      x: (nearest[0].dot.x + nearest[1].dot.x + nearest[2].dot.x) / 3,
-      y: (nearest[0].dot.y + nearest[1].dot.y + nearest[2].dot.y) / 3,
-    }
-
-    // Check brightness at centroid and calculate variable min distance
-    const centroidBrightness = getRegionBrightness(centroid.x, centroid.y)
-    const centroidLightness = centroidBrightness / 255
-    if (centroidLightness < lightnessThreshold) return false
-
-    // Variable min distance based on centroid brightness
-    const variableMinDistSq = Math.pow(baseMinDist * (3.0 - centroidLightness * 2.8), 2)
-
-    // Use spatial grid for distance check
-    if (!isTooClose(centroid.x, centroid.y, variableMinDistSq)) {
-      dots.push(centroid)
-      addToGrid(centroid)
-      return true
-    }
-    return false
-  }
-  // Algorithm 3: Poisson Disk Sampling
-  function addDotPoisson() {
-    const width = stippledCanvas.width
-    const height = stippledCanvas.height
-    const lightnessThreshold = parseFloat(thresholdSlider.value)
-
-    for (let attempt = 0; attempt < 30; attempt++) {
-      const x = Math.random() * width
-      const y = Math.random() * height
-      const brightness = getRegionBrightness(x, y)
-      const lightness = brightness / 255
-
-      // Skip if too dark
-      if (lightness < lightnessThreshold) continue
-
-      // Variable radius based on brightness - bright areas get tighter spacing (smaller minDist)
-      const baseMinDist = parseInt(minDistSlider.value)
-      const variableMinDistSq = Math.pow(baseMinDist * (3.0 - lightness * 2.8), 2)
-
-      // Use spatial grid for fast distance check
-      if (!isTooClose(x, y, variableMinDistSq)) {
-        const dot = { x, y }
-        dots.push(dot)
-        addToGrid(dot)
-        return true
-      }
-    }
-    return false
-  }
-
   // Algorithm 4: Hybrid (Optimized)
   function addDotHybrid() {
     const width = stippledCanvas.width
@@ -951,23 +770,7 @@ import LabLayout from '../../layouts/LabLayout.astro'
     console.log('[ANIMATE] Batch starting. Dots:', dots.length, 'FillRatio:', fillRatio.toFixed(2), 'BatchSize:', batchSize)
 
     while (successCount < batchSize && attemptCount < maxAttempts && dots.length < maxDots) {
-      const algorithm = algorithmSelect.value
-      let success = false
-
-      switch (algorithm) {
-        case 'density':
-          success = addDotDensity()
-          break
-        case 'triangulation':
-          success = addDotTriangulation()
-          break
-        case 'poisson':
-          success = addDotPoisson()
-          break
-        case 'hybrid':
-          success = addDotHybrid()
-          break
-      }
+      const success = addDotHybrid()
 
       if (success) successCount++
       attemptCount++
