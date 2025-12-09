@@ -131,6 +131,7 @@ import LabLayout from '../../layouts/LabLayout.astro'
 
 <script>
   import { getInputElement, getButtonElement, getCanvasElement } from '../../lib/dom.ts'
+  import { getPerceivedLuminance } from '../../lib/color.ts'
 
   const imageInput = getInputElement('imageInput'),
     regionSizeSlider = getInputElement('regionSize'),
@@ -308,11 +309,6 @@ import LabLayout from '../../layouts/LabLayout.astro'
     ctx.drawImage(currentImage, 0, 0, originalCanvas.width, originalCanvas.height)
   }
 
-  // Get brightness value from RGB
-  function getBrightness(r: number, g: number, b: number) {
-    return (r + g + b) / 3
-  }
-
   // Process image into brightness map
   function createBrightnessMap() {
     const ctx = originalCanvas.getContext('2d', { willReadFrequently: true })
@@ -334,7 +330,7 @@ import LabLayout from '../../layouts/LabLayout.astro'
 
     // Convert to grayscale brightness
     for (let i = 0; i < data.length; i += 4) {
-      const brightness = getBrightness(data[i], data[i + 1], data[i + 2])
+      const brightness = getPerceivedLuminance(data[i], data[i + 1], data[i + 2])
       brightData[i] = brightness
       brightData[i + 1] = brightness
       brightData[i + 2] = brightness
