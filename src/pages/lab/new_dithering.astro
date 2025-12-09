@@ -194,7 +194,7 @@ import LabLayout from '../../layouts/LabLayout.astro'
   let spatialGrid: { x: number; y: number }[][][] | null = null
   let gridCellSize = 0
 
-  function autoProcess() {
+  function processImage() {
     if (!currentImage) return
 
     const numLevels = parseInt(levelsSlider.value)
@@ -218,7 +218,7 @@ import LabLayout from '../../layouts/LabLayout.astro'
     const target = e.target as HTMLInputElement
     const el = document.getElementById('regionSizeValue')
     if (el) el.textContent = target.value
-    autoProcess()
+    processImage()
   })
 
   levelsSlider.addEventListener('input', (e) => {
@@ -227,14 +227,14 @@ import LabLayout from '../../layouts/LabLayout.astro'
     const el2 = document.getElementById('currentLevels')
     if (el1) el1.textContent = target.value
     if (el2) el2.textContent = target.value
-    autoProcess()
+    processImage()
   })
 
   diffusionSlider.addEventListener('input', (e) => {
     const target = e.target as HTMLInputElement
     const el = document.getElementById('diffusionValue')
     if (el) el.textContent = target.value
-    autoProcess()
+    processImage()
   })
 
   dotSizeSlider.addEventListener('input', (e) => {
@@ -268,7 +268,6 @@ import LabLayout from '../../layouts/LabLayout.astro'
     // No auto-update for stippling parameters
   })
 
-  // Handle image upload
   imageInput.addEventListener('change', (e) => {
     const target = e.target as HTMLInputElement
     const file = target.files?.[0]
@@ -282,7 +281,7 @@ import LabLayout from '../../layouts/LabLayout.astro'
 
         processBtn.disabled = false
         drawOriginalImage()
-        autoProcess()
+        processImage()
 
         stipplingBtn.disabled = false
         resetBtn.disabled = false
@@ -295,7 +294,6 @@ import LabLayout from '../../layouts/LabLayout.astro'
     reader.readAsDataURL(file)
   })
 
-  // Draw original image
   function drawOriginalImage() {
     if (!currentImage) return
     const ctx = originalCanvas.getContext('2d')
