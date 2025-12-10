@@ -1,6 +1,7 @@
 ---
 import Layout from '@layouts/Layout.astro'
 import Hr from '@components/Hr.astro'
+import Breadcrumbs from '@/components/Breadcrumbs.astro'
 
 const projects = [
   {
@@ -16,6 +17,8 @@ const projects = [
 ---
 
 <Layout title="Portfolio - Caidan Williams" description="Selected projects and experiments">
+  <Breadcrumbs />
+
   <main>
     <h1>Portfolio</h1>
     <p class="subtitle">A showcase of selected projects and experiments I've worked on.</p>
