@@ -1,0 +1,77 @@
+---
+interface Crumb {
+  label: string
+  href: string
+}
+
+const crumbs: Crumb[] = [{ label: 'home', href: '/' }]
+const segments = Astro.url.pathname.split('/').filter(Boolean)
+
+// Build up the path progressively
+let currentPath = ''
+for (const segment of segments) {
+  currentPath += `/${segment}`
+  crumbs.push({
+    label: segment.replace(/_-/g, ' '),
+    href: currentPath,
+  })
+}
+---
+
+<nav class="breadcrumbs" aria-label="Breadcrumb">
+  {
+    crumbs.map((crumb, index) => (
+      <span class="crumb-wrapper">
+        <span class="separator">/</span>
+        {index === crumbs.length - 1 ? (
+          <span class="crumb current" aria-current="page">
+            {crumb.label}
+          </span>
+        ) : (
+          <a href={crumb.href} class="crumb">
+            {crumb.label}
+          </a>
+        )}
+      </span>
+    ))
+  }
+</nav>
+
+<style>
+  .breadcrumbs {
+    border-bottom: 1px solid var(--theme-border);
+    padding: 0.5rem;
+    margin-bottom: 1rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  .crumb-wrapper {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .separator {
+    color: var(--theme-text-dim);
+    user-select: none;
+  }
+
+  .crumb {
+    color: var(--theme-text);
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+
+  a.crumb:hover {
+    color: var(--theme-accent);
+  }
+
+  .crumb.current {
+    color: var(--theme-text-dim);
+  }
+</style>
