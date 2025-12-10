@@ -79,16 +79,30 @@ a.list {
     position: absolute;
     left: 0;
   }
+}
 
+a.list,
+a.underline {
   &::after {
     content: '';
     position: absolute;
     bottom: 0;
-    left: 1.2em;
+    left: 0;
     width: 0;
     height: 1px;
     background: var(--theme-accent);
     transition: width 0.3s ease;
+  }
+
+  &:hover::after {
+    width: 100%;
+  }
+}
+
+a.list,
+a.list.underline {
+  &::after {
+    left: 1.2em;
   }
 
   &:hover::after {
