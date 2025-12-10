@@ -874,10 +874,8 @@ import LabLayout from '../../layouts/LabLayout.astro'
     display: flex;
     gap: 1rem;
     flex-direction: column;
-  }
 
-  @media (min-width: 1024px) {
-    .main-layout {
+    @media (min-width: 1024px) {
       flex-direction: row;
       align-items: flex-start;
     }
@@ -903,22 +901,21 @@ import LabLayout from '../../layouts/LabLayout.astro'
       border-top: 1px solid var(--theme-border);
       padding-top: 1rem;
     }
-  }
 
-  .controls h2 {
-    margin-bottom: 1rem;
-    font-size: 1rem;
-    font-weight: 600;
+    h2 {
+      margin-bottom: 0.5rem;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
   }
 
   .control-group {
     margin-bottom: 0.25rem;
     flex-shrink: 0;
-  }
 
-  .control-group label {
-    display: block;
-    color: var(--theme-text-subtle);
+    label {
+      display: block;
+    }
   }
 
   input[type='file'] {
@@ -1018,7 +1015,7 @@ import LabLayout from '../../layouts/LabLayout.astro'
   canvas {
     width: 100%;
     height: auto;
-    aspect-ratio: 1 / 1; /* Maintain square aspect ratio */
+    aspect-ratio: 1 / 1;
     display: block;
     object-fit: contain;
     border-radius: 0.25rem;
