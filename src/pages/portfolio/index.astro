@@ -1,0 +1,110 @@
+---
+import Layout from '../../layouts/Layout.astro'
+
+const projects = [
+  {
+    title: 'Stipple Studio',
+    description: 'A web-based stippling art generator using weighted Voronoi stippling',
+    tech: 'Astro, TypeScript, Canvas API, Web Workers',
+    links: [
+      { label: 'Live Demo', url: '/lab/stipple_dithering' },
+      { label: 'Source Code', url: 'https://github.com/caidanw/caidanw.github.io' },
+    ],
+  },
+]
+---
+
+<Layout title="Portfolio - Caidan Williams" description="Selected projects and experiments">
+  <main>
+    <h1>Portfolio</h1>
+    <p class="subtitle">A showcase of selected projects and experiments I've worked on.</p>
+
+    <div class="projects-grid">
+      {
+        projects.map((project) => (
+          <div class="project">
+            <a href={project.links[0]?.url || '#'} class="project-title list">
+              {project.title}
+            </a>
+            <p class="project-description">{project.description}</p>
+            <p class="project-tech">
+              <strong>Tech:</strong> {project.tech}
+            </p>
+            <div class="project-links">
+              {project.links.map((link) => (
+                <a class="underline" href={link.url}>
+                  {link.label}
+                </a>
+              ))}
+            </div>
+          </div>
+        ))
+      }
+    </div>
+  </main>
+</Layout>
+
+<style>
+  main {
+    padding: 3rem 1rem;
+
+    @media (min-width: 768px) {
+      padding: 4rem 1.5rem;
+    }
+  }
+
+  h1 {
+    font-size: 2rem;
+    font-weight: 700;
+  }
+
+  .subtitle {
+    color: var(--theme-text-dim);
+    margin-bottom: 3rem;
+    font-size: 1rem;
+  }
+
+  .projects-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 3rem;
+
+    @media (min-width: 768px) {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 3rem 2rem;
+    }
+  }
+
+  .project-title {
+    display: inline-block;
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+
+    &::after {
+      height: 2px;
+    }
+  }
+
+  .project-description {
+    color: var(--theme-text-subtle);
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+  }
+
+  .project-tech {
+    color: var(--theme-text-dim);
+    font-size: 0.8rem;
+    margin-bottom: 0.75rem;
+
+    strong {
+      color: var(--theme-text-subtle);
+    }
+  }
+
+  .project-links {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.85rem;
+  }
+</style>
