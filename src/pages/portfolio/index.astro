@@ -4,7 +4,7 @@ import Layout from '../../layouts/Layout.astro'
 const projects = [
   {
     title: 'Stipple Studio',
-    description: 'Interactive stippling tool with real-time visualization of image processing pipeline and spatial grid optimization',
+    description: 'Interactive stippling tool with real-time visualization of the image processing pipeline',
     tech: 'Vanilla TypeScript, Canvas API (no libraries)',
     links: [
       { label: 'Live Demo', url: '/portfolio/stipple-studio' },
@@ -22,7 +22,7 @@ const projects = [
     <div class="projects-grid">
       {
         projects.map((project) => (
-          <div class="project">
+          <section class="project">
             <a href={project.links[0]?.url || '#'} class="project-title list">
               {project.title}
             </a>
@@ -37,7 +37,7 @@ const projects = [
                 </a>
               ))}
             </div>
-          </div>
+          </section>
         ))
       }
     </div>
@@ -50,6 +50,11 @@ const projects = [
 
     @media (min-width: 768px) {
       padding: 4rem 1.5rem;
+    }
+
+    @media (min-width: 1440px) {
+      padding: 4rem 3rem;
+      max-width: none;
     }
   }
 
@@ -67,6 +72,10 @@ const projects = [
     display: grid;
     grid-template-columns: 1fr;
     gap: 3rem;
+
+    @media (min-width: 1440px) {
+      grid-template-columns: 1fr 1fr;
+    }
   }
 
   .project-title {
@@ -84,6 +93,7 @@ const projects = [
     color: var(--theme-text-subtle);
     margin-bottom: 0.75rem;
     font-size: 1.2rem;
+    text-wrap: pretty;
   }
 
   .project-tech {
