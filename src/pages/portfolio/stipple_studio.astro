@@ -16,7 +16,7 @@ import HeaderLayout from '@/layouts/HeaderLayout.astro'
           <label>
             Region Size: <span class="slider-value" id="regionSizeValue">1</span> px
           </label>
-          <input type="range" id="regionSize" min="1" max="12" value="1" step="1" />
+          <input type="range" id="regionSize" min="1" max="16" value="1" step="1" />
         </div>
 
         <div class="control-group">
@@ -32,8 +32,6 @@ import HeaderLayout from '@/layouts/HeaderLayout.astro'
           </label>
           <input type="range" id="diffusion" min="0" max="10" value="0" step="1" />
         </div>
-
-        <button id="processBtn" disabled>Process Region Map</button>
       </div>
 
       <div class="controls">
@@ -48,9 +46,9 @@ import HeaderLayout from '@/layouts/HeaderLayout.astro'
 
         <div class="control-group">
           <label>
-            Base Spacing: <span class="slider-value" id="minDistValue">1</span> px
+            Base Spacing: <span class="slider-value" id="minDistValue">2</span> px
           </label>
-          <input type="range" id="minDist" min="0" max="16" value="1" step="0.1" />
+          <input type="range" id="minDist" min="0" max="16" value="2" step="0.1" />
         </div>
 
         <div class="control-group">
@@ -66,12 +64,15 @@ import HeaderLayout from '@/layouts/HeaderLayout.astro'
           </label>
           <input type="range" id="maxDots" min="500" max="50000" value="30000" step="500" />
         </div>
+      </div>
+      <div class="controls">
+        <div class="control-group btns">
+          <button id="stipplingBtn" disabled>Start Stippling</button>
+          <button id="stopBtn" disabled>Stop</button>
+          <button id="resetBtn" disabled>Reset Dots</button>
+        </div>
 
-        <button id="stipplingBtn" disabled>Start Stippling</button>
-        <button id="stopBtn" disabled>Stop</button>
-        <button id="resetBtn" disabled>Reset Dots</button>
-
-        <div class="info-box">
+        <div class="control-group dots">
           <strong>Current dots: <span id="dotCount">0</span></strong>
         </div>
       </div>
@@ -141,8 +142,7 @@ import HeaderLayout from '@/layouts/HeaderLayout.astro'
     thresholdSlider = getInputElement('threshold'),
     maxDotsSlider = getInputElement('maxDots')
 
-  const processBtn = getButtonElement('processBtn'),
-    stipplingBtn = getButtonElement('stipplingBtn'),
+  const stipplingBtn = getButtonElement('stipplingBtn'),
     stopBtn = getButtonElement('stopBtn'),
     resetBtn = getButtonElement('resetBtn')
 
@@ -279,7 +279,6 @@ import HeaderLayout from '@/layouts/HeaderLayout.astro'
       img.onload = () => {
         currentImage = img
 
-        processBtn.disabled = false
         drawOriginalImage()
         processImage()
 
@@ -825,7 +824,6 @@ import HeaderLayout from '@/layouts/HeaderLayout.astro'
     if (dotCountEl) dotCountEl.textContent = '0'
   }
 
-  processBtn.addEventListener('click', processImage)
   stipplingBtn.addEventListener('click', startStippling)
   stopBtn.addEventListener('click', stopStippling)
   resetBtn.addEventListener('click', resetDots)
@@ -876,12 +874,12 @@ import HeaderLayout from '@/layouts/HeaderLayout.astro'
       padding-bottom: 1rem;
     }
 
-    + .controls {
+    & + .controls {
       border-top: 1px solid var(--theme-border);
       padding-top: 1rem;
     }
 
-    h2 {
+    & h2 {
       margin-bottom: 0.5rem;
       font-size: 1.25rem;
       font-weight: 600;
@@ -889,10 +887,37 @@ import HeaderLayout from '@/layouts/HeaderLayout.astro'
   }
 
   .control-group {
-    margin-bottom: 0.25rem;
     flex-shrink: 0;
 
-    label {
+    &:not(:last-child) {
+      margin-bottom: 0.25rem;
+    }
+
+    &.btns {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    &.dots {
+      margin-top: 1rem;
+
+      strong {
+        display: block;
+        color: var(--theme-text);
+      }
+
+      #dotCount {
+        font-size: 1.2rem;
+        font-family: var(--font-mono);
+        color: var(--theme-accent);
+        margin-left: 0.5rem;
+      }
+    }
+
+    & label {
       display: block;
     }
   }
@@ -901,7 +926,7 @@ import HeaderLayout from '@/layouts/HeaderLayout.astro'
     width: 100%;
     padding: 0.5rem;
     border: 2px dashed var(--theme-border);
-    border-radius: 0.25rem;
+    border-radius: 4px;
     font-size: 0.75rem;
     cursor: pointer;
     color: var(--theme-text);
@@ -936,26 +961,25 @@ import HeaderLayout from '@/layouts/HeaderLayout.astro'
     color: var(--color-white);
     border: none;
     padding: 0.25rem 0.75rem;
-    border-radius: 6px;
+    border-radius: 4px;
     font-size: 0.75rem;
     font-weight: 600;
     cursor: pointer;
     transition: background 0.2s;
-    margin-right: 0.5rem;
-  }
 
-  button:hover {
-    background: var(--theme-accent-light);
-  }
+    &:hover {
+      background: var(--theme-accent-light);
+    }
 
-  button:active {
-    background: var(--theme-accent-dark);
-  }
+    &:active {
+      background: var(--theme-accent-dark);
+    }
 
-  button:disabled {
-    background: var(--color-gray);
-    cursor: not-allowed;
-    opacity: 0.5;
+    &:disabled {
+      background: var(--color-gray);
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
   }
 
   .canvas-grid {
@@ -1009,10 +1033,5 @@ import HeaderLayout from '@/layouts/HeaderLayout.astro'
     .description {
       font-size: 0.85rem;
     }
-  }
-
-  .info-box strong {
-    display: block;
-    color: var(--theme-text);
   }
 </style>
