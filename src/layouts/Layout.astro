@@ -20,7 +20,7 @@ const {
 
 const siteUrl = 'https://caidan.dev'
 const twitterHandle = '@caidanwilliams'
-const imageUrl = new URL(image.src, siteUrl).href
+const imageUrl = new URL(image.src, siteUrl).href + '?v=' + Date.now()
 ---
 
 <!doctype html>
