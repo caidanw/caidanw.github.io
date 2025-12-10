@@ -1,10 +1,11 @@
 ---
+import Breadcrumbs from '@/components/Breadcrumbs.astro'
 import Layout from './Layout.astro'
 ---
 
 <Layout {...Astro.props}>
   <header>
-    <a class="list" href="/lab/">back to the lab</a>
+    <Breadcrumbs />
   </header>
 
   <slot />
@@ -15,17 +16,5 @@ import Layout from './Layout.astro'
     border-bottom: 1px solid var(--theme-border);
     padding: 0.5rem;
     margin-bottom: 1rem;
-  }
-
-  header a {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-family: 'Server Mono', monospace;
-    font-size: 0.75rem;
-
-    &::before {
-      content: '←';
-    }
   }
 </style>
