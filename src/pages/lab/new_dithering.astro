@@ -652,8 +652,7 @@ import LabLayout from '../../layouts/LabLayout.astro'
     if (dotCountEl) dotCountEl.textContent = String(dots.length)
   }
 
-  // Algorithm 4: Hybrid (Optimized)
-  function addDotHybrid() {
+  function addDotAlgo() {
     const width = stippledCanvas.width
     const height = stippledCanvas.height
     const baseMinDist = parseInt(minDistSlider.value)
@@ -782,7 +781,7 @@ import LabLayout from '../../layouts/LabLayout.astro'
     console.log('[ANIMATE] Batch starting. Dots:', dots.length, 'FillRatio:', fillRatio.toFixed(2), 'BatchSize:', batchSize)
 
     while (successCount < batchSize && attemptCount < maxAttempts && dots.length < maxDots) {
-      const success = addDotHybrid()
+      const success = addDotAlgo()
 
       if (success) successCount++
       attemptCount++
