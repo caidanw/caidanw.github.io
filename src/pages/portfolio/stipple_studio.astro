@@ -1,8 +1,13 @@
 ---
 import HeaderLayout from '@/layouts/HeaderLayout.astro'
+import Favicon from '@/assets/stipple_studio_favicon.png'
 ---
 
-<HeaderLayout title="Stipple Studio - Caidan Williams" description="Interactive stippling tool with real-time visualization of the image processing pipeline">
+<HeaderLayout
+  title="Stipple Studio - Caidan Williams"
+  description="Interactive stippling tool with real-time visualization of the image processing pipeline"
+  image={Favicon}
+>
   <div class="main-layout">
     <aside class="sidebar">
       <div class="controls">
