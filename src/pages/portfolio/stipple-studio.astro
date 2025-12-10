@@ -1,11 +1,8 @@
 ---
-import Breadcrumbs from '@/components/Breadcrumbs.astro'
-import Layout from '../../layouts/Layout.astro'
+import HeaderLayout from '@/layouts/HeaderLayout.astro'
 ---
 
-<Layout title="Region Mapping & Stippling">
-  <Breadcrumbs />
-
+<HeaderLayout title="Region Mapping & Stippling">
   <div class="main-layout">
     <aside class="sidebar">
       <div class="controls">
@@ -130,7 +127,7 @@ import Layout from '../../layouts/Layout.astro'
       </div>
     </div>
   </div>
-</Layout>
+</HeaderLayout>
 
 <script>
   import { getInputElement, getButtonElement, getCanvasElement } from '../../lib/dom.ts'
