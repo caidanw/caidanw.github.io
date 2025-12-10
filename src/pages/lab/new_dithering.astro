@@ -536,28 +536,6 @@ import LabLayout from '../../layouts/LabLayout.astro'
     ctx.putImageData(thresholdImageData, 0, 0)
   }
 
-  // Process button
-  processBtn.addEventListener('click', () => {
-    if (!currentImage) return
-
-    const numLevels = parseInt(levelsSlider.value)
-    const diffusionAmount = parseInt(diffusionSlider.value)
-
-    // Step 1: Create brightness map
-    const brightnessData = createBrightnessMap()
-
-    // Step 2: Quantize into regions
-    const regionMap = quantizeRegions(brightnessData, numLevels)
-
-    // Step 3: Apply diffusion
-    diffuseRegions(regionMap, diffusionAmount)
-
-    // Step 4: Create threshold preview
-    createThresholdPreview()
-  })
-
-  // ========== STIPPLING ALGORITHMS ==========
-
   // Spatial grid for fast nearest neighbor queries
   function initializeSpatialGrid(width: number, height: number, minDist: number) {
     gridCellSize = Math.max(minDist * 2, 10)
@@ -847,6 +825,7 @@ import LabLayout from '../../layouts/LabLayout.astro'
     if (dotCountEl) dotCountEl.textContent = '0'
   }
 
+  processBtn.addEventListener('click', processImage)
   stipplingBtn.addEventListener('click', startStippling)
   stopBtn.addEventListener('click', stopStippling)
   resetBtn.addEventListener('click', resetDots)
