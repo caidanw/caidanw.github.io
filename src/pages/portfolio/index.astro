@@ -4,8 +4,8 @@ import Layout from '../../layouts/Layout.astro'
 const projects = [
   {
     title: 'Stipple Studio',
-    description: 'A web-based stippling art generator using weighted Voronoi stippling',
-    tech: 'Astro, TypeScript, Canvas API, Web Workers',
+    description: 'Interactive stippling tool with real-time visualization of image processing pipeline and spatial grid optimization',
+    tech: 'Vanilla TypeScript, Canvas API (no libraries)',
     links: [
       { label: 'Live Demo', url: '/portfolio/stipple-studio' },
       { label: 'Source Code', url: 'https://github.com/caidanw/caidanw.github.io/blob/main/src/pages/portfolio/stipple-studio.astro' },
@@ -28,7 +28,7 @@ const projects = [
             </a>
             <p class="project-description">{project.description}</p>
             <p class="project-tech">
-              <strong>Tech:</strong> {project.tech}
+              <span>Tech:</span> {project.tech}
             </p>
             <div class="project-links">
               {project.links.map((link) => (
@@ -54,30 +54,24 @@ const projects = [
   }
 
   h1 {
-    font-size: 2rem;
+    font-size: 2.5rem;
     font-weight: 700;
   }
 
   .subtitle {
     color: var(--theme-text-dim);
     margin-bottom: 3rem;
-    font-size: 1rem;
   }
 
   .projects-grid {
     display: grid;
     grid-template-columns: 1fr;
     gap: 3rem;
-
-    @media (min-width: 768px) {
-      grid-template-columns: repeat(2, 1fr);
-      gap: 3rem 2rem;
-    }
   }
 
   .project-title {
     display: inline-block;
-    font-size: 1.3rem;
+    font-size: 1.5rem;
     font-weight: 700;
     margin-bottom: 0.5rem;
 
@@ -89,15 +83,14 @@ const projects = [
   .project-description {
     color: var(--theme-text-subtle);
     margin-bottom: 0.75rem;
-    font-size: 1rem;
+    font-size: 1.2rem;
   }
 
   .project-tech {
     color: var(--theme-text-dim);
-    font-size: 0.8rem;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
 
-    strong {
+    span {
       color: var(--theme-text-subtle);
     }
   }
@@ -105,6 +98,5 @@ const projects = [
   .project-links {
     display: flex;
     gap: 1rem;
-    font-size: 0.85rem;
   }
 </style>
