@@ -12,7 +12,7 @@ let currentPath = ''
 for (const segment of segments) {
   currentPath += `/${segment}`
   crumbs.push({
-    label: segment.replace(/_-/g, ' '),
+    label: segment,
     href: currentPath,
   })
 }
