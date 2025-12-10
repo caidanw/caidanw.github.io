@@ -8,10 +8,8 @@ const projects = [
     title: 'Stipple Studio',
     description: 'Interactive stippling tool with real-time visualization of the image processing pipeline',
     tech: 'Vanilla TypeScript, Canvas API (no libraries)',
-    links: [
-      { label: 'Live Demo', url: '/portfolio/stipple-studio' },
-      { label: 'Source Code', url: 'https://github.com/caidanw/caidanw.github.io/blob/main/src/pages/portfolio/stipple-studio.astro' },
-    ],
+    url: '/portfolio/stipple-studio',
+    sourceUrl: 'https://github.com/caidanw/caidanw.github.io/blob/main/src/pages/portfolio/stipple-studio.astro',
   },
 ]
 ---
@@ -28,20 +26,18 @@ const projects = [
       {
         projects.map((project) => (
           <section class="project">
-            <a href={project.links[0]?.url || '#'} class="project-title list">
-              {project.title}
-            </a>
+            <div class="project-header">
+              <a href={project.url} class="project-title list">
+                {project.title}
+              </a>
+              <a href={project.sourceUrl} class="source-link">
+                &laquo; source code &raquo;
+              </a>
+            </div>
             <p class="project-description">{project.description}</p>
             <p class="project-tech">
               <span>Tech:</span> {project.tech}
             </p>
-            <div class="project-links">
-              {project.links.map((link) => (
-                <a class="underline" href={link.url}>
-                  {link.label}
-                </a>
-              ))}
-            </div>
           </section>
         ))
       }
@@ -83,14 +79,31 @@ const projects = [
     }
   }
 
+  .project-header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+
   .project-title {
     display: inline-block;
     font-size: 1.5rem;
     font-weight: 700;
-    margin-bottom: 0.5rem;
 
     &::after {
       height: 2px;
+    }
+  }
+
+  .source-link {
+    font-size: 0.875rem;
+    color: var(--theme-text-dim);
+    text-decoration: none;
+
+    &:hover {
+      color: var(--theme-text-subtle);
+      text-decoration: underline;
     }
   }
 
@@ -108,10 +121,5 @@ const projects = [
     span {
       color: var(--theme-text-subtle);
     }
-  }
-
-  .project-links {
-    display: flex;
-    gap: 1rem;
   }
 </style>
