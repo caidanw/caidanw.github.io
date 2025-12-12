@@ -9,7 +9,16 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     <p>Simple orbital mechanics using Euler integration</p>
 
     <div class="controls">
-      <button id="reset">Reset</button>
+      <label>
+        Preset:
+        <select id="preset">
+          <option value="default">Simple Orbit</option>
+          <option value="binary">Binary System</option>
+          <option value="moon">Planet with Moon</option>
+          <option value="triple">Triple System</option>
+          <option value="empty">Empty</option>
+        </select>
+      </label>
       <label>
         Speed: <input type="range" id="speed" min="0.1" max="5" step="0.1" value="1" />
         <span id="speedValue">1.0x</span>
@@ -22,20 +31,12 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
 
     <div class="controls">
       <label>
-        GM: <input type="range" id="gm" min="0.1" max="3" step="0.1" value="1" />
-        <span id="gmValue">1.0</span>
-      </label>
-      <label>
         dt: <input type="range" id="dt" min="0.05" max="0.5" step="0.05" value="0.25" />
         <span id="dtValue">0.25</span>
       </label>
       <label>
-        Init X: <input type="range" id="initX" min="0.5" max="2" step="0.1" value="1" />
-        <span id="initXValue">1.0</span>
-      </label>
-      <label>
-        Init Vy: <input type="range" id="initVy" min="0.5" max="1.5" step="0.05" value="0.97" />
-        <span id="initVyValue">0.97</span>
+        New Body Mass: <input type="range" id="defaultMass" min="0.1" max="10" step="0.1" value="1" />
+        <span id="defaultMassValue">1.0</span>
       </label>
     </div>
 
@@ -99,39 +100,48 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
 <script>
   const canvas = document.getElementById('orbitCanvas') as HTMLCanvasElement
   const ctx = canvas.getContext('2d')!
-  const resetBtn = document.getElementById('reset') as HTMLButtonElement
+  const presetSelect = document.getElementById('preset') as HTMLSelectElement
   const speedSlider = document.getElementById('speed') as HTMLInputElement
   const speedValue = document.getElementById('speedValue') as HTMLSpanElement
   const trailLengthSlider = document.getElementById('trailLength') as HTMLInputElement
   const trailLengthValue = document.getElementById('trailLengthValue') as HTMLSpanElement
-  const gmSlider = document.getElementById('gm') as HTMLInputElement
-  const gmValue = document.getElementById('gmValue') as HTMLSpanElement
   const dtSlider = document.getElementById('dt') as HTMLInputElement
   const dtValue = document.getElementById('dtValue') as HTMLSpanElement
-  const initXSlider = document.getElementById('initX') as HTMLInputElement
-  const initXValue = document.getElementById('initXValue') as HTMLSpanElement
-  const initVySlider = document.getElementById('initVy') as HTMLInputElement
-  const initVyValue = document.getElementById('initVyValue') as HTMLSpanElement
+  const defaultMassSlider = document.getElementById('defaultMass') as HTMLInputElement
+  const defaultMassValue = document.getElementById('defaultMassValue') as HTMLSpanElement
 
   // Simulation parameters
-  let GM = 1.0
+  const G = 1.0 // Gravitational constant
   let dt = 0.25
   const scale = 150 // pixels per unit
 
-  // Initial state values
-  let initialX = 1.0
-  let initialVy = 0.97
+  // Body type definition
+  type Body = {
+    x: [number, number] // position
+    v: [number, number] // velocity
+    mass: number
+    color: string
+    trail: [number, number][]
+  }
 
-  // Current state
-  let x = [initialX, 0]
-  let v = [0.24, initialVy]
+  // Array of all bodies
+  let bodies: Body[] = []
 
-  // Trail for visualization
-  const trail: [number, number][] = []
+  // Default mass for new bodies
+  let defaultMass = 1.0
   let maxTrailLength = 50
-
   let animationSpeed = 1.0
   let animationId: number
+
+  // Mouse interaction state
+  let isDragging = false
+  let dragStartPos: [number, number] | null = null
+  let draggedBody: Body | null = null
+  let hoveredBody: Body | null = null
+
+  // Color palette for bodies
+  const colors = ['#ffff00', '#ff0000', '#00ff00', '#ff00ff', '#00ffff', '#ffa500', '#ff1493', '#00bfff']
+  let colorIndex = 0
 
   // Convert simulation coordinates to canvas coordinates
   function toCanvasCoords(simX: number, simY: number): [number, number] {
@@ -141,24 +151,86 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     ]
   }
 
-  // Simulate one step using Euler method
+  // Convert canvas coordinates to simulation coordinates
+  function toSimCoords(canvasX: number, canvasY: number): [number, number] {
+    return [
+      (canvasX - canvas.width / 2) / scale,
+      -(canvasY - canvas.height / 2) / scale, // Flip Y axis back
+    ]
+  }
+
+  // Get body radius based on mass
+  function getBodyRadius(mass: number): number {
+    return Math.max(5, Math.sqrt(mass) * 8)
+  }
+
+  // Check if point is inside body
+  function isPointInBody(canvasX: number, canvasY: number, body: Body): boolean {
+    const [bodyCanvasX, bodyCanvasY] = toCanvasCoords(body.x[0], body.x[1])
+    const radius = getBodyRadius(body.mass)
+    const dx = canvasX - bodyCanvasX
+    const dy = canvasY - bodyCanvasY
+    return dx * dx + dy * dy <= radius * radius
+  }
+
+  // Find body at canvas position
+  function getBodyAt(canvasX: number, canvasY: number): Body | null {
+    for (let i = bodies.length - 1; i >= 0; i--) {
+      if (isPointInBody(canvasX, canvasY, bodies[i])) {
+        return bodies[i]
+      }
+    }
+    return null
+  }
+
+  // N-body simulation step using Euler method
   function step() {
-    // Calculate acceleration: a = -GM * x / ||x||^3
-    const r = Math.sqrt(x[0] * x[0] + x[1] * x[1])
-    const r3 = r * r * r
+    // Calculate accelerations for all bodies
+    const accelerations: [number, number][] = []
 
-    const a = [(-GM * x[0]) / r3, (-GM * x[1]) / r3]
+    for (let i = 0; i < bodies.length; i++) {
+      let ax = 0
+      let ay = 0
 
-    // Update velocity: v_new = v + a * dt
-    v = [v[0] + a[0] * dt, v[1] + a[1] * dt]
+      // Sum gravitational forces from all other bodies
+      for (let j = 0; j < bodies.length; j++) {
+        if (i === j) continue
 
-    // Update position: x_new = x + v * dt
-    x = [x[0] + v[0] * dt, x[1] + v[1] * dt]
+        const dx = bodies[j].x[0] - bodies[i].x[0]
+        const dy = bodies[j].x[1] - bodies[i].x[1]
+        const r = Math.sqrt(dx * dx + dy * dy)
 
-    // Add to trail
-    trail.push([x[0], x[1]])
-    if (trail.length > maxTrailLength) {
-      trail.shift()
+        // Avoid division by zero for very close bodies
+        if (r < 0.01) continue
+
+        const r3 = r * r * r
+        const force = (G * bodies[j].mass) / r3
+
+        ax += force * dx
+        ay += force * dy
+      }
+
+      accelerations.push([ax, ay])
+    }
+
+    // Update velocities and positions
+    for (let i = 0; i < bodies.length; i++) {
+      const body = bodies[i]
+      const [ax, ay] = accelerations[i]
+
+      // Update velocity: v_new = v + a * dt
+      body.v[0] += ax * dt
+      body.v[1] += ay * dt
+
+      // Update position: x_new = x + v * dt
+      body.x[0] += body.v[0] * dt
+      body.x[1] += body.v[1] * dt
+
+      // Add to trail
+      body.trail.push([body.x[0], body.x[1]])
+      if (body.trail.length > maxTrailLength) {
+        body.trail.shift()
+      }
     }
   }
 
@@ -168,44 +240,94 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     ctx.fillStyle = '#000'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-    // Draw central body (sun/planet)
-    const [centerX, centerY] = toCanvasCoords(0, 0)
-    ctx.fillStyle = '#ffff00'
-    ctx.beginPath()
-    ctx.arc(centerX, centerY, 10, 0, Math.PI * 2)
-    ctx.fill()
+    // Draw all bodies
+    for (const body of bodies) {
+      // Draw trail with fading effect
+      if (body.trail.length > 1) {
+        for (let i = 1; i < body.trail.length; i++) {
+          const alpha = (i / body.trail.length) * 0.6
+          const rgb = hexToRgb(body.color)
+          ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`
+          ctx.lineWidth = 2
+          ctx.beginPath()
+          const [x1, y1] = toCanvasCoords(body.trail[i - 1][0], body.trail[i - 1][1])
+          const [x2, y2] = toCanvasCoords(body.trail[i][0], body.trail[i][1])
+          ctx.moveTo(x1, y1)
+          ctx.lineTo(x2, y2)
+          ctx.stroke()
+        }
+      }
 
-    // Draw trail with fading effect
-    if (trail.length > 1) {
-      for (let i = 1; i < trail.length; i++) {
-        const alpha = (i / trail.length) * 0.8
-        ctx.strokeStyle = `rgba(0, 255, 255, ${alpha})`
+      // Draw body
+      const [bodyX, bodyY] = toCanvasCoords(body.x[0], body.x[1])
+      const radius = getBodyRadius(body.mass)
+
+      // Highlight if hovered
+      if (body === hoveredBody) {
+        ctx.strokeStyle = '#fff'
         ctx.lineWidth = 2
         ctx.beginPath()
-        const [x1, y1] = toCanvasCoords(trail[i - 1][0], trail[i - 1][1])
-        const [x2, y2] = toCanvasCoords(trail[i][0], trail[i][1])
-        ctx.moveTo(x1, y1)
-        ctx.lineTo(x2, y2)
+        ctx.arc(bodyX, bodyY, radius + 3, 0, Math.PI * 2)
+        ctx.stroke()
+      }
+
+      ctx.fillStyle = body.color
+      ctx.beginPath()
+      ctx.arc(bodyX, bodyY, radius, 0, Math.PI * 2)
+      ctx.fill()
+    }
+
+    // Draw velocity vector while dragging
+    if (isDragging && dragStartPos && draggedBody) {
+      const [startX, startY] = toCanvasCoords(draggedBody.x[0], draggedBody.x[1])
+      const mousePos = getMousePos(canvas)
+      if (mousePos) {
+        ctx.strokeStyle = '#ffffff'
+        ctx.lineWidth = 2
+        ctx.setLineDash([5, 5])
+        ctx.beginPath()
+        ctx.moveTo(startX, startY)
+        ctx.lineTo(mousePos.x, mousePos.y)
+        ctx.stroke()
+        ctx.setLineDash([])
+
+        // Draw arrowhead
+        const angle = Math.atan2(mousePos.y - startY, mousePos.x - startX)
+        const headLength = 10
+        ctx.beginPath()
+        ctx.moveTo(mousePos.x, mousePos.y)
+        ctx.lineTo(mousePos.x - headLength * Math.cos(angle - Math.PI / 6), mousePos.y - headLength * Math.sin(angle - Math.PI / 6))
+        ctx.moveTo(mousePos.x, mousePos.y)
+        ctx.lineTo(mousePos.x - headLength * Math.cos(angle + Math.PI / 6), mousePos.y - headLength * Math.sin(angle + Math.PI / 6))
         ctx.stroke()
       }
     }
 
-    // Draw orbiting body
-    const [bodyX, bodyY] = toCanvasCoords(x[0], x[1])
-    ctx.fillStyle = '#ff0000'
-    ctx.beginPath()
-    ctx.arc(bodyX, bodyY, 5, 0, Math.PI * 2)
-    ctx.fill()
-
     // Draw info text
     ctx.fillStyle = '#fff'
     ctx.font = '14px monospace'
-    ctx.fillText(`Position: (${x[0].toFixed(3)}, ${x[1].toFixed(3)})`, 10, 20)
-    ctx.fillText(`Velocity: (${v[0].toFixed(3)}, ${v[1].toFixed(3)})`, 10, 40)
-    const speed = Math.sqrt(v[0] * v[0] + v[1] * v[1])
-    ctx.fillText(`Speed: ${speed.toFixed(3)}`, 10, 60)
-    const r = Math.sqrt(x[0] * x[0] + x[1] * x[1])
-    ctx.fillText(`Distance: ${r.toFixed(3)}`, 10, 80)
+    ctx.fillText(`Bodies: ${bodies.length}`, 10, 20)
+    ctx.fillText(`Click and drag to add/move bodies`, 10, 40)
+    ctx.fillText(`Scroll on body to change mass`, 10, 60)
+    ctx.fillText(`Right-click to delete`, 10, 80)
+  }
+
+  // Helper to convert hex color to RGB
+  function hexToRgb(hex: string): { r: number; g: number; b: number } {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+    return result
+      ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16),
+        }
+      : { r: 255, g: 255, b: 255 }
+  }
+
+  // Get mouse position relative to canvas
+  let cachedMousePos: { x: number; y: number } | null = null
+  function getMousePos(canvas: HTMLCanvasElement): { x: number; y: number } | null {
+    return cachedMousePos
   }
 
   // Animation loop
@@ -220,15 +342,138 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     animationId = requestAnimationFrame(animate)
   }
 
-  // Reset simulation
-  function reset() {
-    x = [initialX, 0]
-    v = [0.24, initialVy]
-    trail.length = 0
+  // Preset configurations
+  const presets: Record<string, Body[]> = {
+    default: [
+      { x: [0, 0], v: [0, 0], mass: 10, color: colors[0], trail: [] },
+      { x: [1, 0], v: [0, 0.95], mass: 0.1, color: colors[1], trail: [] },
+    ],
+    binary: [
+      { x: [-0.5, 0], v: [0, -0.5], mass: 5, color: colors[0], trail: [] },
+      { x: [0.5, 0], v: [0, 0.5], mass: 5, color: colors[1], trail: [] },
+    ],
+    moon: [
+      { x: [0, 0], v: [0, 0], mass: 10, color: colors[0], trail: [] },
+      { x: [1.5, 0], v: [0, 0.75], mass: 1, color: colors[1], trail: [] },
+      { x: [1.7, 0], v: [0, 1.0], mass: 0.1, color: colors[2], trail: [] },
+    ],
+    triple: [
+      { x: [0, 0], v: [0, 0], mass: 8, color: colors[0], trail: [] },
+      { x: [1, 0], v: [0, 0.9], mass: 0.5, color: colors[1], trail: [] },
+      { x: [-1, 0], v: [0, -0.9], mass: 0.5, color: colors[2], trail: [] },
+    ],
+    empty: [],
   }
 
+  // Load preset
+  function loadPreset(presetName: string) {
+    const preset = presets[presetName] || presets.default
+    bodies = preset.map((b) => ({
+      x: [...b.x] as [number, number],
+      v: [...b.v] as [number, number],
+      mass: b.mass,
+      color: b.color,
+      trail: [],
+    }))
+    colorIndex = Math.max(2, bodies.length)
+  }
+
+  // Mouse event handlers
+  canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect()
+    cachedMousePos = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    }
+
+    if (isDragging && draggedBody && dragStartPos) {
+      // Dragging: update velocity vector
+      return
+    }
+
+    // Update hovered body
+    hoveredBody = getBodyAt(cachedMousePos.x, cachedMousePos.y)
+    canvas.style.cursor = hoveredBody ? 'pointer' : 'crosshair'
+  })
+
+  canvas.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return // Only left click
+
+    const rect = canvas.getBoundingClientRect()
+    const mouseX = e.clientX - rect.left
+    const mouseY = e.clientY - rect.top
+
+    const body = getBodyAt(mouseX, mouseY)
+
+    if (body) {
+      // Start dragging existing body
+      draggedBody = body
+      dragStartPos = [body.x[0], body.x[1]]
+    } else {
+      // Create new body
+      const [simX, simY] = toSimCoords(mouseX, mouseY)
+      draggedBody = {
+        x: [simX, simY],
+        v: [0, 0],
+        mass: defaultMass,
+        color: colors[colorIndex % colors.length],
+        trail: [],
+      }
+      dragStartPos = [simX, simY]
+      bodies.push(draggedBody)
+      colorIndex++
+    }
+
+    isDragging = true
+  })
+
+  canvas.addEventListener('mouseup', (e) => {
+    if (!isDragging || !draggedBody || !dragStartPos) return
+
+    const rect = canvas.getBoundingClientRect()
+    const mouseX = e.clientX - rect.left
+    const mouseY = e.clientY - rect.top
+    const [simX, simY] = toSimCoords(mouseX, mouseY)
+
+    // Set velocity based on drag distance
+    const velocityScale = 0.5
+    draggedBody.v[0] = (simX - dragStartPos[0]) * velocityScale
+    draggedBody.v[1] = (simY - dragStartPos[1]) * velocityScale
+
+    isDragging = false
+    dragStartPos = null
+    draggedBody = null
+  })
+
+  canvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault()
+    const rect = canvas.getBoundingClientRect()
+    const mouseX = e.clientX - rect.left
+    const mouseY = e.clientY - rect.top
+
+    const body = getBodyAt(mouseX, mouseY)
+    if (body) {
+      bodies = bodies.filter((b) => b !== body)
+    }
+  })
+
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault()
+    const rect = canvas.getBoundingClientRect()
+    const mouseX = e.clientX - rect.left
+    const mouseY = e.clientY - rect.top
+
+    const body = getBodyAt(mouseX, mouseY)
+    if (body) {
+      const delta = e.deltaY > 0 ? -0.1 : 0.1
+      body.mass = Math.max(0.1, Math.min(20, body.mass + delta))
+    }
+  })
+
   // Event listeners
-  resetBtn.addEventListener('click', reset)
+  presetSelect.addEventListener('change', () => {
+    loadPreset(presetSelect.value)
+  })
 
   speedSlider.addEventListener('input', () => {
     animationSpeed = parseFloat(speedSlider.value)
@@ -240,28 +485,17 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     trailLengthValue.textContent = maxTrailLength.toString()
   })
 
-  gmSlider.addEventListener('input', () => {
-    GM = parseFloat(gmSlider.value)
-    gmValue.textContent = GM.toFixed(1)
-  })
-
   dtSlider.addEventListener('input', () => {
     dt = parseFloat(dtSlider.value)
     dtValue.textContent = dt.toFixed(2)
   })
 
-  initXSlider.addEventListener('input', () => {
-    initialX = parseFloat(initXSlider.value)
-    initXValue.textContent = initialX.toFixed(1)
-    reset()
+  defaultMassSlider.addEventListener('input', () => {
+    defaultMass = parseFloat(defaultMassSlider.value)
+    defaultMassValue.textContent = defaultMass.toFixed(1)
   })
 
-  initVySlider.addEventListener('input', () => {
-    initialVy = parseFloat(initVySlider.value)
-    initVyValue.textContent = initialVy.toFixed(2)
-    reset()
-  })
-
-  // Start animation
+  // Initialize and start animation
+  loadPreset('default')
   animate()
 </script>
