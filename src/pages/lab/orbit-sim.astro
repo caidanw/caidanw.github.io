@@ -31,8 +31,8 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
 
     <div class="controls">
       <label>
-        dt: <input type="range" id="dt" min="0.05" max="0.5" step="0.05" value="0.25" />
-        <span id="dtValue">0.25</span>
+        dt: <input type="range" id="dt" min="0.01" max="0.2" step="0.01" value="0.05" />
+        <span id="dtValue">0.05</span>
       </label>
       <label>
         New Body Mass: <input type="range" id="defaultMass" min="0.1" max="10" step="0.1" value="1" />
@@ -112,7 +112,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
 
   // Simulation parameters
   const G = 1.0 // Gravitational constant
-  let dt = 0.25
+  let dt = 0.05
   const scale = 150 // pixels per unit
 
   // Body type definition
@@ -122,6 +122,13 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     mass: number
     color: string
     trail: [number, number][]
+  }
+
+  type PreviewBody = {
+    x: [number, number]
+    v: [number, number]
+    mass: number
+    color: string
   }
 
   // Array of all bodies
@@ -138,6 +145,8 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
   let dragStartPos: [number, number] | null = null
   let draggedBody: Body | null = null
   let hoveredBody: Body | null = null
+  let previewBody: PreviewBody | null = null
+  let isDraggingNewBody = false
 
   // Color palette for bodies
   const colors = ['#ffff00', '#ff0000', '#00ff00', '#ff00ff', '#00ffff', '#ffa500', '#ff1493', '#00bfff']
@@ -185,6 +194,9 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
 
   // N-body simulation step using Euler method
   function step() {
+    // Softening parameter to prevent singularities when bodies get too close
+    const epsilon = 0.5
+
     // Calculate accelerations for all bodies
     const accelerations: [number, number][] = []
 
@@ -198,13 +210,13 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
 
         const dx = bodies[j].x[0] - bodies[i].x[0]
         const dy = bodies[j].x[1] - bodies[i].x[1]
-        const r = Math.sqrt(dx * dx + dy * dy)
+        const r2 = dx * dx + dy * dy
 
-        // Avoid division by zero for very close bodies
-        if (r < 0.01) continue
-
-        const r3 = r * r * r
-        const force = (G * bodies[j].mass) / r3
+        // Softened gravity: use (r² + ε²)^(3/2) instead of r³
+        // This prevents extreme forces when bodies get very close
+        const r2_soft = r2 + epsilon * epsilon
+        const r3_soft = Math.pow(r2_soft, 1.5)
+        const force = (G * bodies[j].mass) / r3_soft
 
         ax += force * dx
         ay += force * dy
@@ -277,11 +289,42 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       ctx.fill()
     }
 
+    // Draw preview body while creating new body
+    if (previewBody && isDraggingNewBody) {
+      const [previewX, previewY] = toCanvasCoords(previewBody.x[0], previewBody.x[1])
+      const radius = getBodyRadius(previewBody.mass)
+
+      // Draw preview body with dashed outline
+      ctx.strokeStyle = previewBody.color
+      ctx.lineWidth = 2
+      ctx.setLineDash([5, 5])
+      ctx.beginPath()
+      ctx.arc(previewX, previewY, radius, 0, Math.PI * 2)
+      ctx.stroke()
+      ctx.setLineDash([])
+
+      // Draw semi-transparent fill
+      const rgb = hexToRgb(previewBody.color)
+      ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.3)`
+      ctx.beginPath()
+      ctx.arc(previewX, previewY, radius, 0, Math.PI * 2)
+      ctx.fill()
+    }
+
     // Draw velocity vector while dragging
-    if (isDragging && dragStartPos && draggedBody) {
-      const [startX, startY] = toCanvasCoords(draggedBody.x[0], draggedBody.x[1])
+    if (isDragging && dragStartPos) {
       const mousePos = getMousePos(canvas)
       if (mousePos) {
+        let startX, startY
+
+        if (previewBody && isDraggingNewBody) {
+          ;[startX, startY] = toCanvasCoords(previewBody.x[0], previewBody.x[1])
+        } else if (draggedBody) {
+          ;[startX, startY] = toCanvasCoords(draggedBody.x[0], draggedBody.x[1])
+        } else {
+          return
+        }
+
         ctx.strokeStyle = '#ffffff'
         ctx.lineWidth = 2
         ctx.setLineDash([5, 5])
@@ -346,21 +389,21 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
   const presets: Record<string, Body[]> = {
     default: [
       { x: [0, 0], v: [0, 0], mass: 10, color: colors[0], trail: [] },
-      { x: [1, 0], v: [0, 0.95], mass: 0.1, color: colors[1], trail: [] },
+      { x: [1, 0], v: [0, 0.32], mass: 0.5, color: colors[1], trail: [] },
     ],
     binary: [
-      { x: [-0.5, 0], v: [0, -0.5], mass: 5, color: colors[0], trail: [] },
-      { x: [0.5, 0], v: [0, 0.5], mass: 5, color: colors[1], trail: [] },
+      { x: [-0.5, 0], v: [0, -0.3], mass: 5, color: colors[0], trail: [] },
+      { x: [0.5, 0], v: [0, 0.3], mass: 5, color: colors[1], trail: [] },
     ],
     moon: [
       { x: [0, 0], v: [0, 0], mass: 10, color: colors[0], trail: [] },
-      { x: [1.5, 0], v: [0, 0.75], mass: 1, color: colors[1], trail: [] },
-      { x: [1.7, 0], v: [0, 1.0], mass: 0.1, color: colors[2], trail: [] },
+      { x: [1.5, 0], v: [0, 0.26], mass: 1, color: colors[1], trail: [] },
+      { x: [1.7, 0], v: [0, 0.32], mass: 0.1, color: colors[2], trail: [] },
     ],
     triple: [
       { x: [0, 0], v: [0, 0], mass: 8, color: colors[0], trail: [] },
-      { x: [1, 0], v: [0, 0.9], mass: 0.5, color: colors[1], trail: [] },
-      { x: [-1, 0], v: [0, -0.9], mass: 0.5, color: colors[2], trail: [] },
+      { x: [1, 0], v: [0, 0.28], mass: 1, color: colors[1], trail: [] },
+      { x: [-1, 0], v: [0, -0.28], mass: 1, color: colors[2], trail: [] },
     ],
     empty: [],
   }
@@ -409,38 +452,53 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       // Start dragging existing body
       draggedBody = body
       dragStartPos = [body.x[0], body.x[1]]
+      isDraggingNewBody = false
     } else {
-      // Create new body
+      // Create preview for new body
       const [simX, simY] = toSimCoords(mouseX, mouseY)
-      draggedBody = {
+      previewBody = {
         x: [simX, simY],
         v: [0, 0],
         mass: defaultMass,
         color: colors[colorIndex % colors.length],
-        trail: [],
       }
       dragStartPos = [simX, simY]
-      bodies.push(draggedBody)
-      colorIndex++
+      isDraggingNewBody = true
     }
 
     isDragging = true
   })
 
   canvas.addEventListener('mouseup', (e) => {
-    if (!isDragging || !draggedBody || !dragStartPos) return
+    if (!isDragging || !dragStartPos) return
 
     const rect = canvas.getBoundingClientRect()
     const mouseX = e.clientX - rect.left
     const mouseY = e.clientY - rect.top
     const [simX, simY] = toSimCoords(mouseX, mouseY)
 
-    // Set velocity based on drag distance
-    const velocityScale = 0.5
-    draggedBody.v[0] = (simX - dragStartPos[0]) * velocityScale
-    draggedBody.v[1] = (simY - dragStartPos[1]) * velocityScale
+    if (isDraggingNewBody && previewBody) {
+      // Create real body from preview
+      const velocityScale = 0.2
+      const newBody: Body = {
+        x: previewBody.x,
+        v: [(simX - dragStartPos[0]) * velocityScale, (simY - dragStartPos[1]) * velocityScale],
+        mass: previewBody.mass,
+        color: previewBody.color,
+        trail: [],
+      }
+      bodies.push(newBody)
+      colorIndex++
+      previewBody = null
+    } else if (draggedBody) {
+      // Update velocity of existing body
+      const velocityScale = 0.2
+      draggedBody.v[0] = (simX - dragStartPos[0]) * velocityScale
+      draggedBody.v[1] = (simY - dragStartPos[1]) * velocityScale
+    }
 
     isDragging = false
+    isDraggingNewBody = false
     dragStartPos = null
     draggedBody = null
   })
