@@ -31,8 +31,8 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
 
     <div class="controls">
       <label>
-        dt: <input type="range" id="dt" min="0.01" max="0.2" step="0.01" value="0.05" />
-        <span id="dtValue">0.05</span>
+        dt: <input type="range" id="dt" min="0.01" max="0.2" step="0.01" value="0.01" />
+        <span id="dtValue">0.01</span>
       </label>
       <label>
         New Body Mass: <input type="range" id="defaultMass" min="0.1" max="10" step="0.1" value="1" />
@@ -479,7 +479,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
 
     if (isDraggingNewBody && previewBody) {
       // Create real body from preview
-      const velocityScale = 0.2
+      const velocityScale = 0.5
       const newBody: Body = {
         x: previewBody.x,
         v: [(simX - dragStartPos[0]) * velocityScale, (simY - dragStartPos[1]) * velocityScale],
@@ -492,7 +492,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       previewBody = null
     } else if (draggedBody) {
       // Update velocity of existing body
-      const velocityScale = 0.2
+      const velocityScale = 0.5
       draggedBody.v[0] = (simX - dragStartPos[0]) * velocityScale
       draggedBody.v[1] = (simY - dragStartPos[1]) * velocityScale
     }
