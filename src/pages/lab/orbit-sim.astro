@@ -14,6 +14,29 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
         Speed: <input type="range" id="speed" min="0.1" max="5" step="0.1" value="1" />
         <span id="speedValue">1.0x</span>
       </label>
+      <label>
+        Trail: <input type="range" id="trailLength" min="20" max="200" step="10" value="50" />
+        <span id="trailLengthValue">50</span>
+      </label>
+    </div>
+
+    <div class="controls">
+      <label>
+        GM: <input type="range" id="gm" min="0.1" max="3" step="0.1" value="1" />
+        <span id="gmValue">1.0</span>
+      </label>
+      <label>
+        dt: <input type="range" id="dt" min="0.05" max="0.5" step="0.05" value="0.25" />
+        <span id="dtValue">0.25</span>
+      </label>
+      <label>
+        Init X: <input type="range" id="initX" min="0.5" max="2" step="0.1" value="1" />
+        <span id="initXValue">1.0</span>
+      </label>
+      <label>
+        Init Vy: <input type="range" id="initVy" min="0.5" max="1.5" step="0.05" value="0.97" />
+        <span id="initVyValue">0.97</span>
+      </label>
     </div>
 
     <canvas id="orbitCanvas" width="800" height="800"></canvas>
@@ -79,19 +102,33 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
   const resetBtn = document.getElementById('reset') as HTMLButtonElement
   const speedSlider = document.getElementById('speed') as HTMLInputElement
   const speedValue = document.getElementById('speedValue') as HTMLSpanElement
+  const trailLengthSlider = document.getElementById('trailLength') as HTMLInputElement
+  const trailLengthValue = document.getElementById('trailLengthValue') as HTMLSpanElement
+  const gmSlider = document.getElementById('gm') as HTMLInputElement
+  const gmValue = document.getElementById('gmValue') as HTMLSpanElement
+  const dtSlider = document.getElementById('dt') as HTMLInputElement
+  const dtValue = document.getElementById('dtValue') as HTMLSpanElement
+  const initXSlider = document.getElementById('initX') as HTMLInputElement
+  const initXValue = document.getElementById('initXValue') as HTMLSpanElement
+  const initVySlider = document.getElementById('initVy') as HTMLInputElement
+  const initVyValue = document.getElementById('initVyValue') as HTMLSpanElement
 
   // Simulation parameters
-  const GM = 1.0
-  const dt = 0.25
+  let GM = 1.0
+  let dt = 0.25
   const scale = 150 // pixels per unit
 
-  // Initial state
-  let x = [1, 0]
-  let v = [0.24, 0.97]
+  // Initial state values
+  let initialX = 1.0
+  let initialVy = 0.97
+
+  // Current state
+  let x = [initialX, 0]
+  let v = [0.24, initialVy]
 
   // Trail for visualization
   const trail: [number, number][] = []
-  const maxTrailLength = 200
+  let maxTrailLength = 50
 
   let animationSpeed = 1.0
   let animationId: number
@@ -127,7 +164,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
 
   // Draw the simulation
   function draw() {
-    // Clear canvas
+    // Clear canvas fully
     ctx.fillStyle = '#000'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
@@ -138,18 +175,19 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     ctx.arc(centerX, centerY, 10, 0, Math.PI * 2)
     ctx.fill()
 
-    // Draw trail
+    // Draw trail with fading effect
     if (trail.length > 1) {
-      ctx.strokeStyle = '#00ffff'
-      ctx.lineWidth = 1
-      ctx.beginPath()
-      const [startX, startY] = toCanvasCoords(trail[0][0], trail[0][1])
-      ctx.moveTo(startX, startY)
       for (let i = 1; i < trail.length; i++) {
-        const [trailX, trailY] = toCanvasCoords(trail[i][0], trail[i][1])
-        ctx.lineTo(trailX, trailY)
+        const alpha = (i / trail.length) * 0.8
+        ctx.strokeStyle = `rgba(0, 255, 255, ${alpha})`
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        const [x1, y1] = toCanvasCoords(trail[i - 1][0], trail[i - 1][1])
+        const [x2, y2] = toCanvasCoords(trail[i][0], trail[i][1])
+        ctx.moveTo(x1, y1)
+        ctx.lineTo(x2, y2)
+        ctx.stroke()
       }
-      ctx.stroke()
     }
 
     // Draw orbiting body
@@ -184,8 +222,8 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
 
   // Reset simulation
   function reset() {
-    x = [1, 0]
-    v = [0.24, 0.97]
+    x = [initialX, 0]
+    v = [0.24, initialVy]
     trail.length = 0
   }
 
@@ -197,7 +235,33 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     speedValue.textContent = `${animationSpeed.toFixed(1)}x`
   })
 
+  trailLengthSlider.addEventListener('input', () => {
+    maxTrailLength = parseInt(trailLengthSlider.value)
+    trailLengthValue.textContent = maxTrailLength.toString()
+  })
+
+  gmSlider.addEventListener('input', () => {
+    GM = parseFloat(gmSlider.value)
+    gmValue.textContent = GM.toFixed(1)
+  })
+
+  dtSlider.addEventListener('input', () => {
+    dt = parseFloat(dtSlider.value)
+    dtValue.textContent = dt.toFixed(2)
+  })
+
+  initXSlider.addEventListener('input', () => {
+    initialX = parseFloat(initXSlider.value)
+    initXValue.textContent = initialX.toFixed(1)
+    reset()
+  })
+
+  initVySlider.addEventListener('input', () => {
+    initialVy = parseFloat(initVySlider.value)
+    initVyValue.textContent = initialVy.toFixed(2)
+    reset()
+  })
+
   // Start animation
   animate()
 </script>
-
