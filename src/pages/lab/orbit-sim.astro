@@ -1,0 +1,203 @@
+---
+import Layout from '../../layouts/Layout.astro'
+import HeaderLayout from '../../layouts/HeaderLayout.astro'
+---
+
+<HeaderLayout title="Orbit Simulation">
+  <main>
+    <h1>Orbit Simulation</h1>
+    <p>Simple orbital mechanics using Euler integration</p>
+
+    <div class="controls">
+      <button id="reset">Reset</button>
+      <label>
+        Speed: <input type="range" id="speed" min="0.1" max="5" step="0.1" value="1" />
+        <span id="speedValue">1.0x</span>
+      </label>
+    </div>
+
+    <canvas id="orbitCanvas" width="800" height="800"></canvas>
+  </main>
+</HeaderLayout>
+
+<style>
+  main {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  h1 {
+    margin-bottom: 0.5rem;
+  }
+
+  p {
+    color: #666;
+    margin-bottom: 2rem;
+  }
+
+  .controls {
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+
+  button {
+    padding: 0.5rem 1rem;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+  }
+
+  button:hover {
+    background: #0056b3;
+  }
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  input[type='range'] {
+    width: 150px;
+  }
+
+  #orbitCanvas {
+    border: 1px solid #ccc;
+    display: block;
+    background: #000;
+  }
+</style>
+
+<script>
+  const canvas = document.getElementById('orbitCanvas') as HTMLCanvasElement
+  const ctx = canvas.getContext('2d')!
+  const resetBtn = document.getElementById('reset') as HTMLButtonElement
+  const speedSlider = document.getElementById('speed') as HTMLInputElement
+  const speedValue = document.getElementById('speedValue') as HTMLSpanElement
+
+  // Simulation parameters
+  const GM = 1.0
+  const dt = 0.25
+  const scale = 150 // pixels per unit
+
+  // Initial state
+  let x = [1, 0]
+  let v = [0.24, 0.97]
+
+  // Trail for visualization
+  const trail: [number, number][] = []
+  const maxTrailLength = 200
+
+  let animationSpeed = 1.0
+  let animationId: number
+
+  // Convert simulation coordinates to canvas coordinates
+  function toCanvasCoords(simX: number, simY: number): [number, number] {
+    return [
+      canvas.width / 2 + simX * scale,
+      canvas.height / 2 - simY * scale, // Flip Y axis
+    ]
+  }
+
+  // Simulate one step using Euler method
+  function step() {
+    // Calculate acceleration: a = -GM * x / ||x||^3
+    const r = Math.sqrt(x[0] * x[0] + x[1] * x[1])
+    const r3 = r * r * r
+
+    const a = [(-GM * x[0]) / r3, (-GM * x[1]) / r3]
+
+    // Update velocity: v_new = v + a * dt
+    v = [v[0] + a[0] * dt, v[1] + a[1] * dt]
+
+    // Update position: x_new = x + v * dt
+    x = [x[0] + v[0] * dt, x[1] + v[1] * dt]
+
+    // Add to trail
+    trail.push([x[0], x[1]])
+    if (trail.length > maxTrailLength) {
+      trail.shift()
+    }
+  }
+
+  // Draw the simulation
+  function draw() {
+    // Clear canvas
+    ctx.fillStyle = '#000'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+    // Draw central body (sun/planet)
+    const [centerX, centerY] = toCanvasCoords(0, 0)
+    ctx.fillStyle = '#ffff00'
+    ctx.beginPath()
+    ctx.arc(centerX, centerY, 10, 0, Math.PI * 2)
+    ctx.fill()
+
+    // Draw trail
+    if (trail.length > 1) {
+      ctx.strokeStyle = '#00ffff'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      const [startX, startY] = toCanvasCoords(trail[0][0], trail[0][1])
+      ctx.moveTo(startX, startY)
+      for (let i = 1; i < trail.length; i++) {
+        const [trailX, trailY] = toCanvasCoords(trail[i][0], trail[i][1])
+        ctx.lineTo(trailX, trailY)
+      }
+      ctx.stroke()
+    }
+
+    // Draw orbiting body
+    const [bodyX, bodyY] = toCanvasCoords(x[0], x[1])
+    ctx.fillStyle = '#ff0000'
+    ctx.beginPath()
+    ctx.arc(bodyX, bodyY, 5, 0, Math.PI * 2)
+    ctx.fill()
+
+    // Draw info text
+    ctx.fillStyle = '#fff'
+    ctx.font = '14px monospace'
+    ctx.fillText(`Position: (${x[0].toFixed(3)}, ${x[1].toFixed(3)})`, 10, 20)
+    ctx.fillText(`Velocity: (${v[0].toFixed(3)}, ${v[1].toFixed(3)})`, 10, 40)
+    const speed = Math.sqrt(v[0] * v[0] + v[1] * v[1])
+    ctx.fillText(`Speed: ${speed.toFixed(3)}`, 10, 60)
+    const r = Math.sqrt(x[0] * x[0] + x[1] * x[1])
+    ctx.fillText(`Distance: ${r.toFixed(3)}`, 10, 80)
+  }
+
+  // Animation loop
+  function animate() {
+    // Run multiple steps based on animation speed
+    const stepsPerFrame = Math.ceil(animationSpeed)
+    for (let i = 0; i < stepsPerFrame; i++) {
+      step()
+    }
+
+    draw()
+    animationId = requestAnimationFrame(animate)
+  }
+
+  // Reset simulation
+  function reset() {
+    x = [1, 0]
+    v = [0.24, 0.97]
+    trail.length = 0
+  }
+
+  // Event listeners
+  resetBtn.addEventListener('click', reset)
+
+  speedSlider.addEventListener('input', () => {
+    animationSpeed = parseFloat(speedSlider.value)
+    speedValue.textContent = `${animationSpeed.toFixed(1)}x`
+  })
+
+  // Start animation
+  animate()
+</script>
+
