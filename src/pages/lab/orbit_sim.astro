@@ -70,17 +70,16 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
 <style>
   #simulation {
     position: relative;
-    width: 100vw;
-    height: 100vh;
+    width: 100dvw;
+    height: calc(100dvh - 2.2rem);
     overflow: hidden;
   }
 
   #orbitCanvas {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
+    inset: 0;
+    width: 100%;
+    height: 100%;
     background: #000;
     cursor: crosshair;
   }
