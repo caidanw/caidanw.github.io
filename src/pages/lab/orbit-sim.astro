@@ -1,99 +1,180 @@
 ---
-import Layout from '../../layouts/Layout.astro'
 import HeaderLayout from '../../layouts/HeaderLayout.astro'
 ---
 
 <HeaderLayout title="Orbit Simulation">
-  <main>
-    <h1>Orbit Simulation</h1>
-    <p>Simple orbital mechanics using Euler integration</p>
+  <div id="simulation">
+    <canvas id="orbitCanvas"></canvas>
 
-    <div class="controls">
-      <label>
-        Preset:
-        <select id="preset">
-          <option value="default">Simple Orbit</option>
-          <option value="binary">Binary System</option>
-          <option value="moon">Planet with Moon</option>
-          <option value="triple">Triple System</option>
-          <option value="empty">Empty</option>
-        </select>
-      </label>
-      <label>
-        Speed: <input type="range" id="speed" min="0" max="5" step="1" value="1" />
-        <span id="speedValue">1x</span>
-      </label>
-      <label>
-        Trail: <input type="range" id="trailLength" min="0" max="1000" step="10" value="100" />
-        <span id="trailLengthValue">50</span>
-      </label>
+    <div class="controls-panel">
+      <h1>Orbit Simulator</h1>
+
+      <div class="control-group">
+        <label>
+          Preset
+          <select id="preset">
+            <option value="default">Simple Orbit</option>
+            <option value="binary">Binary System</option>
+            <option value="moon">Planet with Moon</option>
+            <option value="triple">Triple System</option>
+            <option value="empty">Empty</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="control-group">
+        <label>
+          Speed <span id="speedValue">1x</span>
+          <input type="range" id="speed" min="0" max="5" step="1" value="1" />
+        </label>
+      </div>
+
+      <div class="control-group">
+        <label>
+          Trail Length <span id="trailLengthValue">100</span>
+          <input type="range" id="trailLength" min="0" max="1000" step="10" value="100" />
+        </label>
+      </div>
+
+      <div class="control-group">
+        <label>
+          Time Step <span id="dtValue">0.01</span>
+          <input type="range" id="dt" min="0.01" max="0.2" step="0.01" value="0.01" />
+        </label>
+      </div>
+
+      <div class="control-group">
+        <label>
+          New Body Mass <span id="defaultMassValue">1.0</span>
+          <input type="range" id="defaultMass" min="0.1" max="10" step="0.1" value="1" />
+        </label>
+      </div>
+
+      <div class="instructions">
+        <p><strong>Controls:</strong></p>
+        <p>• Click & drag to add bodies</p>
+        <p>• Drag existing bodies to move</p>
+        <p>• Scroll on body to change mass</p>
+        <p>• Right-click to delete</p>
+      </div>
     </div>
-
-    <div class="controls">
-      <label>
-        dt: <input type="range" id="dt" min="0.01" max="0.2" step="0.01" value="0.01" />
-        <span id="dtValue">0.01</span>
-      </label>
-      <label>
-        New Body Mass: <input type="range" id="defaultMass" min="0.1" max="10" step="0.1" value="1" />
-        <span id="defaultMassValue">1.0</span>
-      </label>
-    </div>
-
-    <canvas id="orbitCanvas" width="800" height="800"></canvas>
-  </main>
+  </div>
 </HeaderLayout>
 
 <style>
-  main {
-    max-width: 900px;
-    margin: 0 auto;
-  }
-
-  h1 {
-    margin-bottom: 0.5rem;
-  }
-
-  p {
-    color: #666;
-    margin-bottom: 2rem;
-  }
-
-  .controls {
-    display: flex;
-    gap: 2rem;
-    align-items: center;
-    margin-bottom: 1rem;
-  }
-
-  button {
-    padding: 0.5rem 1rem;
-    background: #007bff;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 1rem;
-  }
-
-  button:hover {
-    background: #0056b3;
-  }
-
-  label {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  input[type='range'] {
-    width: 150px;
+  #simulation {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
   }
 
   #orbitCanvas {
-    border: 1px solid #ccc;
-    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
     background: #000;
+    cursor: crosshair;
+  }
+
+  .controls-panel {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--theme-border);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    min-width: fit-content;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    text-align: center;
+    border-bottom: 1px solid var(--theme-border);
+  }
+
+  .control-group {
+    margin-bottom: 16px;
+  }
+
+  label {
+    opacity: 0.9;
+  }
+
+  label span {
+    float: right;
+    font-family: var(--font-mono);
+    color: var(--theme-accent);
+  }
+
+  select {
+    padding: 0.25rem 0.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--theme-border);
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+  }
+
+  select option {
+    background: #222;
+  }
+
+  input[type='range'] {
+    width: 100%;
+    height: 0.3rem;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    outline: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+
+    &::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 1rem;
+      height: 1rem;
+      background: white;
+      border-radius: 50%;
+    }
+
+    &::-moz-range-thumb {
+      width: 1rem;
+      height: 1rem;
+      background: white;
+      border: none;
+      border-radius: 50%;
+    }
+  }
+
+  .instructions {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--theme-border);
+  }
+
+  .instructions p {
+    margin: 0 0 8px 0;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.7);
+    line-height: 1.4;
+  }
+
+  .instructions strong {
+    color: white;
+    font-size: 0.875rem;
   }
 </style>
 
@@ -109,6 +190,15 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
   const dtValue = document.getElementById('dtValue') as HTMLSpanElement
   const defaultMassSlider = document.getElementById('defaultMass') as HTMLInputElement
   const defaultMassValue = document.getElementById('defaultMassValue') as HTMLSpanElement
+
+  // Set canvas size to window size
+  function resizeCanvas() {
+    canvas.width = window.innerWidth
+    canvas.height = window.innerHeight
+  }
+
+  resizeCanvas()
+  window.addEventListener('resize', resizeCanvas)
 
   // Body type definition
   type Body = {
@@ -344,14 +434,6 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
         ctx.stroke()
       }
     }
-
-    // Draw info text
-    ctx.fillStyle = '#fff'
-    ctx.font = '14px monospace'
-    ctx.fillText(`Bodies: ${bodies.length}`, 10, 20)
-    ctx.fillText(`Click and drag to add/move bodies`, 10, 40)
-    ctx.fillText(`Scroll on body to change mass`, 10, 60)
-    ctx.fillText(`Right-click to delete`, 10, 80)
   }
 
   // Helper to convert hex color to RGB
@@ -533,12 +615,12 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
   })
 
   speedSlider.addEventListener('input', () => {
-    animationSpeed = parseFloat(speedSlider.value)
+    animationSpeed = speedSlider.valueAsNumber
     speedValue.textContent = animationSpeed.toString() + 'x'
   })
 
   trailLengthSlider.addEventListener('input', () => {
-    maxTrailLength = parseInt(trailLengthSlider.value)
+    maxTrailLength = trailLengthSlider.valueAsNumber
     trailLengthValue.textContent = maxTrailLength.toString()
   })
 
