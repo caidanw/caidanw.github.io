@@ -39,29 +39,17 @@ const filteredPages = pages.filter((page) => !excludeList.includes(page.href))
     gap: 0.75rem;
   }
 
-  .main-text {
-    position: relative;
-    display: inline-block;
-    transition: color 0.3s ease;
-  }
-
-  .wrapper:hover a {
-    color: var(--theme-accent);
-  }
-
   .wrapper .detail-text {
     display: inline;
-    opacity: 0;
-    max-width: 0;
-    overflow: hidden;
+    white-space: nowrap;
     color: var(--theme-text-dim);
     transition: all 0.3s ease;
-    white-space: nowrap;
+    opacity: 0;
+    margin-left: 0;
   }
 
   .wrapper:hover .detail-text {
     opacity: 1;
-    max-width: 300px;
     margin-left: 0.5rem;
   }
 </style>
