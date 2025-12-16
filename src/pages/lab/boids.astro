@@ -450,14 +450,14 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     },
     boids: {
       baseMaxSpeed: {
-        herbivore: 70,
-        predator: 92,
-        scavenger: 78,
+        herbivore: 78,
+        predator: 102,
+        scavenger: 84,
       },
       baseMaxForce: {
-        herbivore: 150,
-        predator: 190,
-        scavenger: 165,
+        herbivore: 165,
+        predator: 210,
+        scavenger: 178,
       },
       // perception radii are multiplied by gene.perception
       perception: {
@@ -538,6 +538,9 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       min: 0.8,
       max: 1.2,
       mutationAmount: 0.1, // ±5% since (rand-0.5)*0.1
+
+      // gene budget constraint: sum of genes <= budget
+      budget: 3.05,
       budgetBoost: 0.35,
     },
     walls: {
@@ -666,6 +669,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
      cooldown: {
        eat: number
        reproduce: number
+       hunt: number
      }
      trail: { x: number; y: number }[]
    }
@@ -808,26 +812,59 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     }
   }
 
+  function normalizeGenesToBudget(genes: Genes): Genes {
+    const min = opts.genetics.min
+    const max = opts.genetics.max
+
+    let speed = clamp(genes.speed, min, max)
+    let perception = clamp(genes.perception, min, max)
+    let efficiency = clamp(genes.efficiency, min, max)
+
+    const budget = Math.max(0.01, opts.genetics.budget)
+
+    // Always allow a baseline of min for each gene; clamp the excess to budget.
+    const base = 3 * min
+    const available = Math.max(0, budget - base)
+
+    const exSpeed = Math.max(0, speed - min)
+    const exPerception = Math.max(0, perception - min)
+    const exEfficiency = Math.max(0, efficiency - min)
+    const exSum = exSpeed + exPerception + exEfficiency
+
+    if (exSum > available && exSum > 0) {
+      const s = available / exSum
+      speed = min + exSpeed * s
+      perception = min + exPerception * s
+      efficiency = min + exEfficiency * s
+    }
+
+    return {
+      speed: clamp(speed, min, max),
+      perception: clamp(perception, min, max),
+      efficiency: clamp(efficiency, min, max),
+    }
+  }
+
   function randomGenes(rng?: { next: () => number }): Genes {
     const r = rng ? rng.next.bind(rng) : Math.random
     // pseudo-normal-ish by averaging 2 uniforms
     const n = () => 1 + ((r() + r()) / 2 - 0.5) * 0.2
-    return {
-      speed: clamp(n(), opts.genetics.min, opts.genetics.max),
-      perception: clamp(n(), opts.genetics.min, opts.genetics.max),
-      efficiency: clamp(n(), opts.genetics.min, opts.genetics.max),
-    }
+    return normalizeGenesToBudget({
+      speed: n(),
+      perception: n(),
+      efficiency: n(),
+    })
   }
 
   function genesForEvolutionLab(rng: { next: () => number }): Genes {
     const r = rng.next
     const wideMin = 0.75
     const wideMax = 1.25
-    return {
-      speed: clamp(wideMin + r() * (wideMax - wideMin), opts.genetics.min, opts.genetics.max),
-      perception: clamp(wideMin + r() * (wideMax - wideMin), opts.genetics.min, opts.genetics.max),
-      efficiency: clamp(wideMin + r() * (wideMax - wideMin), opts.genetics.min, opts.genetics.max),
-    }
+    return normalizeGenesToBudget({
+      speed: wideMin + r() * (wideMax - wideMin),
+      perception: wideMin + r() * (wideMax - wideMin),
+      efficiency: wideMin + r() * (wideMax - wideMin),
+    })
   }
 
   function mutateGene(gene: number): number {
@@ -836,22 +873,24 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     return clamp(gene + change, opts.genetics.min, opts.genetics.max)
   }
 
-   function mutateGenes(genes: Genes): Genes {
-     return {
-       speed: mutateGene(genes.speed),
-       perception: mutateGene(genes.perception),
-       efficiency: mutateGene(genes.efficiency),
-     }
-   }
+    function mutateGenes(genes: Genes): Genes {
+      return normalizeGenesToBudget({
+        speed: mutateGene(genes.speed),
+        perception: mutateGene(genes.perception),
+        efficiency: mutateGene(genes.efficiency),
+      })
+    }
 
-   function mixGenes(a: Genes, b: Genes): Genes {
-     // uniform crossover (per gene)
-     return {
-       speed: Math.random() < 0.5 ? a.speed : b.speed,
-       perception: Math.random() < 0.5 ? a.perception : b.perception,
-       efficiency: Math.random() < 0.5 ? a.efficiency : b.efficiency,
-     }
-   }
+
+    function mixGenes(a: Genes, b: Genes): Genes {
+      // uniform crossover (per gene)
+      return normalizeGenesToBudget({
+        speed: Math.random() < 0.5 ? a.speed : b.speed,
+        perception: Math.random() < 0.5 ? a.perception : b.perception,
+        efficiency: Math.random() < 0.5 ? a.efficiency : b.efficiency,
+      })
+    }
+
 
    function canMate(b: Boid): boolean {
      if (b.cooldown.reproduce > 0) return false
@@ -924,7 +963,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
        genes: childGenes,
        age: 0,
        dir: heading(vx, vy),
-       cooldown: { eat: 0.2, reproduce: 0.8 },
+       cooldown: { eat: 0.2, reproduce: 0.8, hunt: 0 },
        trail: [],
      })
 
@@ -1015,7 +1054,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       genes: childGenes,
       age: 0,
       dir: heading(vx, vy),
-      cooldown: { eat: 0.2, reproduce: 0.8 },
+      cooldown: { eat: 0.2, reproduce: 0.8, hunt: 0 },
       trail: [],
     })
 
@@ -1042,7 +1081,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       genes: g,
       age: 0,
       dir: heading(vx, vy),
-      cooldown: { eat: 0, reproduce: 0 },
+      cooldown: { eat: 0, reproduce: 0, hunt: 0 },
       trail: [],
     })
   }
@@ -1155,8 +1194,14 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       // - predator: needle isosceles (brute soldiers)
       // - herbivore: balanced
       // - scavenger: wide/flat
-      const backFactor = b.species === 'predator' ? 0.92 : b.species === 'scavenger' ? 0.62 : 0.75
-      const wingFactor = b.species === 'predator' ? 0.28 : b.species === 'scavenger' ? 0.84 : 0.55
+      const g = b.genes
+
+      // more perception -> wider wings; more speed -> longer nose; more efficiency -> heavier outline
+      const backFactorBase = b.species === 'predator' ? 0.92 : b.species === 'scavenger' ? 0.62 : 0.75
+      const wingFactorBase = b.species === 'predator' ? 0.28 : b.species === 'scavenger' ? 0.84 : 0.55
+
+      const backFactor = clamp(backFactorBase + (g.speed - 1) * 0.18, 0.5, 1.05)
+      const wingFactor = clamp(wingFactorBase + (g.perception - 1) * 0.35, 0.18, 1.15)
 
       // Arrowhead triangle (outline only)
       const tipX = b.x + Math.cos(angle) * size
@@ -1187,10 +1232,10 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
 
       ctx.save()
       ctx.globalAlpha = alpha
-      ctx.lineWidth = b.species === 'predator' ? 1.5 : 1.25
+      ctx.lineWidth = clamp(1.0 + (g.efficiency - 1) * 2.4, 0.9, 3.2)
       ctx.strokeStyle = color
       ctx.shadowColor = color
-      ctx.shadowBlur = 14
+      ctx.shadowBlur = 14 + clamp((g.perception - 1) * 20, -6, 10)
 
       ctx.beginPath()
       ctx.moveTo(tipX, tipY)
@@ -1573,8 +1618,16 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
 
   function drainPerSecondForBoid(b: Boid): number {
     const base = b.species === 'predator' ? opts.energy.predatorDrain : b.species === 'scavenger' ? opts.energy.scavengerDrain : opts.energy.herbivoreDrain
-    // efficiency stretches energy (lower drain)
-    return base / b.genes.efficiency
+
+    // Movement cost: faster movement drains more.
+    const speedNow = len({ x: b.vx, y: b.vy })
+    const speedMax = Math.max(1, maxSpeedForBoid(b))
+    const speedRatio = clamp(speedNow / speedMax, 0, 1)
+
+    // efficiency stretches energy (lower drain), but speed fights it
+    const movementMultiplier = 0.75 + 1.1 * speedRatio * speedRatio
+
+    return (base * movementMultiplier) / b.genes.efficiency
   }
 
   function applyBounds(b: Boid) {
@@ -1729,6 +1782,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       b.age += dtSeconds
       b.cooldown.eat = Math.max(0, b.cooldown.eat - dtSeconds)
       b.cooldown.reproduce = Math.max(0, b.cooldown.reproduce - dtSeconds)
+      b.cooldown.hunt = Math.max(0, b.cooldown.hunt - dtSeconds)
 
       // eating interactions (simple)
       if (b.cooldown.eat <= 0) {
@@ -1781,6 +1835,10 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
               carrion.push({ x: prey.x, y: prey.y, mass: 1.1, age: 0 })
               b.energy = clamp(b.energy + opts.energy.eatHerbivoreGain * b.genes.efficiency, 0, b.maxEnergy)
               b.cooldown.eat = 0.35
+
+              // satiation: briefly stop pursuing new prey
+              b.cooldown.hunt = 3.2
+
               addParticle(prey.x, prey.y, opts.colors.predator)
             }
           }
@@ -1869,10 +1927,13 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       let fleeX = 0
       let fleeY = 0
 
-      let chaseTargetX = 0
-      let chaseTargetY = 0
-      let chaseTargetD2 = Infinity
-      let hasChase = false
+       let chaseTargetX = 0
+       let chaseTargetY = 0
+       let chaseTargetD2 = Infinity
+       let hasChase = false
+
+       const predatorHuntEnabled = b.species === 'predator' && b.cooldown.hunt <= 0 && b.energy < b.maxEnergy * 0.92
+
 
       for (const j of neighborScratch) {
         if (j === i) continue
@@ -1911,7 +1972,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
           fleeY -= dy * s
         }
 
-        if (b.species === 'predator' && o.species === 'herbivore') {
+        if (predatorHuntEnabled && o.species === 'herbivore') {
           // chase nearest herbivore
           if (d2 < chaseTargetD2) {
             chaseTargetD2 = d2
