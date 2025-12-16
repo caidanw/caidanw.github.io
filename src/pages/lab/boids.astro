@@ -614,6 +614,22 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     simSpeed: 1,
   }
 
+  function clone<T>(value: T): T {
+    return typeof structuredClone === 'function' ? structuredClone(value) : JSON.parse(JSON.stringify(value))
+  }
+
+  const defaultOpts = clone(opts)
+
+  function restoreOptsDefaults() {
+    Object.assign(opts, clone(defaultOpts))
+  }
+
+  function beginPreset() {
+    restoreOptsDefaults()
+    clearAll()
+    syncSettingsLabels()
+  }
+
   const els = {
     canvas: document.getElementById('canvas') as HTMLCanvasElement,
     fps: document.getElementById('fps') as HTMLSpanElement,
@@ -1415,9 +1431,12 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     els.btnScav.classList.toggle('selected', species === 'scavenger')
   }
 
-  els.btnHerb.addEventListener('click', () => setSelectedSpecies('herbivore'))
-  els.btnPred.addEventListener('click', () => setSelectedSpecies('predator'))
-  els.btnScav.addEventListener('click', () => setSelectedSpecies('scavenger'))
+  document.getElementById('bottomBar')?.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement | null
+    const btn = target?.closest('button[data-species]') as HTMLButtonElement | null
+    const species = btn?.dataset?.species as Species | undefined
+    if (species) setSelectedSpecies(species)
+  })
 
   function openPanel() {
     els.panel.hidden = false
@@ -1431,15 +1450,16 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
   els.btnClose.addEventListener('click', closePanel)
 
   const tabs = Array.from(document.querySelectorAll('.tab')) as HTMLButtonElement[]
+  const tabContentEls: Record<string, HTMLDivElement> = {
+    presets: els.tabPresets,
+    visuals: els.tabVisuals,
+    settings: els.tabSettings,
+    about: els.tabAbout,
+  }
+
   function selectTab(name: string) {
-    const map: Record<string, HTMLDivElement> = {
-      presets: els.tabPresets,
-      visuals: els.tabVisuals,
-      settings: els.tabSettings,
-      about: els.tabAbout,
-    }
     for (const tab of tabs) tab.classList.toggle('selected', tab.dataset.tab === name)
-    for (const [k, el] of Object.entries(map)) el.hidden = k !== name
+    for (const [k, el] of Object.entries(tabContentEls)) el.hidden = k !== name
   }
 
   for (const tab of tabs) {
@@ -1532,13 +1552,12 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
   })
 
   els.btnClear.addEventListener('click', () => {
-    clearAll()
     applyPresetBalancedFromSeed(undefined)
   })
 
   // Presets
   function applyPresetBalancedFromSeed(seed?: number) {
-    clearAll()
+    beginPreset()
 
     const rng = seed != null ? seededRandom(seed) : undefined
 
@@ -1554,14 +1573,14 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
   }
 
   function applyPresetGenesis() {
-    clearAll()
+    beginPreset()
     for (let i = 0; i < 5; i++) spawnFood(rand(20, simW - 20), rand(20, simH - 20))
 
     els.seedNote.textContent = ''
   }
 
   function applyPresetPredatorParadise() {
-    clearAll()
+    beginPreset()
     for (let i = 0; i < 30; i++) spawnFood(rand(20, simW - 20), rand(20, simH - 20))
     for (let i = 0; i < 100; i++) spawnBoid('herbivore', rand(0, simW), rand(0, simH))
     for (let i = 0; i < 3; i++) spawnBoid('predator', rand(0, simW), rand(0, simH))
@@ -1571,7 +1590,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
   }
 
   function applyPresetHerbBloom() {
-    clearAll()
+    beginPreset()
 
     // Lots of food + herbivores, a few scavengers, almost no predators.
     for (let i = 0; i < 120; i++) spawnFood(rand(20, simW - 20), rand(20, simH - 20))
@@ -1584,7 +1603,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
   }
 
   function applyPresetScavFeast() {
-    clearAll()
+    beginPreset()
 
     // Start with lots of carrion to create an immediate scavenger economy.
     for (let i = 0; i < 30; i++) {
@@ -1601,7 +1620,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
   }
 
   function applyPresetMegaswarm() {
-    clearAll()
+    beginPreset()
 
     // Big populations tuned for spectacle.
     // Trails can be expensive; consider disabling them if FPS dips.
@@ -1615,7 +1634,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
   }
 
   function applyPresetExtinctionEvent() {
-    clearAll()
+    beginPreset()
     for (let i = 0; i < 10; i++) spawnFood(rand(20, simW - 20), rand(20, simH - 20))
     for (let i = 0; i < 30; i++) spawnBoid('herbivore', rand(0, simW), rand(0, simH))
     for (let i = 0; i < 20; i++) spawnBoid('predator', rand(0, simW), rand(0, simH))
@@ -1625,14 +1644,13 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
   }
 
   function applyPresetEvolutionLab() {
-    clearAll()
+    beginPreset()
     const rng = seededRandom(Math.floor(Math.random() * 1000000))
 
     for (let i = 0; i < 25; i++) spawnFood(rand(20, simW - 20), rand(20, simH - 20))
 
     // Wide variance + 2x mutation rate
-    opts.genetics.mutationRate = clamp(opts.genetics.mutationRate * 2, 0.05, 0.25)
-    els.mutationRate.value = String(opts.genetics.mutationRate)
+    opts.genetics.mutationRate = clamp(defaultOpts.genetics.mutationRate * 2, 0.05, 0.25)
 
     for (let i = 0; i < 50; i++) spawnBoid('herbivore', rand(0, simW), rand(0, simH), genesForEvolutionLab(rng))
     for (let i = 0; i < 10; i++) spawnBoid('predator', rand(0, simW), rand(0, simH), genesForEvolutionLab(rng))
@@ -1710,6 +1728,30 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     clusterProgress = 0
   }
 
+  function onPointerMove(e: PointerEvent) {
+    if (!pressPoint) return
+    pressPoint = getCanvasPoint(e)
+  }
+
+  function endPointerInteraction() {
+    if (pressTimer) window.clearTimeout(pressTimer)
+    pressTimer = null
+
+    const hadCluster = clusterTimer != null
+    if (clusterTimer) window.clearInterval(clusterTimer)
+    clusterTimer = null
+
+    if (hadCluster && pressPoint) {
+      flushCluster(pressPoint)
+    }
+
+    clusterCount = 0
+    clusterProgress = 0
+    pressPoint = null
+
+    els.canvas.removeEventListener('pointermove', onPointerMove)
+  }
+
   els.canvas.addEventListener('pointerdown', (e) => {
     els.canvas.setPointerCapture(e.pointerId)
     pressPoint = getCanvasPoint(e)
@@ -1724,37 +1766,12 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       if (!pressPoint) return
       startCluster(pressPoint)
     }, 250)
-    els.canvas.addEventListener('pointermove', (e) => {
-      if (!pressPoint) return
-      pressPoint = getCanvasPoint(e)
-    })
+
+    els.canvas.addEventListener('pointermove', onPointerMove)
   })
 
-  els.canvas.addEventListener('pointerup', () => {
-    if (pressTimer) window.clearTimeout(pressTimer)
-    pressTimer = null
-
-    if (clusterTimer) window.clearInterval(clusterTimer)
-
-    if (clusterTimer && pressPoint) {
-      flushCluster(pressPoint)
-    }
-
-    clusterTimer = null
-    clusterCount = 0
-    clusterProgress = 0
-    pressPoint = null
-  })
-
-  els.canvas.addEventListener('pointercancel', () => {
-    if (pressTimer) window.clearTimeout(pressTimer)
-    if (clusterTimer) window.clearInterval(clusterTimer)
-    pressTimer = null
-    clusterTimer = null
-    clusterCount = 0
-    clusterProgress = 0
-    pressPoint = null
-  })
+  els.canvas.addEventListener('pointerup', endPointerInteraction)
+  els.canvas.addEventListener('pointercancel', endPointerInteraction)
 
   // --- Main loop ---
 
@@ -1903,6 +1920,34 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     arr.length = w
   }
 
+  function findNearestIndex<T extends { x: number; y: number }>(
+    grid: SpatialGrid,
+    arr: T[],
+    fromX: number,
+    fromY: number,
+    queryRadius: number,
+    ignore?: Set<number>,
+  ): { index: number; d2: number } | null {
+    neighborScratch.length = 0
+    grid.query(fromX, fromY, queryRadius, neighborScratch)
+
+    let bestIndex = -1
+    let bestD2 = Infinity
+
+    for (const i of neighborScratch) {
+      if (ignore?.has(i)) continue
+      const o = arr[i]
+      if (!o) continue
+      const d2 = distSq(fromX, fromY, o.x, o.y)
+      if (d2 < bestD2) {
+        bestD2 = d2
+        bestIndex = i
+      }
+    }
+
+    return bestIndex >= 0 ? { index: bestIndex, d2: bestD2 } : null
+  }
+
   function update(dtSeconds: number) {
     // rebuild grids (indices must remain stable within this tick)
     boidGrid.clear()
@@ -1955,24 +2000,11 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       // eating interactions (simple)
       if (b.cooldown.eat <= 0) {
         if (b.species === 'herbivore') {
-          neighborScratch.length = 0
-          foodGrid.query(b.x, b.y, 14, neighborScratch)
-          let eatIndex = -1
-          let eatD2 = Infinity
-          for (const fi of neighborScratch) {
-            if (foodToRemove.has(fi)) continue
-            const f = food[fi]
-            if (!f) continue
-            const d2 = distSq(b.x, b.y, f.x, f.y)
-            if (d2 < eatD2) {
-              eatD2 = d2
-              eatIndex = fi
-            }
-          }
-          if (eatIndex >= 0 && eatD2 < 12 * 12) {
-            const f = food[eatIndex]
+          const nearest = findNearestIndex(foodGrid, food, b.x, b.y, 14, foodToRemove)
+          if (nearest && nearest.d2 < 12 * 12) {
+            const f = food[nearest.index]
             if (f) {
-              foodToRemove.add(eatIndex)
+              foodToRemove.add(nearest.index)
               b.energy = clamp(b.energy + opts.energy.eatFoodGain * b.genes.efficiency, 0, b.maxEnergy)
               b.cooldown.eat = 0.25
               addParticle(f.x, f.y, opts.colors.herbivore)
@@ -1981,8 +2013,10 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
         } else if (b.species === 'predator') {
           neighborScratch.length = 0
           boidGrid.query(b.x, b.y, 18, neighborScratch)
+
           let killIndex = -1
           let killD2 = Infinity
+
           for (const bi of neighborScratch) {
             if (bi === i) continue
             if (boidsToRemove.has(bi)) continue
@@ -1994,6 +2028,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
               killIndex = bi
             }
           }
+
           if (killIndex >= 0 && killD2 < 14 * 14) {
             const prey = boids[killIndex]
             if (prey && !boidsToRemove.has(killIndex)) {
@@ -2011,30 +2046,17 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
             }
           }
         } else if (b.species === 'scavenger') {
-          neighborScratch.length = 0
-          carrionGrid.query(b.x, b.y, 18, neighborScratch)
-          let eatIndex = -1
-          let eatD2 = Infinity
-          for (const ci of neighborScratch) {
-            if (carrionToRemove.has(ci)) continue
-            const c = carrion[ci]
-            if (!c) continue
-            const d2 = distSq(b.x, b.y, c.x, c.y)
-            if (d2 < eatD2) {
-              eatD2 = d2
-              eatIndex = ci
-            }
-          }
-          if (eatIndex >= 0 && eatD2 < 14 * 14) {
-            const c = carrion[eatIndex]
-            if (c && !carrionToRemove.has(eatIndex)) {
+          const nearest = findNearestIndex(carrionGrid, carrion, b.x, b.y, 18, carrionToRemove)
+          if (nearest && nearest.d2 < 14 * 14) {
+            const c = carrion[nearest.index]
+            if (c && !carrionToRemove.has(nearest.index)) {
               const take = Math.min(c.mass, 0.45)
               c.mass -= take
               b.energy = clamp(b.energy + take * 34 * b.genes.efficiency, 0, b.maxEnergy)
               b.cooldown.eat = 0.3
               addParticle(c.x, c.y, opts.colors.scavenger)
               if (c.mass <= 0.06) {
-                carrionToRemove.add(eatIndex)
+                carrionToRemove.add(nearest.index)
                 for (let k = 0; k < opts.decomposition.yield; k++) {
                   const a = Math.random() * Math.PI * 2
                   const r = 6 + Math.random() * 14
@@ -2046,6 +2068,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
           }
         }
       }
+
 
       // reproduction
       if (shouldReproduce(b)) {
@@ -2064,7 +2087,8 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       }
 
       // energy drain
-      b.energy -= drainPerSecondForBoid(b) * dtSeconds * 60
+      b.energy -= drainPerSecondForBoid(b) * dtSeconds
+
       if (b.energy <= 0) {
         // death -> carrion
         counters.deaths++
@@ -2173,22 +2197,9 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       // species-specific goals
       if (b.species === 'herbivore') {
         // forage toward nearest food
-        neighborScratch.length = 0
-        foodGrid.query(b.x, b.y, pr * 1.25, neighborScratch)
-        let bestIndex = -1
-        let bestD2 = Infinity
-        for (const fi of neighborScratch) {
-          if (foodToRemove.has(fi)) continue
-          const f = food[fi]
-          if (!f) continue
-          const d2 = distSq(b.x, b.y, f.x, f.y)
-          if (d2 < bestD2) {
-            bestD2 = d2
-            bestIndex = fi
-          }
-        }
-        if (bestIndex >= 0) {
-          const f = food[bestIndex]
+        const nearestFood = findNearestIndex(foodGrid, food, b.x, b.y, pr * 1.25, foodToRemove)
+        if (nearestFood) {
+          const f = food[nearestFood.index]
           if (f) {
             const v = steerToward(b, f.x, f.y, opts.boids.forage.herbivore)
             steer.x += v.x
@@ -2208,22 +2219,9 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
         }
       } else if (b.species === 'scavenger') {
         // scavenge toward nearest carrion
-        neighborScratch.length = 0
-        carrionGrid.query(b.x, b.y, pr * 1.25, neighborScratch)
-        let bestIndex = -1
-        let bestD2 = Infinity
-        for (const ci of neighborScratch) {
-          if (carrionToRemove.has(ci)) continue
-          const c = carrion[ci]
-          if (!c) continue
-          const d2 = distSq(b.x, b.y, c.x, c.y)
-          if (d2 < bestD2) {
-            bestD2 = d2
-            bestIndex = ci
-          }
-        }
-        if (bestIndex >= 0) {
-          const c = carrion[bestIndex]
+        const nearestCarrion = findNearestIndex(carrionGrid, carrion, b.x, b.y, pr * 1.25, carrionToRemove)
+        if (nearestCarrion) {
+          const c = carrion[nearestCarrion.index]
           if (c) {
             const v = steerToward(b, c.x, c.y, opts.boids.scavenge.scavenger)
             steer.x += v.x
