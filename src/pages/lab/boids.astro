@@ -839,6 +839,66 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     }
   }
 
+  function reproductionThresholdForSpecies(species: Species): number {
+    switch (species) {
+      case 'herbivore':
+        return opts.reproduction.herbivoreThreshold
+      case 'predator':
+        return opts.reproduction.predatorThreshold
+      case 'scavenger':
+        return opts.reproduction.scavengerThreshold
+    }
+  }
+
+  function shouldReproduce(b: Boid): boolean {
+    if (b.cooldown.reproduce > 0) return false
+    if (b.energy < reproductionThresholdForSpecies(b.species)) return false
+
+    // species with efficient genes reproduce slightly more
+    const p = opts.reproduction.rate * (0.85 + 0.3 * b.genes.efficiency)
+    return Math.random() < p
+  }
+
+  function spawnChildFromParent(parent: Boid) {
+    const childGenes = mutateGenes(parent.genes)
+
+    const a = Math.random() * Math.PI * 2
+    const r = 10 + Math.random() * 16
+    const x = clamp(parent.x + Math.cos(a) * r, 1, simW - 1)
+    const y = clamp(parent.y + Math.sin(a) * r, 1, simH - 1)
+
+    const maxEnergy = maxEnergyForSpecies(parent.species)
+    const energyCost = maxEnergy * 0.35
+    if (parent.energy <= energyCost + 1) return
+
+    parent.energy -= energyCost
+
+    const childEnergy = Math.min(maxEnergy * 0.6, energyCost)
+
+    const vx = parent.vx + rand(-20, 20)
+    const vy = parent.vy + rand(-20, 20)
+
+    boids.push({
+      id: nextId++,
+      species: parent.species,
+      x,
+      y,
+      vx,
+      vy,
+      energy: childEnergy,
+      maxEnergy,
+      genes: childGenes,
+      age: 0,
+      dir: heading(vx, vy),
+      cooldown: { eat: 0.2, reproduce: 0.8 },
+      trail: [],
+    })
+
+    parent.cooldown.reproduce = 1.4
+    counters.births++
+    addParticle(x, y, opts.colors[parent.species])
+  }
+
   function spawnBoid(species: Species, x: number, y: number, genes?: Genes) {
     const maxEnergy = maxEnergyForSpecies(species)
     const g = genes ?? randomGenes()
@@ -1587,6 +1647,11 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
             }
           }
         }
+      }
+
+      // reproduction
+      if (shouldReproduce(b)) {
+        spawnChildFromParent(b)
       }
 
       // energy drain
