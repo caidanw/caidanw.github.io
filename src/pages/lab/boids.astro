@@ -441,13 +441,82 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       herbivoreMax: 100,
       predatorMax: 140,
       scavengerMax: 120,
-      eatFoodGain: 20,
-      eatHerbivoreGain: 50,
-      eatCarrionSmallGain: 15,
-      eatCarrionLargeGain: 40,
-      herbivoreDrain: 0.1,
-      predatorDrain: 0.2,
-      scavengerDrain: 0.15,
+      eatFoodGain: 18,
+      eatHerbivoreGain: 55,
+      // carrion mass is converted into energy via scavenger efficiency
+      herbivoreDrain: 0.14,
+      predatorDrain: 0.22,
+      scavengerDrain: 0.18,
+    },
+    boids: {
+      baseMaxSpeed: {
+        herbivore: 70,
+        predator: 92,
+        scavenger: 78,
+      },
+      baseMaxForce: {
+        herbivore: 150,
+        predator: 190,
+        scavenger: 165,
+      },
+      // perception radii are multiplied by gene.perception
+      perception: {
+        herbivore: 70,
+        predator: 95,
+        scavenger: 78,
+      },
+      // field-of-view (degrees, full cone)
+      fov: {
+        herbivore: 155,
+        predator: 185,
+        scavenger: 165,
+      },
+      separation: {
+        herbivore: 22,
+        predator: 26,
+        scavenger: 22,
+      },
+      cohesion: {
+        herbivore: 0.5,
+        predator: 0.35,
+        scavenger: 0.45,
+      },
+      alignment: {
+        herbivore: 0.65,
+        predator: 0.4,
+        scavenger: 0.55,
+      },
+      wander: {
+        herbivore: 0.18,
+        predator: 0.08,
+        scavenger: 0.14,
+      },
+      flee: {
+        herbivore: 1.2,
+        predator: 0,
+        scavenger: 0.65,
+      },
+      chase: {
+        herbivore: 0,
+        predator: 1.35,
+        scavenger: 0,
+      },
+      forage: {
+        herbivore: 1.15,
+        predator: 0,
+        scavenger: 0,
+      },
+      scavenge: {
+        herbivore: 0,
+        predator: 0,
+        scavenger: 1.2,
+      },
+    },
+    world: {
+      foodMax: 260,
+      carrionMax: 220,
+      foodSpawnRate: 0.75, // per second
+      carrionDecaySeconds: 18,
     },
     reproduction: {
       rate: 0.15,
@@ -582,6 +651,11 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     maxEnergy: number
     genes: Genes
     age: number
+    dir: number
+    cooldown: {
+      eat: number
+      reproduce: number
+    }
     trail: { x: number; y: number }[]
   }
 
@@ -768,17 +842,21 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
   function spawnBoid(species: Species, x: number, y: number, genes?: Genes) {
     const maxEnergy = maxEnergyForSpecies(species)
     const g = genes ?? randomGenes()
+    const vx = rand(-1, 1)
+    const vy = rand(-1, 1)
     boids.push({
       id: nextId++,
       species,
       x,
       y,
-      vx: rand(-1, 1),
-      vy: rand(-1, 1),
+      vx,
+      vy,
       energy: maxEnergy,
       maxEnergy,
       genes: g,
       age: 0,
+      dir: heading(vx, vy),
+      cooldown: { eat: 0, reproduce: 0 },
       trail: [],
     })
   }
@@ -814,48 +892,84 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
   function draw() {
     drawBackground()
 
-    // NOTE: Real rendering comes after we implement boids logic.
-    // For now, show food points and boids as dots.
-
     // Food
-    ctx.save()
-    ctx.fillStyle = opts.colors.herbivore
     for (const f of food) {
+      ctx.save()
+      ctx.globalAlpha = 0.55
+      ctx.fillStyle = opts.colors.herbivore
+      ctx.shadowColor = opts.colors.herbivore
+      ctx.shadowBlur = 10
       ctx.beginPath()
-      ctx.arc(f.x, f.y, 3, 0, Math.PI * 2)
+      ctx.arc(f.x, f.y, 2.6, 0, Math.PI * 2)
       ctx.fill()
+      ctx.restore()
     }
-    ctx.restore()
+
+    // Carrion
+    for (const c of carrion) {
+      const alpha = clamp(0.2 + (1 - c.age / opts.world.carrionDecaySeconds) * 0.8, 0, 1)
+      ctx.save()
+      ctx.globalAlpha = alpha
+      ctx.strokeStyle = opts.colors.carrion
+      ctx.shadowColor = opts.colors.carrion
+      ctx.shadowBlur = 10
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.arc(c.x, c.y, 4 + c.mass * 3.2, 0, Math.PI * 2)
+      ctx.stroke()
+      ctx.restore()
+    }
 
     function drawBoidArrow(b: Boid) {
-      const baseSize = b.species === 'predator' ? 11 : b.species === 'scavenger' ? 9 : 8
+      const baseSize = b.species === 'predator' ? 12 : b.species === 'scavenger' ? 10 : 9
       const ratio = clamp(b.energy / Math.max(1, b.maxEnergy), 0, 1)
-      const alpha = 0.18 + ratio * 0.82
+      const alpha = 0.16 + ratio * 0.84
 
-      const angle = heading(b.vx, b.vy)
+      const angle = b.dir
       const size = baseSize * (0.9 + 0.3 * b.genes.speed)
 
       const color = b.species === 'predator' ? opts.colors.predator : b.species === 'scavenger' ? opts.colors.scavenger : opts.colors.herbivore
 
+      // Flatland-ish silhouettes:
+      // - predator: needle isosceles (brute soldiers)
+      // - herbivore: balanced
+      // - scavenger: wide/flat
+      const backFactor = b.species === 'predator' ? 0.92 : b.species === 'scavenger' ? 0.62 : 0.75
+      const wingFactor = b.species === 'predator' ? 0.28 : b.species === 'scavenger' ? 0.84 : 0.55
+
       // Arrowhead triangle (outline only)
       const tipX = b.x + Math.cos(angle) * size
       const tipY = b.y + Math.sin(angle) * size
-      const backX = b.x - Math.cos(angle) * size * 0.75
-      const backY = b.y - Math.sin(angle) * size * 0.75
+      const backX = b.x - Math.cos(angle) * size * backFactor
+      const backY = b.y - Math.sin(angle) * size * backFactor
 
       const wingAngle = angle + Math.PI / 2
-      const wing = size * 0.55
+      const wing = size * wingFactor
       const leftX = backX + Math.cos(wingAngle) * wing
       const leftY = backY + Math.sin(wingAngle) * wing
       const rightX = backX - Math.cos(wingAngle) * wing
       const rightY = backY - Math.sin(wingAngle) * wing
 
+      if (opts.visuals.trails && b.trail.length > 2) {
+        ctx.save()
+        ctx.globalAlpha = alpha * 0.25
+        ctx.strokeStyle = color
+        ctx.shadowColor = color
+        ctx.shadowBlur = 10
+        ctx.lineWidth = 1
+        ctx.beginPath()
+        ctx.moveTo(b.trail[0].x, b.trail[0].y)
+        for (let i = 1; i < b.trail.length; i++) ctx.lineTo(b.trail[i].x, b.trail[i].y)
+        ctx.stroke()
+        ctx.restore()
+      }
+
       ctx.save()
       ctx.globalAlpha = alpha
-      ctx.lineWidth = 1.25
+      ctx.lineWidth = b.species === 'predator' ? 1.5 : 1.25
       ctx.strokeStyle = color
       ctx.shadowColor = color
-      ctx.shadowBlur = 12
+      ctx.shadowBlur = 14
 
       ctx.beginPath()
       ctx.moveTo(tipX, tipY)
@@ -864,11 +978,85 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       ctx.closePath()
       ctx.stroke()
       ctx.restore()
+
+      if (opts.visuals.vectors) {
+        ctx.save()
+        ctx.globalAlpha = 0.5
+        ctx.strokeStyle = color
+        ctx.lineWidth = 1
+        ctx.beginPath()
+        ctx.moveTo(b.x, b.y)
+        ctx.lineTo(b.x + b.vx * 0.14, b.y + b.vy * 0.14)
+        ctx.stroke()
+        ctx.restore()
+      }
+
+      if (opts.visuals.perception) {
+        const pr = perceptionForBoid(b)
+        ctx.save()
+        ctx.globalAlpha = 0.08
+        ctx.strokeStyle = color
+        ctx.lineWidth = 1
+        ctx.beginPath()
+        ctx.arc(b.x, b.y, pr, 0, Math.PI * 2)
+        ctx.stroke()
+        ctx.restore()
+      }
+
+      if (opts.visuals.fov) {
+        const pr = perceptionForBoid(b)
+        const half = fovForBoid(b)
+        ctx.save()
+        ctx.globalAlpha = 0.08
+        ctx.strokeStyle = color
+        ctx.lineWidth = 1
+        ctx.beginPath()
+        ctx.moveTo(b.x, b.y)
+        ctx.arc(b.x, b.y, pr, b.dir - half, b.dir + half)
+        ctx.closePath()
+        ctx.stroke()
+        ctx.restore()
+      }
     }
 
     // Boids
     for (const b of boids) {
       drawBoidArrow(b)
+    }
+
+    // Particles
+    for (const p of particles) {
+      const a = clamp(p.life / 0.7, 0, 1)
+      ctx.save()
+      ctx.globalAlpha = a
+      ctx.fillStyle = p.color
+      ctx.shadowColor = p.color
+      ctx.shadowBlur = 10
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.restore()
+    }
+
+    if (opts.visuals.grid) {
+      ctx.save()
+      ctx.globalAlpha = 0.06
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)'
+      ctx.lineWidth = 1
+      const cellSize = boidGrid.cellSize
+      for (let x = 0; x < simW; x += cellSize) {
+        ctx.beginPath()
+        ctx.moveTo(x, 0)
+        ctx.lineTo(x, simH)
+        ctx.stroke()
+      }
+      for (let y = 0; y < simH; y += cellSize) {
+        ctx.beginPath()
+        ctx.moveTo(0, y)
+        ctx.lineTo(simW, y)
+        ctx.stroke()
+      }
+      ctx.restore()
     }
   }
 
@@ -1123,34 +1311,450 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     pressPoint = null
   })
 
-  // --- Main loop (placeholder update, real boids next) ---
+  // --- Main loop ---
 
   let lastT = performance.now()
   let fpsSmoothed = 60
   let lowFpsStart: number | null = null
 
+  const neighborScratch: number[] = []
+
+  function maxSpeedForBoid(b: Boid): number {
+    return opts.boids.baseMaxSpeed[b.species] * b.genes.speed
+  }
+
+  function maxForceForBoid(b: Boid): number {
+    return opts.boids.baseMaxForce[b.species] * (0.8 + 0.4 * b.genes.speed)
+  }
+
+  function perceptionForBoid(b: Boid): number {
+    return opts.boids.perception[b.species] * b.genes.perception
+  }
+
+  function fovForBoid(b: Boid): number {
+    return (opts.boids.fov[b.species] * Math.PI) / 180 / 2
+  }
+
+  function separationRadiusForBoid(b: Boid): number {
+    return opts.boids.separation[b.species]
+  }
+
+  function drainPerSecondForBoid(b: Boid): number {
+    const base = b.species === 'predator' ? opts.energy.predatorDrain : b.species === 'scavenger' ? opts.energy.scavengerDrain : opts.energy.herbivoreDrain
+    // efficiency stretches energy (lower drain)
+    return base / b.genes.efficiency
+  }
+
+  function applyBounds(b: Boid) {
+    const pad = 1
+
+    if (opts.walls.left) {
+      if (b.x < pad) {
+        b.x = pad
+        b.vx = Math.abs(b.vx)
+      }
+    } else if (b.x < 0) {
+      b.x += simW
+    }
+
+    if (opts.walls.right) {
+      if (b.x > simW - pad) {
+        b.x = simW - pad
+        b.vx = -Math.abs(b.vx)
+      }
+    } else if (b.x > simW) {
+      b.x -= simW
+    }
+
+    if (opts.walls.top) {
+      if (b.y < pad) {
+        b.y = pad
+        b.vy = Math.abs(b.vy)
+      }
+    } else if (b.y < 0) {
+      b.y += simH
+    }
+
+    if (opts.walls.bottom) {
+      if (b.y > simH - pad) {
+        b.y = simH - pad
+        b.vy = -Math.abs(b.vy)
+      }
+    } else if (b.y > simH) {
+      b.y -= simH
+    }
+  }
+
+  function inFov(b: Boid, dx: number, dy: number): boolean {
+    const ang = Math.atan2(dy, dx)
+    const d = Math.abs(angleDelta(ang, b.dir))
+    return d <= fovForBoid(b)
+  }
+
+  function steerToward(b: Boid, tx: number, ty: number, weight: number): Vec {
+    const dx = tx - b.x
+    const dy = ty - b.y
+    if (dx === 0 && dy === 0) return { x: 0, y: 0 }
+
+    const desired = normalize({ x: dx, y: dy })
+    const desiredV = { x: desired.x * maxSpeedForBoid(b), y: desired.y * maxSpeedForBoid(b) }
+    const steer = { x: desiredV.x - b.vx, y: desiredV.y - b.vy }
+    const limited = clampLen(steer, maxForceForBoid(b))
+    return { x: limited.x * weight, y: limited.y * weight }
+  }
+
+  function steerAway(b: Boid, fx: number, fy: number, weight: number): Vec {
+    const dx = b.x - fx
+    const dy = b.y - fy
+    if (dx === 0 && dy === 0) return { x: 0, y: 0 }
+    const desired = normalize({ x: dx, y: dy })
+    const desiredV = { x: desired.x * maxSpeedForBoid(b), y: desired.y * maxSpeedForBoid(b) }
+    const steer = { x: desiredV.x - b.vx, y: desiredV.y - b.vy }
+    const limited = clampLen(steer, maxForceForBoid(b))
+    return { x: limited.x * weight, y: limited.y * weight }
+  }
+
+  function addParticle(x: number, y: number, color: string) {
+    const count = 6
+    for (let i = 0; i < count; i++) {
+      const a = Math.random() * Math.PI * 2
+      const s = 40 + Math.random() * 80
+      particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.35 + Math.random() * 0.35, color, size: 1.2 + Math.random() * 1.8 })
+    }
+  }
+
+  function updateParticles(dtSeconds: number) {
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i]
+      p.life -= dtSeconds
+      if (p.life <= 0) {
+        particles.splice(i, 1)
+        continue
+      }
+      p.x += p.vx * dtSeconds
+      p.y += p.vy * dtSeconds
+      p.vx *= 0.92
+      p.vy *= 0.92
+    }
+  }
+
   function update(dtSeconds: number) {
-    // Placeholder: slowly add food.
-    if (Math.random() < 0.02) {
+    // rebuild grids
+    boidGrid.clear()
+    foodGrid.clear()
+    carrionGrid.clear()
+
+    for (let i = 0; i < boids.length; i++) boidGrid.insert(boids[i].x, boids[i].y, i)
+    for (let i = 0; i < food.length; i++) foodGrid.insert(food[i].x, food[i].y, i)
+    for (let i = 0; i < carrion.length; i++) carrionGrid.insert(carrion[i].x, carrion[i].y, i)
+
+    // food growth
+    const expectedFood = opts.world.foodSpawnRate * dtSeconds
+    if (Math.random() < expectedFood) {
       spawnFood(rand(20, simW - 20), rand(20, simH - 20))
-      if (food.length > 200) food.splice(0, food.length - 200)
+      if (food.length > opts.world.foodMax) food.splice(0, food.length - opts.world.foodMax)
     }
 
-    for (const b of boids) {
+    // carrion decay -> food (decomposition)
+    for (let i = carrion.length - 1; i >= 0; i--) {
+      const c = carrion[i]
+      c.age += dtSeconds
+      if (c.age > opts.world.carrionDecaySeconds) {
+        carrion.splice(i, 1)
+        for (let k = 0; k < opts.decomposition.yield; k++) {
+          const a = Math.random() * Math.PI * 2
+          const r = 6 + Math.random() * 14
+          spawnFood(clamp(c.x + Math.cos(a) * r, 4, simW - 4), clamp(c.y + Math.sin(a) * r, 4, simH - 4))
+        }
+        counters.decomp++
+      }
+    }
+
+    // boids step
+    for (let i = 0; i < boids.length; i++) {
+      const b = boids[i]
+
       b.age += dtSeconds
-      // Placeholder drift
-      b.x += b.vx * 30 * dtSeconds
-      b.y += b.vy * 30 * dtSeconds
+      b.cooldown.eat = Math.max(0, b.cooldown.eat - dtSeconds)
+      b.cooldown.reproduce = Math.max(0, b.cooldown.reproduce - dtSeconds)
 
-      // Wrap (placeholder)
-      const w = simW
-      const h = simH
+      // eating interactions (simple)
+      if (b.cooldown.eat <= 0) {
+        if (b.species === 'herbivore') {
+          neighborScratch.length = 0
+          foodGrid.query(b.x, b.y, 14, neighborScratch)
+          let eatIndex = -1
+          let eatD2 = Infinity
+          for (const fi of neighborScratch) {
+            const f = food[fi]
+            if (!f) continue
+            const d2 = distSq(b.x, b.y, f.x, f.y)
+            if (d2 < eatD2) {
+              eatD2 = d2
+              eatIndex = fi
+            }
+          }
+          if (eatIndex >= 0 && eatD2 < 12 * 12) {
+            const f = food[eatIndex]
+            food.splice(eatIndex, 1)
+            b.energy = clamp(b.energy + opts.energy.eatFoodGain * b.genes.efficiency, 0, b.maxEnergy)
+            b.cooldown.eat = 0.25
+            addParticle(f.x, f.y, opts.colors.herbivore)
+          }
+        } else if (b.species === 'predator') {
+          neighborScratch.length = 0
+          boidGrid.query(b.x, b.y, 18, neighborScratch)
+          let killIndex = -1
+          let killD2 = Infinity
+          for (const bi of neighborScratch) {
+            if (bi === i) continue
+            const o = boids[bi]
+            if (!o || o.species !== 'herbivore') continue
+            const d2 = distSq(b.x, b.y, o.x, o.y)
+            if (d2 < killD2) {
+              killD2 = d2
+              killIndex = bi
+            }
+          }
+          if (killIndex >= 0 && killD2 < 14 * 14) {
+            const prey = boids[killIndex]
+            boids.splice(killIndex, 1)
+            if (killIndex < i) i--
+            counters.hunts++
+            counters.deaths++
+            carrion.push({ x: prey.x, y: prey.y, mass: 1.1, age: 0 })
+            if (carrion.length > opts.world.carrionMax) carrion.splice(0, carrion.length - opts.world.carrionMax)
+            b.energy = clamp(b.energy + opts.energy.eatHerbivoreGain * b.genes.efficiency, 0, b.maxEnergy)
+            b.cooldown.eat = 0.35
+            addParticle(prey.x, prey.y, opts.colors.predator)
+          }
+        } else if (b.species === 'scavenger') {
+          neighborScratch.length = 0
+          carrionGrid.query(b.x, b.y, 18, neighborScratch)
+          let eatIndex = -1
+          let eatD2 = Infinity
+          for (const ci of neighborScratch) {
+            const c = carrion[ci]
+            const d2 = distSq(b.x, b.y, c.x, c.y)
+            if (d2 < eatD2) {
+              eatD2 = d2
+              eatIndex = ci
+            }
+          }
+          if (eatIndex >= 0 && eatD2 < 14 * 14) {
+            const c = carrion[eatIndex]
+            const take = Math.min(c.mass, 0.45)
+            c.mass -= take
+            b.energy = clamp(b.energy + take * 34 * b.genes.efficiency, 0, b.maxEnergy)
+            b.cooldown.eat = 0.3
+            addParticle(c.x, c.y, opts.colors.scavenger)
+            if (c.mass <= 0.06) {
+              carrion.splice(eatIndex, 1)
+              for (let k = 0; k < opts.decomposition.yield; k++) {
+                const a = Math.random() * Math.PI * 2
+                const r = 6 + Math.random() * 14
+                spawnFood(clamp(c.x + Math.cos(a) * r, 4, simW - 4), clamp(c.y + Math.sin(a) * r, 4, simH - 4))
+              }
+              counters.decomp++
+            }
+          }
+        }
+      }
 
-      if (b.x < 0) b.x += w
-      if (b.x > w) b.x -= w
-      if (b.y < 0) b.y += h
-      if (b.y > h) b.y -= h
+      // energy drain
+      b.energy -= drainPerSecondForBoid(b) * dtSeconds * 60
+      if (b.energy <= 0) {
+        // death -> carrion
+        counters.deaths++
+        const mass = b.species === 'predator' ? 2.1 : b.species === 'scavenger' ? 1.4 : 1.1
+        carrion.push({ x: b.x, y: b.y, mass, age: 0 })
+        if (carrion.length > opts.world.carrionMax) carrion.splice(0, carrion.length - opts.world.carrionMax)
+        addParticle(b.x, b.y, opts.colors.dead)
+        boids.splice(i, 1)
+        i--
+        continue
+      }
+
+      // neighborhood
+      neighborScratch.length = 0
+      const pr = perceptionForBoid(b)
+      boidGrid.query(b.x, b.y, pr, neighborScratch)
+
+      const selfDir = b.dir
+      let sepX = 0
+      let sepY = 0
+      let aliX = 0
+      let aliY = 0
+      let cohX = 0
+      let cohY = 0
+      let neighborCount = 0
+
+      const sepR = separationRadiusForBoid(b)
+      const sepRSq = sepR * sepR
+
+      let fleeX = 0
+      let fleeY = 0
+
+      let chaseTargetX = 0
+      let chaseTargetY = 0
+      let chaseTargetD2 = Infinity
+      let hasChase = false
+
+      for (const j of neighborScratch) {
+        if (j === i) continue
+        const o = boids[j]
+        const d2 = distSq(b.x, b.y, o.x, o.y)
+        if (d2 > pr * pr) continue
+
+        const dx = o.x - b.x
+        const dy = o.y - b.y
+        if (!inFov(b, dx, dy)) continue
+
+        neighborCount++
+        aliX += o.vx
+        aliY += o.vy
+        cohX += o.x
+        cohY += o.y
+
+        if (d2 < sepRSq) {
+          const inv = 1 / Math.max(1e-6, d2)
+          sepX -= dx * inv
+          sepY -= dy * inv
+        }
+
+        if (b.species === 'herbivore' && o.species === 'predator') {
+          const s = 1 / Math.max(1e-6, d2)
+          fleeX -= dx * s
+          fleeY -= dy * s
+        }
+
+        if (b.species === 'scavenger' && o.species === 'predator') {
+          const s = 1 / Math.max(1e-6, d2)
+          fleeX -= dx * s
+          fleeY -= dy * s
+        }
+
+        if (b.species === 'predator' && o.species === 'herbivore') {
+          // chase nearest herbivore
+          if (d2 < chaseTargetD2) {
+            chaseTargetD2 = d2
+            chaseTargetX = o.x
+            chaseTargetY = o.y
+            hasChase = true
+          }
+        }
+      }
+
+      const steer: Vec = { x: 0, y: 0 }
+
+      if (neighborCount > 0) {
+        // alignment
+        const ali = normalize({ x: aliX / neighborCount, y: aliY / neighborCount })
+        steer.x += (ali.x * maxSpeedForBoid(b) - b.vx) * opts.boids.alignment[b.species]
+        steer.y += (ali.y * maxSpeedForBoid(b) - b.vy) * opts.boids.alignment[b.species]
+
+        // cohesion
+        const center = { x: cohX / neighborCount, y: cohY / neighborCount }
+        const coh = steerToward(b, center.x, center.y, opts.boids.cohesion[b.species])
+        steer.x += coh.x
+        steer.y += coh.y
+
+        // separation
+        const sep = normalize({ x: sepX, y: sepY })
+        steer.x += sep.x * maxSpeedForBoid(b) * 0.55
+        steer.y += sep.y * maxSpeedForBoid(b) * 0.55
+      }
+
+      // species-specific goals
+      if (b.species === 'herbivore') {
+        // forage toward nearest food
+        neighborScratch.length = 0
+        foodGrid.query(b.x, b.y, pr * 1.25, neighborScratch)
+        let bestIndex = -1
+        let bestD2 = Infinity
+        for (const fi of neighborScratch) {
+          const f = food[fi]
+          const d2 = distSq(b.x, b.y, f.x, f.y)
+          if (d2 < bestD2) {
+            bestD2 = d2
+            bestIndex = fi
+          }
+        }
+        if (bestIndex >= 0) {
+          const f = food[bestIndex]
+          const v = steerToward(b, f.x, f.y, opts.boids.forage.herbivore)
+          steer.x += v.x
+          steer.y += v.y
+        }
+
+        // flee from predators
+        const flee = normalize({ x: fleeX, y: fleeY })
+        steer.x += flee.x * maxSpeedForBoid(b) * opts.boids.flee.herbivore
+        steer.y += flee.y * maxSpeedForBoid(b) * opts.boids.flee.herbivore
+      } else if (b.species === 'predator') {
+        if (hasChase) {
+          const v = steerToward(b, chaseTargetX, chaseTargetY, opts.boids.chase.predator)
+          steer.x += v.x
+          steer.y += v.y
+        }
+      } else if (b.species === 'scavenger') {
+        // scavenge toward nearest carrion
+        neighborScratch.length = 0
+        carrionGrid.query(b.x, b.y, pr * 1.25, neighborScratch)
+        let bestIndex = -1
+        let bestD2 = Infinity
+        for (const ci of neighborScratch) {
+          const c = carrion[ci]
+          const d2 = distSq(b.x, b.y, c.x, c.y)
+          if (d2 < bestD2) {
+            bestD2 = d2
+            bestIndex = ci
+          }
+        }
+        if (bestIndex >= 0) {
+          const c = carrion[bestIndex]
+          const v = steerToward(b, c.x, c.y, opts.boids.scavenge.scavenger)
+          steer.x += v.x
+          steer.y += v.y
+        }
+
+        // mild avoidance of predators
+        const flee = normalize({ x: fleeX, y: fleeY })
+        steer.x += flee.x * maxSpeedForBoid(b) * opts.boids.flee.scavenger
+        steer.y += flee.y * maxSpeedForBoid(b) * opts.boids.flee.scavenger
+      }
+
+      // wander (deterministic-ish)
+      const w = opts.boids.wander[b.species]
+      steer.x += (Math.cos(b.dir + Math.sin(b.age * 0.7)) * maxSpeedForBoid(b) - b.vx) * w
+      steer.y += (Math.sin(b.dir + Math.cos(b.age * 0.8)) * maxSpeedForBoid(b) - b.vy) * w
+
+      // integrate
+      const accel = clampLen(steer, maxForceForBoid(b))
+      b.vx += accel.x * dtSeconds
+      b.vy += accel.y * dtSeconds
+
+      const v = clampLen({ x: b.vx, y: b.vy }, maxSpeedForBoid(b))
+      b.vx = v.x
+      b.vy = v.y
+
+      b.x += b.vx * dtSeconds
+      b.y += b.vy * dtSeconds
+
+      b.dir = heading(b.vx, b.vy)
+      if (lenSq(v) < 0.0001) b.dir = selfDir
+
+      applyBounds(b)
+
+      if (opts.visuals.trails) {
+        b.trail.push({ x: b.x, y: b.y })
+        if (b.trail.length > 16) b.trail.shift()
+      } else {
+        b.trail.length = 0
+      }
     }
+
+    updateParticles(dtSeconds)
   }
 
   function syncStats() {
