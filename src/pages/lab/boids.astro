@@ -518,8 +518,14 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       foodSpawnRate: 0.75, // per second
       carrionDecaySeconds: 18,
     },
+    life: {
+      maturitySeconds: 12,
+      juvenileScale: 0.55,
+    },
     reproduction: {
       rate: 0.15,
+      matingRadius: 26,
+      maturity: 0.95,
       herbivoreThreshold: 80,
       predatorThreshold: 120,
       scavengerThreshold: 100,
@@ -532,6 +538,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       min: 0.8,
       max: 1.2,
       mutationAmount: 0.1, // ±5% since (rand-0.5)*0.1
+      budgetBoost: 0.35,
     },
     walls: {
       top: false,
@@ -638,26 +645,31 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
 
   // --- Simulation state (placeholder; boids logic next) ---
 
-  type Genes = { speed: number; perception: number; efficiency: number }
+   type Genes = { speed: number; perception: number; efficiency: number }
 
-  type Boid = {
-    id: number
-    species: Species
-    x: number
-    y: number
-    vx: number
-    vy: number
-    energy: number
-    maxEnergy: number
-    genes: Genes
-    age: number
-    dir: number
-    cooldown: {
-      eat: number
-      reproduce: number
-    }
-    trail: { x: number; y: number }[]
-  }
+   type Sex = 'a' | 'b'
+
+
+   type Boid = {
+     id: number
+     species: Species
+     sex: Sex
+     x: number
+     y: number
+     vx: number
+     vy: number
+     energy: number
+     maxEnergy: number
+     genes: Genes
+     age: number
+     dir: number
+     cooldown: {
+       eat: number
+       reproduce: number
+     }
+     trail: { x: number; y: number }[]
+   }
+
 
   type FoodSource = { x: number; y: number }
   type Carrion = { x: number; y: number; mass: number; age: number }
@@ -682,6 +694,10 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
 
   function clamp(value: number, min: number, max: number): number {
     return Math.max(min, Math.min(max, value))
+  }
+
+  function lerp(a: number, b: number, t: number): number {
+    return a + (b - a) * t
   }
 
   function rand(min: number, max: number): number {
@@ -820,13 +836,104 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     return clamp(gene + change, opts.genetics.min, opts.genetics.max)
   }
 
-  function mutateGenes(genes: Genes): Genes {
-    return {
-      speed: mutateGene(genes.speed),
-      perception: mutateGene(genes.perception),
-      efficiency: mutateGene(genes.efficiency),
-    }
-  }
+   function mutateGenes(genes: Genes): Genes {
+     return {
+       speed: mutateGene(genes.speed),
+       perception: mutateGene(genes.perception),
+       efficiency: mutateGene(genes.efficiency),
+     }
+   }
+
+   function mixGenes(a: Genes, b: Genes): Genes {
+     // uniform crossover (per gene)
+     return {
+       speed: Math.random() < 0.5 ? a.speed : b.speed,
+       perception: Math.random() < 0.5 ? a.perception : b.perception,
+       efficiency: Math.random() < 0.5 ? a.efficiency : b.efficiency,
+     }
+   }
+
+   function canMate(b: Boid): boolean {
+     if (b.cooldown.reproduce > 0) return false
+     if (maturityForBoid(b) < opts.reproduction.maturity) return false
+     if (b.energy < reproductionThresholdForSpecies(b.species)) return false
+     return true
+   }
+
+   function findMateIndex(i: number, b: Boid, boidsToRemove: Set<number>): number | null {
+     neighborScratch.length = 0
+     boidGrid.query(b.x, b.y, opts.reproduction.matingRadius, neighborScratch)
+
+     let bestIndex = -1
+     let bestD2 = Infinity
+
+     for (const j of neighborScratch) {
+       if (j === i) continue
+       if (boidsToRemove.has(j)) continue
+       const o = boids[j]
+       if (!o) continue
+       if (o.species !== b.species) continue
+       if (o.sex === b.sex) continue
+       if (!canMate(o)) continue
+
+       const d2 = distSq(b.x, b.y, o.x, o.y)
+       if (d2 > opts.reproduction.matingRadius * opts.reproduction.matingRadius) continue
+       if (d2 < bestD2) {
+         bestD2 = d2
+         bestIndex = j
+       }
+     }
+
+     return bestIndex >= 0 ? bestIndex : null
+   }
+
+   function spawnChildFromParents(a: Boid, b: Boid) {
+     const maxEnergy = maxEnergyForSpecies(a.species)
+     const totalCost = maxEnergy * 0.35
+     const costEach = totalCost / 2
+     if (a.energy <= costEach + 1) return
+     if (b.energy <= costEach + 1) return
+
+     a.energy -= costEach
+     b.energy -= costEach
+
+     const childGenes = mutateGenes(mixGenes(a.genes, b.genes))
+
+     const midX = (a.x + b.x) / 2
+     const midY = (a.y + b.y) / 2
+     const jitterA = Math.random() * Math.PI * 2
+     const jitterR = 8 + Math.random() * 10
+     const x = clamp(midX + Math.cos(jitterA) * jitterR, 1, simW - 1)
+     const y = clamp(midY + Math.sin(jitterA) * jitterR, 1, simH - 1)
+
+     const vx = (a.vx + b.vx) / 2 + rand(-18, 18)
+     const vy = (a.vy + b.vy) / 2 + rand(-18, 18)
+
+     const childEnergy = Math.min(maxEnergy * 0.6, totalCost)
+
+     boids.push({
+       id: nextId++,
+       species: a.species,
+       sex: Math.random() < 0.5 ? 'a' : 'b',
+       x,
+       y,
+       vx,
+       vy,
+       energy: childEnergy,
+       maxEnergy,
+       genes: childGenes,
+       age: 0,
+       dir: heading(vx, vy),
+       cooldown: { eat: 0.2, reproduce: 0.8 },
+       trail: [],
+     })
+
+     a.cooldown.reproduce = 1.4
+     b.cooldown.reproduce = 1.4
+     counters.births++
+     addParticle(x, y, opts.colors[a.species])
+   }
+
 
   function maxEnergyForSpecies(species: Species): number {
     switch (species) {
@@ -850,8 +957,25 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     }
   }
 
+  function maturityForBoid(b: Boid): number {
+    return clamp(b.age / Math.max(0.01, opts.life.maturitySeconds), 0, 1)
+  }
+
+  function growthScaleForBoid(b: Boid): number {
+    const m = maturityForBoid(b)
+    const ratio = clamp(b.energy / Math.max(1, b.maxEnergy), 0, 1)
+    const size = lerp(opts.life.juvenileScale, 1, m)
+    const energyScale = lerp(0.85, 1, ratio)
+    return size * energyScale
+  }
+
+  function mobilityScaleForBoid(b: Boid): number {
+    return lerp(0.7, 1, maturityForBoid(b))
+  }
+
   function shouldReproduce(b: Boid): boolean {
     if (b.cooldown.reproduce > 0) return false
+    if (maturityForBoid(b) < opts.reproduction.maturity) return false
     if (b.energy < reproductionThresholdForSpecies(b.species)) return false
 
     // species with efficient genes reproduce slightly more
@@ -881,6 +1005,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     boids.push({
       id: nextId++,
       species: parent.species,
+      sex: Math.random() < 0.5 ? 'a' : 'b',
       x,
       y,
       vx,
@@ -907,6 +1032,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     boids.push({
       id: nextId++,
       species,
+      sex: Math.random() < 0.5 ? 'a' : 'b',
       x,
       y,
       vx,
@@ -965,20 +1091,55 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       ctx.restore()
     }
 
-    // Carrion
-    for (const c of carrion) {
-      const alpha = clamp(0.2 + (1 - c.age / opts.world.carrionDecaySeconds) * 0.8, 0, 1)
-      ctx.save()
-      ctx.globalAlpha = alpha
-      ctx.strokeStyle = opts.colors.carrion
-      ctx.shadowColor = opts.colors.carrion
-      ctx.shadowBlur = 10
-      ctx.lineWidth = 1
-      ctx.beginPath()
-      ctx.arc(c.x, c.y, 4 + c.mass * 3.2, 0, Math.PI * 2)
-      ctx.stroke()
-      ctx.restore()
-    }
+     // Carrion
+     for (const c of carrion) {
+       const alpha = clamp(0.2 + (1 - c.age / opts.world.carrionDecaySeconds) * 0.8, 0, 1)
+       ctx.save()
+       ctx.globalAlpha = alpha
+       ctx.strokeStyle = opts.colors.carrion
+       ctx.shadowColor = opts.colors.carrion
+       ctx.shadowBlur = 10
+       ctx.lineWidth = 1
+       ctx.beginPath()
+       ctx.arc(c.x, c.y, 4 + c.mass * 3.2, 0, Math.PI * 2)
+       ctx.stroke()
+       ctx.restore()
+     }
+
+     // Spawn cluster charge indicator
+     if (clusterTimer && pressPoint) {
+       const color = opts.colors[selectedSpecies]
+       const progress = clamp(clusterProgress, 0, 1)
+       const baseR = 14
+       const r = baseR + 18 * progress
+
+       ctx.save()
+       ctx.globalAlpha = 0.85
+       ctx.strokeStyle = color
+       ctx.shadowColor = color
+       ctx.shadowBlur = 16
+       ctx.lineWidth = 1.5
+
+       ctx.beginPath()
+       ctx.arc(pressPoint.x, pressPoint.y, r, 0, Math.PI * 2)
+       ctx.stroke()
+
+       ctx.globalAlpha = 0.95
+       ctx.lineWidth = 2
+       ctx.beginPath()
+       ctx.arc(pressPoint.x, pressPoint.y, r, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2)
+       ctx.stroke()
+
+       ctx.globalAlpha = 0.9
+       ctx.fillStyle = color
+       ctx.font = '12px var(--font-mono)'
+       ctx.textAlign = 'center'
+       ctx.textBaseline = 'middle'
+       ctx.fillText(String(clusterCount), pressPoint.x, pressPoint.y)
+
+       ctx.restore()
+     }
+
 
     function drawBoidArrow(b: Boid) {
       const baseSize = b.species === 'predator' ? 12 : b.species === 'scavenger' ? 10 : 9
@@ -986,7 +1147,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       const alpha = 0.16 + ratio * 0.84
 
       const angle = b.dir
-      const size = baseSize * (0.9 + 0.3 * b.genes.speed)
+      const size = baseSize * (0.9 + 0.3 * b.genes.speed) * growthScaleForBoid(b)
 
       const color = b.species === 'predator' ? opts.colors.predator : b.species === 'scavenger' ? opts.colors.scavenger : opts.colors.herbivore
 
@@ -1307,10 +1468,12 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
   })
 
   // Pointer interactions: tap and long-press cluster
-  let pressTimer: number | null = null
-  let clusterTimer: number | null = null
-  let pressPoint: { x: number; y: number } | null = null
-  let clusterCount = 0
+   let pressTimer: number | null = null
+   let clusterTimer: number | null = null
+   let pressPoint: { x: number; y: number } | null = null
+   let clusterCount = 0
+   let clusterProgress = 0
+
 
   function getCanvasPoint(e: PointerEvent): { x: number; y: number } {
     const rect = els.canvas.getBoundingClientRect()
@@ -1320,21 +1483,26 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     }
   }
 
-  function startCluster(point: { x: number; y: number }) {
-    clusterCount = 1
-    clusterTimer = window.setInterval(() => {
-      clusterCount = Math.min(20, clusterCount + 1)
-    }, 100)
-  }
+   function startCluster(point: { x: number; y: number }) {
+     clusterCount = 1
+     clusterProgress = 0
+     clusterTimer = window.setInterval(() => {
+       clusterCount = Math.min(20, clusterCount + 1)
+       clusterProgress = clusterCount / 20
+     }, 100)
+   }
 
-  function flushCluster(point: { x: number; y: number }) {
-    const n = clusterCount
-    for (let i = 0; i < n; i++) {
-      const a = Math.random() * Math.PI * 2
-      const r = Math.random() * 12
-      spawnBoid(selectedSpecies, point.x + Math.cos(a) * r, point.y + Math.sin(a) * r)
-    }
-  }
+
+   function flushCluster(point: { x: number; y: number }) {
+     const n = clusterCount
+     for (let i = 0; i < n; i++) {
+       const a = Math.random() * Math.PI * 2
+       const r = Math.random() * 12
+       spawnBoid(selectedSpecies, point.x + Math.cos(a) * r, point.y + Math.sin(a) * r)
+     }
+     clusterProgress = 0
+   }
+
 
   els.canvas.addEventListener('pointerdown', (e) => {
     els.canvas.setPointerCapture(e.pointerId)
@@ -1349,27 +1517,31 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     }, 250)
   })
 
-  els.canvas.addEventListener('pointerup', () => {
-    if (pressTimer) window.clearTimeout(pressTimer)
-    pressTimer = null
+   els.canvas.addEventListener('pointerup', () => {
+     if (pressTimer) window.clearTimeout(pressTimer)
+     pressTimer = null
 
-    if (clusterTimer) window.clearInterval(clusterTimer)
+     if (clusterTimer) window.clearInterval(clusterTimer)
 
-    if (clusterTimer && pressPoint) {
-      flushCluster(pressPoint)
-    }
+     if (clusterTimer && pressPoint) {
+       flushCluster(pressPoint)
+     }
 
-    clusterTimer = null
-    pressPoint = null
-  })
+     clusterTimer = null
+     clusterProgress = 0
+     pressPoint = null
+   })
 
-  els.canvas.addEventListener('pointercancel', () => {
-    if (pressTimer) window.clearTimeout(pressTimer)
-    if (clusterTimer) window.clearInterval(clusterTimer)
-    pressTimer = null
-    clusterTimer = null
-    pressPoint = null
-  })
+
+   els.canvas.addEventListener('pointercancel', () => {
+     if (pressTimer) window.clearTimeout(pressTimer)
+     if (clusterTimer) window.clearInterval(clusterTimer)
+     pressTimer = null
+     clusterTimer = null
+     clusterProgress = 0
+     pressPoint = null
+   })
+
 
   // --- Main loop ---
 
@@ -1380,11 +1552,11 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
   const neighborScratch: number[] = []
 
   function maxSpeedForBoid(b: Boid): number {
-    return opts.boids.baseMaxSpeed[b.species] * b.genes.speed
+    return opts.boids.baseMaxSpeed[b.species] * b.genes.speed * mobilityScaleForBoid(b)
   }
 
   function maxForceForBoid(b: Boid): number {
-    return opts.boids.baseMaxForce[b.species] * (0.8 + 0.4 * b.genes.speed)
+    return opts.boids.baseMaxForce[b.species] * (0.8 + 0.4 * b.genes.speed) * mobilityScaleForBoid(b)
   }
 
   function perceptionForBoid(b: Boid): number {
@@ -1651,7 +1823,18 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
 
       // reproduction
       if (shouldReproduce(b)) {
-        spawnChildFromParent(b)
+        const mateIndex = findMateIndex(i, b, boidsToRemove)
+        if (mateIndex != null) {
+          const mate = boids[mateIndex]
+          if (mate) {
+            // Only create one child per pair per tick
+            if (i < mateIndex) {
+              spawnChildFromParents(b, mate)
+            }
+          }
+        } else {
+          spawnChildFromParent(b)
+        }
       }
 
       // energy drain
