@@ -1815,6 +1815,24 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     return ((base * movementMultiplier) / b.genes.efficiency) * opts.energy.metabolism
   }
 
+  function predatorBiteDamage(predator: Boid, prey: Boid): number {
+    const maturity = maturityForBoid(prey)
+    const health = clamp(prey.energy / Math.max(1, prey.maxEnergy), 0, 1)
+
+    // Tougher prey (older + healthier) takes more bites.
+    const toughness = clamp(0.65 + 0.75 * maturity + 0.45 * health, 0.65, 1.85)
+    const baseDamage = 55
+
+    // Predator efficiency converts to stronger bites.
+    const scaled = (baseDamage * (1.85 / toughness) * (0.85 + 0.3 * predator.genes.efficiency))
+    return clamp(scaled, 18, 120)
+  }
+
+  function predatorBiteEnergyGain(predator: Boid, prey: Boid, damage: number): number {
+    const ratio = clamp(damage / Math.max(1, prey.maxEnergy), 0, 1)
+    return opts.energy.eatHerbivoreGain * ratio * predator.genes.efficiency
+  }
+
   function applyBounds(b: Boid) {
     const pad = 1
 
@@ -2032,17 +2050,23 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
           if (killIndex >= 0 && killD2 < 14 * 14) {
             const prey = boids[killIndex]
             if (prey && !boidsToRemove.has(killIndex)) {
-              boidsToRemove.add(killIndex)
-              counters.hunts++
-              counters.deaths++
-              carrion.push({ x: prey.x, y: prey.y, mass: 1.1, age: 0 })
-              b.energy = clamp(b.energy + opts.energy.eatHerbivoreGain * b.genes.efficiency, 0, b.maxEnergy)
-              b.cooldown.eat = 0.35
+              const damage = predatorBiteDamage(b, prey)
+              prey.energy -= damage
 
-              // satiation: briefly stop pursuing new prey
-              b.cooldown.hunt = opts.reproduction.predatorSatiationSeconds
+              b.energy = clamp(b.energy + predatorBiteEnergyGain(b, prey, damage), 0, b.maxEnergy)
+              b.cooldown.eat = 0.25
 
               addParticle(prey.x, prey.y, opts.colors.predator)
+
+              if (prey.energy <= 0) {
+                boidsToRemove.add(killIndex)
+                counters.hunts++
+                counters.deaths++
+                carrion.push({ x: prey.x, y: prey.y, mass: 1.1, age: 0 })
+
+                // satiation: briefly stop pursuing new prey
+                b.cooldown.hunt = opts.reproduction.predatorSatiationSeconds
+              }
             }
           }
         } else if (b.species === 'scavenger') {
@@ -2207,10 +2231,15 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
           }
         }
 
-        // flee from predators
+        // flee from predators (panic scales with age + health)
         const flee = normalize({ x: fleeX, y: fleeY })
-        steer.x += flee.x * maxSpeedForBoid(b) * opts.boids.flee.herbivore
-        steer.y += flee.y * maxSpeedForBoid(b) * opts.boids.flee.herbivore
+        const panicBase = clamp(len({ x: fleeX, y: fleeY }) * 2.2, 0, 1)
+        const maturity = maturityForBoid(b)
+        const health = clamp(b.energy / Math.max(1, b.maxEnergy), 0, 1)
+        const panic = clamp(panicBase * (1.15 - 0.25 * maturity) * (1.25 - 0.55 * health), 0, 1.45)
+        const fleeWeight = opts.boids.flee.herbivore * (1 + 1.35 * panic)
+        steer.x += flee.x * maxSpeedForBoid(b) * fleeWeight
+        steer.y += flee.y * maxSpeedForBoid(b) * fleeWeight
       } else if (b.species === 'predator') {
         if (hasChase) {
           const v = steerToward(b, chaseTargetX, chaseTargetY, opts.boids.chase.predator)
