@@ -555,7 +555,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       rate: 0.15,
       matingRadius: 26,
       maturity: 0.95,
-      herbivoreThreshold: 100,
+      herbivoreThreshold: 110,
       predatorThreshold: 120,
       scavengerThreshold: 100,
 
@@ -563,16 +563,16 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       predatorHungerThreshold: 0.92,
     },
     decomposition: {
-      yield: 2,
+      yield: 4,
     },
     genetics: {
       mutationRate: 0.1,
-      min: 0.8,
-      max: 1.2,
+      min: 0.7,
+      max: 1.3,
       mutationAmount: 0.1, // ±5% since (rand-0.5)*0.1
 
       // gene budget constraint: sum of genes <= budget
-      budget: 3.05,
+      budget: 5.05,
       budgetBoost: 0.35,
     },
     walls: {
