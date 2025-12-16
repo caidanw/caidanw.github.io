@@ -827,14 +827,48 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     }
     ctx.restore()
 
+    function drawBoidArrow(b: Boid) {
+      const baseSize = b.species === 'predator' ? 11 : b.species === 'scavenger' ? 9 : 8
+      const ratio = clamp(b.energy / Math.max(1, b.maxEnergy), 0, 1)
+      const alpha = 0.18 + ratio * 0.82
+
+      const angle = heading(b.vx, b.vy)
+      const size = baseSize * (0.9 + 0.3 * b.genes.speed)
+
+      const color = b.species === 'predator' ? opts.colors.predator : b.species === 'scavenger' ? opts.colors.scavenger : opts.colors.herbivore
+
+      // Arrowhead triangle (outline only)
+      const tipX = b.x + Math.cos(angle) * size
+      const tipY = b.y + Math.sin(angle) * size
+      const backX = b.x - Math.cos(angle) * size * 0.75
+      const backY = b.y - Math.sin(angle) * size * 0.75
+
+      const wingAngle = angle + Math.PI / 2
+      const wing = size * 0.55
+      const leftX = backX + Math.cos(wingAngle) * wing
+      const leftY = backY + Math.sin(wingAngle) * wing
+      const rightX = backX - Math.cos(wingAngle) * wing
+      const rightY = backY - Math.sin(wingAngle) * wing
+
+      ctx.save()
+      ctx.globalAlpha = alpha
+      ctx.lineWidth = 1.25
+      ctx.strokeStyle = color
+      ctx.shadowColor = color
+      ctx.shadowBlur = 12
+
+      ctx.beginPath()
+      ctx.moveTo(tipX, tipY)
+      ctx.lineTo(leftX, leftY)
+      ctx.lineTo(rightX, rightY)
+      ctx.closePath()
+      ctx.stroke()
+      ctx.restore()
+    }
+
     // Boids
     for (const b of boids) {
-      ctx.save()
-      ctx.fillStyle = b.species === 'predator' ? opts.colors.predator : b.species === 'scavenger' ? opts.colors.scavenger : opts.colors.herbivore
-      ctx.beginPath()
-      ctx.arc(b.x, b.y, b.species === 'predator' ? 5 : b.species === 'scavenger' ? 4 : 3, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.restore()
+      drawBoidArrow(b)
     }
   }
 
