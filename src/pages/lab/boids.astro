@@ -61,11 +61,18 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       </div>
 
       <div class="tab-content" id="tab-presets">
-        <button class="wide" id="presetBalanced">Balanced Ecosystem</button>
-        <button class="wide" id="presetGenesis">Genesis</button>
-        <button class="wide" id="presetPredator">Predator Paradise</button>
-        <button class="wide" id="presetExtinction">Extinction Event</button>
-        <button class="wide" id="presetEvolutionLab">Evolution Lab</button>
+        <div class="preset-grid">
+          <button class="wide" id="presetBalanced">Balanced Ecosystem</button>
+          <button class="wide" id="presetGenesis">Genesis</button>
+          <button class="wide" id="presetHerbBloom">Herbivore Bloom</button>
+          <button class="wide" id="presetScavFeast">Scavenger Feast</button>
+          <button class="wide" id="presetPredator">Predator Paradise</button>
+          <button class="wide" id="presetExtinction">Extinction Event</button>
+          <button class="wide" id="presetMegaswarm">Megaswarm</button>
+          <button class="wide" id="presetEvolutionLab">Evolution Lab</button>
+        </div>
+
+        <div class="preset-hint">Megaswarm can be heavy. If FPS dips, disable Trails.</div>
 
         <div class="seed">
           <label>
@@ -91,7 +98,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       <div class="tab-content" id="tab-settings" hidden>
         <label class="slider">
           Reproduction rate
-          <input id="reproRate" type="range" min="0.05" max="0.25" step="0.01" value="0.15" />
+          <input id="reproRate" type="range" min="0.05" max="0.5" step="0.01" value="0.15" />
           <span class="value" id="reproRateValue">0.15</span>
         </label>
 
@@ -360,6 +367,22 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     line-height: 1.3;
   }
 
+  .preset-grid {
+    display: grid;
+    gap: 0.6rem;
+  }
+
+  @media (min-width: 520px) {
+    .preset-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  .preset-hint {
+    color: rgba(255, 255, 255, 0.68);
+    font-size: 0.8rem;
+  }
+
   .wide {
     width: 100%;
     border-radius: 0.6rem;
@@ -559,7 +582,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       predatorThreshold: 120,
       scavengerThreshold: 100,
 
-      predatorSatiationSeconds: 3.25,
+      predatorSatiationSeconds: 2.25,
       predatorHungerThreshold: 0.92,
     },
     decomposition: {
@@ -567,8 +590,8 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     },
     genetics: {
       mutationRate: 0.1,
-      min: 0.7,
-      max: 1.3,
+      min: 0.5,
+      max: 1.5,
       mutationAmount: 0.1, // ±5% since (rand-0.5)*0.1
 
       // gene budget constraint: sum of genes <= budget
@@ -583,7 +606,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     },
     visuals: {
       trails: false,
-      fov: true,
+      fov: false,
       vectors: false,
       perception: false,
       grid: true,
@@ -624,8 +647,11 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
 
     presetBalanced: document.getElementById('presetBalanced') as HTMLButtonElement,
     presetGenesis: document.getElementById('presetGenesis') as HTMLButtonElement,
+    presetHerbBloom: document.getElementById('presetHerbBloom') as HTMLButtonElement,
+    presetScavFeast: document.getElementById('presetScavFeast') as HTMLButtonElement,
     presetPredator: document.getElementById('presetPredator') as HTMLButtonElement,
     presetExtinction: document.getElementById('presetExtinction') as HTMLButtonElement,
+    presetMegaswarm: document.getElementById('presetMegaswarm') as HTMLButtonElement,
     presetEvolutionLab: document.getElementById('presetEvolutionLab') as HTMLButtonElement,
 
     seedInput: document.getElementById('seedInput') as HTMLInputElement,
@@ -1544,6 +1570,50 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     els.seedNote.textContent = ''
   }
 
+  function applyPresetHerbBloom() {
+    clearAll()
+
+    // Lots of food + herbivores, a few scavengers, almost no predators.
+    for (let i = 0; i < 120; i++) spawnFood(rand(20, simW - 20), rand(20, simH - 20))
+
+    for (let i = 0; i < 160; i++) spawnBoid('herbivore', rand(0, simW), rand(0, simH))
+    for (let i = 0; i < 18; i++) spawnBoid('scavenger', rand(0, simW), rand(0, simH))
+    for (let i = 0; i < 2; i++) spawnBoid('predator', rand(0, simW), rand(0, simH))
+
+    els.seedNote.textContent = ''
+  }
+
+  function applyPresetScavFeast() {
+    clearAll()
+
+    // Start with lots of carrion to create an immediate scavenger economy.
+    for (let i = 0; i < 30; i++) {
+      carrion.push({ x: rand(20, simW - 20), y: rand(20, simH - 20), mass: 0.9 + Math.random() * 1.4, age: 0 })
+    }
+
+    for (let i = 0; i < 40; i++) spawnFood(rand(20, simW - 20), rand(20, simH - 20))
+
+    for (let i = 0; i < 40; i++) spawnBoid('herbivore', rand(0, simW), rand(0, simH))
+    for (let i = 0; i < 80; i++) spawnBoid('scavenger', rand(0, simW), rand(0, simH))
+    for (let i = 0; i < 6; i++) spawnBoid('predator', rand(0, simW), rand(0, simH))
+
+    els.seedNote.textContent = ''
+  }
+
+  function applyPresetMegaswarm() {
+    clearAll()
+
+    // Big populations tuned for spectacle.
+    // Trails can be expensive; consider disabling them if FPS dips.
+    for (let i = 0; i < 140; i++) spawnFood(rand(20, simW - 20), rand(20, simH - 20))
+
+    for (let i = 0; i < 420; i++) spawnBoid('herbivore', rand(0, simW), rand(0, simH))
+    for (let i = 0; i < 40; i++) spawnBoid('predator', rand(0, simW), rand(0, simH))
+    for (let i = 0; i < 80; i++) spawnBoid('scavenger', rand(0, simW), rand(0, simH))
+
+    els.seedNote.textContent = ''
+  }
+
   function applyPresetExtinctionEvent() {
     clearAll()
     for (let i = 0; i < 10; i++) spawnFood(rand(20, simW - 20), rand(20, simH - 20))
@@ -1574,8 +1644,11 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
 
   els.presetBalanced.addEventListener('click', () => applyPresetBalancedFromSeed(undefined))
   els.presetGenesis.addEventListener('click', applyPresetGenesis)
+  els.presetHerbBloom.addEventListener('click', applyPresetHerbBloom)
+  els.presetScavFeast.addEventListener('click', applyPresetScavFeast)
   els.presetPredator.addEventListener('click', applyPresetPredatorParadise)
   els.presetExtinction.addEventListener('click', applyPresetExtinctionEvent)
+  els.presetMegaswarm.addEventListener('click', applyPresetMegaswarm)
   els.presetEvolutionLab.addEventListener('click', applyPresetEvolutionLab)
 
   els.btnRandomSeed.addEventListener('click', () => {
