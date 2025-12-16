@@ -1,0 +1,1190 @@
+---
+import HeaderLayout from '../../layouts/HeaderLayout.astro'
+---
+
+<HeaderLayout title="Boids Ecosystem">
+  <div id="app">
+    <canvas id="canvas"></canvas>
+
+    <div class="hud">
+      <div class="stats" id="stats">
+        <div class="row"><span class="k">FPS</span><span class="v" id="fps">--</span></div>
+        <div class="row"><span class="k">Herbivores</span><span class="v" id="statHerb">0</span></div>
+        <div class="row"><span class="k">Predators</span><span class="v" id="statPred">0</span></div>
+        <div class="row"><span class="k">Scavengers</span><span class="v" id="statScav">0</span></div>
+        <div class="row"><span class="k">Food</span><span class="v" id="statFood">0</span></div>
+        <div class="row"><span class="k">Carrion</span><span class="v" id="statCarrion">0</span></div>
+        <div class="row"><span class="k">Births</span><span class="v" id="statBirths">0</span></div>
+        <div class="row"><span class="k">Deaths</span><span class="v" id="statDeaths">0</span></div>
+        <div class="row"><span class="k">Hunts</span><span class="v" id="statHunts">0</span></div>
+        <div class="row"><span class="k">Decomp</span><span class="v" id="statDecomp">0</span></div>
+      </div>
+
+      <div class="banner" id="perfBanner" hidden>
+        <div class="banner-title">Low performance</div>
+        <div class="banner-body" id="perfText">FPS low.</div>
+        <div class="banner-actions">
+          <button id="btnReduce">Reduce population 50%</button>
+          <button id="btnDisableTrails">Disable trails</button>
+          <button id="btnDismiss">Dismiss</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom-bar" id="bottomBar">
+      <button class="species selected" data-species="herbivore" id="btnHerb">
+        <span class="dot herb"></span>
+        <span>Herbivore</span>
+      </button>
+      <button class="species" data-species="predator" id="btnPred">
+        <span class="dot pred"></span>
+        <span>Predator</span>
+      </button>
+      <button class="species" data-species="scavenger" id="btnScav">
+        <span class="dot scav"></span>
+        <span>Scavenger</span>
+      </button>
+      <button class="menu" id="btnMenu">Menu</button>
+    </div>
+
+    <aside class="panel" id="panel" hidden>
+      <div class="panel-header">
+        <div class="panel-title">Boids Ecosystem</div>
+        <button class="panel-close" id="btnClose">Close</button>
+      </div>
+
+      <div class="tabs">
+        <button class="tab selected" data-tab="presets">Presets</button>
+        <button class="tab" data-tab="visuals">Visuals</button>
+        <button class="tab" data-tab="settings">Settings</button>
+        <button class="tab" data-tab="about">About</button>
+      </div>
+
+      <div class="tab-content" id="tab-presets">
+        <button class="wide" id="presetBalanced">Balanced Ecosystem</button>
+        <button class="wide" id="presetGenesis">Genesis</button>
+        <button class="wide" id="presetPredator">Predator Paradise</button>
+        <button class="wide" id="presetExtinction">Extinction Event</button>
+        <button class="wide" id="presetEvolutionLab">Evolution Lab</button>
+
+        <div class="seed">
+          <label>
+            Seed
+            <input id="seedInput" type="number" min="0" max="999999" placeholder="(optional)" />
+          </label>
+          <div class="seed-actions">
+            <button id="btnRandomSeed">Random</button>
+            <button id="btnApplySeed">Apply</button>
+          </div>
+          <div class="seed-note" id="seedNote"></div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-visuals" hidden>
+        <label class="toggle"><input type="checkbox" id="togTrails" checked /> Trails</label>
+        <label class="toggle"><input type="checkbox" id="togFov" checked /> FOV cones</label>
+        <label class="toggle"><input type="checkbox" id="togVectors" /> Velocity vectors</label>
+        <label class="toggle"><input type="checkbox" id="togPerception" /> Perception radius</label>
+        <label class="toggle"><input type="checkbox" id="togGrid" /> Spatial grid</label>
+      </div>
+
+      <div class="tab-content" id="tab-settings" hidden>
+        <label class="slider">
+          Reproduction rate
+          <input id="reproRate" type="range" min="0.05" max="0.25" step="0.01" value="0.15" />
+          <span class="value" id="reproRateValue">0.15</span>
+        </label>
+
+        <label class="slider">
+          Decomposition yield
+          <input id="decompYield" type="range" min="1" max="4" step="1" value="2" />
+          <span class="value" id="decompYieldValue">2</span>
+        </label>
+
+        <label class="slider">
+          Mutation rate
+          <input id="mutationRate" type="range" min="0.05" max="0.25" step="0.01" value="0.10" />
+          <span class="value" id="mutationRateValue">0.10</span>
+        </label>
+
+        <label class="slider">
+          Speed
+          <input id="simSpeed" type="range" min="0.5" max="4" step="0.5" value="1" />
+          <span class="value" id="simSpeedValue">1.0x</span>
+        </label>
+
+        <div class="row-buttons">
+          <button class="wide" id="btnPause">Pause</button>
+          <button class="wide" id="btnClear">Clear</button>
+        </div>
+
+        <div class="walls">
+          <div class="walls-title">Walls</div>
+          <label class="toggle"><input type="checkbox" id="wallTop" /> Top wall</label>
+          <label class="toggle"><input type="checkbox" id="wallRight" /> Right wall</label>
+          <label class="toggle"><input type="checkbox" id="wallBottom" /> Bottom wall</label>
+          <label class="toggle"><input type="checkbox" id="wallLeft" /> Left wall</label>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-about" hidden>
+        <p>
+          Three-species boids ecosystem with a closed energy loop: food → herbivores → predators → carrion → scavengers → food. Energy is shown via color
+          saturation.
+        </p>
+        <p>Tap to spawn one. Press & hold to accumulate a cluster.</p>
+      </div>
+    </aside>
+  </div>
+</HeaderLayout>
+
+<style>
+  #app {
+    position: relative;
+    width: 100dvw;
+    height: calc(100dvh - 2.2rem);
+    overflow: hidden;
+    background: #0a0a0a;
+  }
+
+  #canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+  }
+
+  .hud {
+    position: absolute;
+    top: 0.75rem;
+    left: 0.75rem;
+    right: 0.75rem;
+    display: flex;
+    justify-content: space-between;
+    pointer-events: none;
+    gap: 0.75rem;
+  }
+
+  .stats {
+    pointer-events: auto;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid var(--theme-border);
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.6rem;
+    backdrop-filter: blur(10px);
+    display: grid;
+    gap: 0.1rem;
+    width: 10.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+  }
+
+  .row {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .k {
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .v {
+    color: rgba(255, 255, 255, 0.95);
+  }
+
+  .banner {
+    pointer-events: auto;
+    flex: 1;
+    max-width: 40rem;
+    background: rgba(0, 0, 0, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 0.75rem;
+    padding: 0.75rem;
+    backdrop-filter: blur(12px);
+  }
+
+  .banner-title {
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+
+  .banner-body {
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+  }
+
+  .banner-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .bottom-bar {
+    position: absolute;
+    left: 0.75rem;
+    right: 0.75rem;
+    bottom: 0.75rem;
+    display: flex;
+    gap: 0.5rem;
+    pointer-events: auto;
+    user-select: none;
+  }
+
+  .species,
+  .menu {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(0, 0, 0, 0.6);
+    color: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
+    font-weight: 650;
+    font-size: 0.85rem;
+  }
+
+  .species.selected {
+    border-color: rgba(255, 255, 255, 0.35);
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.08),
+      0 0 22px rgba(32, 225, 33, 0.25);
+  }
+
+  .dot {
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 999px;
+    display: inline-block;
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.1));
+  }
+
+  .dot.herb {
+    background: #20e121;
+  }
+  .dot.pred {
+    background: #e12120;
+  }
+  .dot.scav {
+    background: #2120e1;
+  }
+
+  .panel {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    bottom: 4.75rem;
+    width: min(24rem, calc(100dvw - 1.5rem));
+    background: rgba(0, 0, 0, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 0.75rem;
+    backdrop-filter: blur(12px);
+    padding: 0.75rem;
+    overflow: auto;
+  }
+
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .panel-title {
+    font-weight: 700;
+  }
+
+  .panel-close {
+    border-radius: 0.5rem;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.07);
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .tabs {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .tab {
+    border-radius: 0.6rem;
+    padding: 0.45rem 0.4rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.8rem;
+  }
+
+  .tab.selected {
+    border-color: rgba(255, 255, 255, 0.25);
+  }
+
+  .tab-content {
+    display: grid;
+    gap: 0.6rem;
+    font-size: 0.9rem;
+    line-height: 1.3;
+  }
+
+  .wide {
+    width: 100%;
+    border-radius: 0.6rem;
+    padding: 0.6rem 0.7rem;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.92);
+    text-align: left;
+  }
+
+  .toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .slider {
+    display: grid;
+    gap: 0.35rem;
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .slider input[type='range'] {
+    width: 100%;
+  }
+
+  .value {
+    justify-self: end;
+    font-family: var(--font-mono);
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  .seed {
+    margin-top: 0.25rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    padding-top: 0.75rem;
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .seed input {
+    width: 100%;
+    margin-top: 0.25rem;
+    border-radius: 0.5rem;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(0, 0, 0, 0.4);
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .seed-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .seed-actions button {
+    flex: 1;
+  }
+
+  .seed-note {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  .row-buttons {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .walls {
+    margin-top: 0.25rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    padding-top: 0.75rem;
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .walls-title {
+    font-weight: 650;
+    margin-bottom: 0.25rem;
+  }
+
+  button {
+    cursor: pointer;
+  }
+</style>
+
+<script>
+  type Species = 'herbivore' | 'predator' | 'scavenger'
+
+  const opts = {
+    colors: {
+      herbivore: '#20e121',
+      predator: '#e12120',
+      scavenger: '#2120e1',
+      background: '#0a0a0a',
+      carrion: '#666688',
+      dead: '#808080',
+    },
+    energy: {
+      herbivoreMax: 100,
+      predatorMax: 140,
+      scavengerMax: 120,
+      eatFoodGain: 20,
+      eatHerbivoreGain: 50,
+      eatCarrionSmallGain: 15,
+      eatCarrionLargeGain: 40,
+      herbivoreDrain: 0.1,
+      predatorDrain: 0.2,
+      scavengerDrain: 0.15,
+    },
+    reproduction: {
+      rate: 0.15,
+      herbivoreThreshold: 80,
+      predatorThreshold: 120,
+      scavengerThreshold: 100,
+    },
+    decomposition: {
+      yield: 2,
+    },
+    genetics: {
+      mutationRate: 0.1,
+      min: 0.8,
+      max: 1.2,
+      mutationAmount: 0.1, // ±5% since (rand-0.5)*0.1
+    },
+    walls: {
+      top: false,
+      right: false,
+      bottom: false,
+      left: false,
+    },
+    visuals: {
+      trails: true,
+      fov: true,
+      vectors: false,
+      perception: false,
+      grid: false,
+    },
+    simSpeed: 1,
+  }
+
+  const els = {
+    canvas: document.getElementById('canvas') as HTMLCanvasElement,
+    fps: document.getElementById('fps') as HTMLSpanElement,
+    herm: document.getElementById('statHerb') as HTMLSpanElement,
+    pred: document.getElementById('statPred') as HTMLSpanElement,
+    scav: document.getElementById('statScav') as HTMLSpanElement,
+    food: document.getElementById('statFood') as HTMLSpanElement,
+    carrion: document.getElementById('statCarrion') as HTMLSpanElement,
+    births: document.getElementById('statBirths') as HTMLSpanElement,
+    deaths: document.getElementById('statDeaths') as HTMLSpanElement,
+    hunts: document.getElementById('statHunts') as HTMLSpanElement,
+    decomp: document.getElementById('statDecomp') as HTMLSpanElement,
+
+    perfBanner: document.getElementById('perfBanner') as HTMLDivElement,
+    perfText: document.getElementById('perfText') as HTMLDivElement,
+    btnReduce: document.getElementById('btnReduce') as HTMLButtonElement,
+    btnDisableTrails: document.getElementById('btnDisableTrails') as HTMLButtonElement,
+    btnDismiss: document.getElementById('btnDismiss') as HTMLButtonElement,
+
+    btnHerb: document.getElementById('btnHerb') as HTMLButtonElement,
+    btnPred: document.getElementById('btnPred') as HTMLButtonElement,
+    btnScav: document.getElementById('btnScav') as HTMLButtonElement,
+    btnMenu: document.getElementById('btnMenu') as HTMLButtonElement,
+    panel: document.getElementById('panel') as HTMLDivElement,
+    btnClose: document.getElementById('btnClose') as HTMLButtonElement,
+
+    tabPresets: document.getElementById('tab-presets') as HTMLDivElement,
+    tabVisuals: document.getElementById('tab-visuals') as HTMLDivElement,
+    tabSettings: document.getElementById('tab-settings') as HTMLDivElement,
+    tabAbout: document.getElementById('tab-about') as HTMLDivElement,
+
+    presetBalanced: document.getElementById('presetBalanced') as HTMLButtonElement,
+    presetGenesis: document.getElementById('presetGenesis') as HTMLButtonElement,
+    presetPredator: document.getElementById('presetPredator') as HTMLButtonElement,
+    presetExtinction: document.getElementById('presetExtinction') as HTMLButtonElement,
+    presetEvolutionLab: document.getElementById('presetEvolutionLab') as HTMLButtonElement,
+
+    seedInput: document.getElementById('seedInput') as HTMLInputElement,
+    seedNote: document.getElementById('seedNote') as HTMLDivElement,
+    btnRandomSeed: document.getElementById('btnRandomSeed') as HTMLButtonElement,
+    btnApplySeed: document.getElementById('btnApplySeed') as HTMLButtonElement,
+
+    togTrails: document.getElementById('togTrails') as HTMLInputElement,
+    togFov: document.getElementById('togFov') as HTMLInputElement,
+    togVectors: document.getElementById('togVectors') as HTMLInputElement,
+    togPerception: document.getElementById('togPerception') as HTMLInputElement,
+    togGrid: document.getElementById('togGrid') as HTMLInputElement,
+
+    reproRate: document.getElementById('reproRate') as HTMLInputElement,
+    reproRateValue: document.getElementById('reproRateValue') as HTMLSpanElement,
+    decompYield: document.getElementById('decompYield') as HTMLInputElement,
+    decompYieldValue: document.getElementById('decompYieldValue') as HTMLSpanElement,
+    mutationRate: document.getElementById('mutationRate') as HTMLInputElement,
+    mutationRateValue: document.getElementById('mutationRateValue') as HTMLSpanElement,
+    simSpeed: document.getElementById('simSpeed') as HTMLInputElement,
+    simSpeedValue: document.getElementById('simSpeedValue') as HTMLSpanElement,
+
+    btnPause: document.getElementById('btnPause') as HTMLButtonElement,
+    btnClear: document.getElementById('btnClear') as HTMLButtonElement,
+
+    wallTop: document.getElementById('wallTop') as HTMLInputElement,
+    wallRight: document.getElementById('wallRight') as HTMLInputElement,
+    wallBottom: document.getElementById('wallBottom') as HTMLInputElement,
+    wallLeft: document.getElementById('wallLeft') as HTMLInputElement,
+  }
+
+  const ctx = els.canvas.getContext('2d')!
+
+  let simW = 0
+  let simH = 0
+
+  // HiDPI canvas sizing
+  function resizeCanvas() {
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1))
+    const rect = els.canvas.getBoundingClientRect()
+
+    simW = rect.width
+    simH = rect.height
+
+    els.canvas.width = Math.floor(rect.width * dpr)
+    els.canvas.height = Math.floor(rect.height * dpr)
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+  }
+
+  resizeCanvas()
+  window.addEventListener('resize', resizeCanvas)
+
+  // --- Simulation state (placeholder; boids logic next) ---
+
+  type Genes = { speed: number; perception: number; efficiency: number }
+
+  type Boid = {
+    id: number
+    species: Species
+    x: number
+    y: number
+    vx: number
+    vy: number
+    energy: number
+    maxEnergy: number
+    genes: Genes
+    age: number
+    trail: { x: number; y: number }[]
+  }
+
+  type FoodSource = { x: number; y: number }
+  type Carrion = { x: number; y: number; size: 'small' | 'large'; age: number }
+  type Particle = { x: number; y: number; vx: number; vy: number; life: number; color: string; size: number }
+
+  let nextId = 1
+  let boids: Boid[] = []
+  let food: FoodSource[] = []
+  let carrion: Carrion[] = []
+  let particles: Particle[] = []
+
+  let selectedSpecies: Species = 'herbivore'
+
+  const counters = {
+    births: 0,
+    deaths: 0,
+    hunts: 0,
+    decomp: 0,
+  }
+
+  // --- Utilities ---
+
+  function clamp(value: number, min: number, max: number): number {
+    return Math.max(min, Math.min(max, value))
+  }
+
+  function rand(min: number, max: number): number {
+    return min + Math.random() * (max - min)
+  }
+
+  type Vec = { x: number; y: number }
+
+  function lenSq(v: Vec): number {
+    return v.x * v.x + v.y * v.y
+  }
+
+  function len(v: Vec): number {
+    return Math.sqrt(lenSq(v))
+  }
+
+  function distSq(ax: number, ay: number, bx: number, by: number): number {
+    const dx = ax - bx
+    const dy = ay - by
+    return dx * dx + dy * dy
+  }
+
+  function clampLen(v: Vec, maxLen: number): Vec {
+    const l = len(v)
+    if (l <= maxLen || l === 0) return v
+    const s = maxLen / l
+    return { x: v.x * s, y: v.y * s }
+  }
+
+  function normalize(v: Vec): Vec {
+    const l = len(v)
+    if (l === 0) return { x: 0, y: 0 }
+    return { x: v.x / l, y: v.y / l }
+  }
+
+  function heading(vx: number, vy: number): number {
+    return Math.atan2(vy, vx)
+  }
+
+  function angleDelta(a: number, b: number): number {
+    let d = a - b
+    while (d > Math.PI) d -= Math.PI * 2
+    while (d < -Math.PI) d += Math.PI * 2
+    return d
+  }
+
+  function packCellKey(cx: number, cy: number): number {
+    return ((cy & 0xffff) << 16) ^ (cx & 0xffff)
+  }
+
+  class SpatialGrid {
+    cellSize: number
+    map: Map<number, number[]>
+
+    constructor(cellSize: number) {
+      this.cellSize = cellSize
+      this.map = new Map()
+    }
+
+    clear() {
+      this.map.clear()
+    }
+
+    insert(x: number, y: number, index: number) {
+      const cx = Math.floor(x / this.cellSize)
+      const cy = Math.floor(y / this.cellSize)
+      const key = packCellKey(cx, cy)
+      const arr = this.map.get(key)
+      if (arr) {
+        arr.push(index)
+      } else {
+        this.map.set(key, [index])
+      }
+    }
+
+    query(x: number, y: number, radius: number, out: number[]) {
+      const c = this.cellSize
+      const cx = Math.floor(x / c)
+      const cy = Math.floor(y / c)
+      const r = Math.ceil(radius / c)
+
+      for (let oy = -r; oy <= r; oy++) {
+        for (let ox = -r; ox <= r; ox++) {
+          const key = packCellKey(cx + ox, cy + oy)
+          const arr = this.map.get(key)
+          if (!arr) continue
+          for (const index of arr) out.push(index)
+        }
+      }
+    }
+  }
+
+  const boidGrid = new SpatialGrid(80)
+  const foodGrid = new SpatialGrid(70)
+  const carrionGrid = new SpatialGrid(70)
+
+  function seededRandom(seed: number) {
+    // xorshift32
+    let x = seed | 0
+    if (x === 0) x = 123456789
+    return {
+      next() {
+        x ^= x << 13
+        x ^= x >>> 17
+        x ^= x << 5
+        return (x >>> 0) / 4294967296
+      },
+    }
+  }
+
+  function randomGenes(rng?: { next: () => number }): Genes {
+    const r = rng ? rng.next.bind(rng) : Math.random
+    // pseudo-normal-ish by averaging 2 uniforms
+    const n = () => 1 + ((r() + r()) / 2 - 0.5) * 0.2
+    return {
+      speed: clamp(n(), opts.genetics.min, opts.genetics.max),
+      perception: clamp(n(), opts.genetics.min, opts.genetics.max),
+      efficiency: clamp(n(), opts.genetics.min, opts.genetics.max),
+    }
+  }
+
+  function genesForEvolutionLab(rng: { next: () => number }): Genes {
+    const r = rng.next
+    const wideMin = 0.75
+    const wideMax = 1.25
+    return {
+      speed: clamp(wideMin + r() * (wideMax - wideMin), opts.genetics.min, opts.genetics.max),
+      perception: clamp(wideMin + r() * (wideMax - wideMin), opts.genetics.min, opts.genetics.max),
+      efficiency: clamp(wideMin + r() * (wideMax - wideMin), opts.genetics.min, opts.genetics.max),
+    }
+  }
+
+  function mutateGene(gene: number): number {
+    if (Math.random() > opts.genetics.mutationRate) return gene
+    const change = (Math.random() - 0.5) * opts.genetics.mutationAmount
+    return clamp(gene + change, opts.genetics.min, opts.genetics.max)
+  }
+
+  function mutateGenes(genes: Genes): Genes {
+    return {
+      speed: mutateGene(genes.speed),
+      perception: mutateGene(genes.perception),
+      efficiency: mutateGene(genes.efficiency),
+    }
+  }
+
+  function maxEnergyForSpecies(species: Species): number {
+    switch (species) {
+      case 'herbivore':
+        return opts.energy.herbivoreMax
+      case 'predator':
+        return opts.energy.predatorMax
+      case 'scavenger':
+        return opts.energy.scavengerMax
+    }
+  }
+
+  function spawnBoid(species: Species, x: number, y: number, genes?: Genes) {
+    const maxEnergy = maxEnergyForSpecies(species)
+    const g = genes ?? randomGenes()
+    boids.push({
+      id: nextId++,
+      species,
+      x,
+      y,
+      vx: rand(-1, 1),
+      vy: rand(-1, 1),
+      energy: maxEnergy,
+      maxEnergy,
+      genes: g,
+      age: 0,
+      trail: [],
+    })
+  }
+
+  function spawnFood(x: number, y: number) {
+    food.push({ x, y })
+  }
+
+  function clearAll() {
+    boids = []
+    food = []
+    carrion = []
+    particles = []
+    counters.births = 0
+    counters.deaths = 0
+    counters.hunts = 0
+    counters.decomp = 0
+  }
+
+  // --- Rendering helpers (placeholder) ---
+
+  function drawBackground() {
+    if (opts.visuals.trails) {
+      ctx.fillStyle = 'rgba(10, 10, 10, 0.14)'
+      ctx.fillRect(0, 0, simW, simH)
+      return
+    }
+
+    ctx.fillStyle = opts.colors.background
+    ctx.fillRect(0, 0, simW, simH)
+  }
+
+  function draw() {
+    drawBackground()
+
+    // NOTE: Real rendering comes after we implement boids logic.
+    // For now, show food points and boids as dots.
+
+    // Food
+    ctx.save()
+    ctx.fillStyle = opts.colors.herbivore
+    for (const f of food) {
+      ctx.beginPath()
+      ctx.arc(f.x, f.y, 3, 0, Math.PI * 2)
+      ctx.fill()
+    }
+    ctx.restore()
+
+    // Boids
+    for (const b of boids) {
+      ctx.save()
+      ctx.fillStyle = b.species === 'predator' ? opts.colors.predator : b.species === 'scavenger' ? opts.colors.scavenger : opts.colors.herbivore
+      ctx.beginPath()
+      ctx.arc(b.x, b.y, b.species === 'predator' ? 5 : b.species === 'scavenger' ? 4 : 3, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.restore()
+    }
+  }
+
+  // --- UI wiring ---
+
+  function setSelectedSpecies(species: Species) {
+    selectedSpecies = species
+    els.btnHerb.classList.toggle('selected', species === 'herbivore')
+    els.btnPred.classList.toggle('selected', species === 'predator')
+    els.btnScav.classList.toggle('selected', species === 'scavenger')
+  }
+
+  els.btnHerb.addEventListener('click', () => setSelectedSpecies('herbivore'))
+  els.btnPred.addEventListener('click', () => setSelectedSpecies('predator'))
+  els.btnScav.addEventListener('click', () => setSelectedSpecies('scavenger'))
+
+  function openPanel() {
+    els.panel.hidden = false
+  }
+
+  function closePanel() {
+    els.panel.hidden = true
+  }
+
+  els.btnMenu.addEventListener('click', openPanel)
+  els.btnClose.addEventListener('click', closePanel)
+
+  const tabs = Array.from(document.querySelectorAll('.tab')) as HTMLButtonElement[]
+  function selectTab(name: string) {
+    const map: Record<string, HTMLDivElement> = {
+      presets: els.tabPresets,
+      visuals: els.tabVisuals,
+      settings: els.tabSettings,
+      about: els.tabAbout,
+    }
+    for (const tab of tabs) tab.classList.toggle('selected', tab.dataset.tab === name)
+    for (const [k, el] of Object.entries(map)) el.hidden = k !== name
+  }
+
+  for (const tab of tabs) {
+    tab.addEventListener('click', () => {
+      const name = tab.dataset.tab
+      if (name) selectTab(name)
+    })
+  }
+
+  // Settings
+  function syncSettingsLabels() {
+    els.reproRateValue.textContent = opts.reproduction.rate.toFixed(2)
+    els.decompYieldValue.textContent = String(opts.decomposition.yield)
+    els.mutationRateValue.textContent = opts.genetics.mutationRate.toFixed(2)
+    els.simSpeedValue.textContent = `${opts.simSpeed.toFixed(1)}x`
+  }
+
+  els.reproRate.addEventListener('input', () => {
+    opts.reproduction.rate = parseFloat(els.reproRate.value)
+    syncSettingsLabels()
+  })
+
+  els.decompYield.addEventListener('input', () => {
+    opts.decomposition.yield = parseInt(els.decompYield.value, 10)
+    syncSettingsLabels()
+  })
+
+  els.mutationRate.addEventListener('input', () => {
+    opts.genetics.mutationRate = parseFloat(els.mutationRate.value)
+    syncSettingsLabels()
+  })
+
+  els.simSpeed.addEventListener('input', () => {
+    opts.simSpeed = parseFloat(els.simSpeed.value)
+    syncSettingsLabels()
+  })
+
+  els.togTrails.addEventListener('change', () => (opts.visuals.trails = els.togTrails.checked))
+  els.togFov.addEventListener('change', () => (opts.visuals.fov = els.togFov.checked))
+  els.togVectors.addEventListener('change', () => (opts.visuals.vectors = els.togVectors.checked))
+  els.togPerception.addEventListener('change', () => (opts.visuals.perception = els.togPerception.checked))
+  els.togGrid.addEventListener('change', () => (opts.visuals.grid = els.togGrid.checked))
+
+  els.wallTop.addEventListener('change', () => (opts.walls.top = els.wallTop.checked))
+  els.wallRight.addEventListener('change', () => (opts.walls.right = els.wallRight.checked))
+  els.wallBottom.addEventListener('change', () => (opts.walls.bottom = els.wallBottom.checked))
+  els.wallLeft.addEventListener('change', () => (opts.walls.left = els.wallLeft.checked))
+
+  let paused = false
+  els.btnPause.addEventListener('click', () => {
+    paused = !paused
+    els.btnPause.textContent = paused ? 'Play' : 'Pause'
+  })
+
+  els.btnClear.addEventListener('click', () => {
+    clearAll()
+    applyPresetBalancedFromSeed(undefined)
+  })
+
+  // Presets
+  function applyPresetBalancedFromSeed(seed?: number) {
+    clearAll()
+
+    const rng = seed != null ? seededRandom(seed) : undefined
+
+    // 30 herbivores, 5 predators, 8 scavengers, 15 food
+    for (let i = 0; i < 15; i++) spawnFood(rand(20, simW - 20), rand(20, simH - 20))
+
+    for (let i = 0; i < 30; i++) spawnBoid('herbivore', rand(0, simW), rand(0, simH), rng ? randomGenes(rng) : undefined)
+    for (let i = 0; i < 5; i++) spawnBoid('predator', rand(0, simW), rand(0, simH), rng ? randomGenes(rng) : undefined)
+    for (let i = 0; i < 8; i++) spawnBoid('scavenger', rand(0, simW), rand(0, simH), rng ? randomGenes(rng) : undefined)
+
+    const note = seed != null ? `Seed: ${seed}` : ''
+    els.seedNote.textContent = note
+  }
+
+  function applyPresetGenesis() {
+    clearAll()
+    for (let i = 0; i < 5; i++) spawnFood(rand(20, simW - 20), rand(20, simH - 20))
+
+    els.seedNote.textContent = ''
+  }
+
+  function applyPresetPredatorParadise() {
+    clearAll()
+    for (let i = 0; i < 30; i++) spawnFood(rand(20, simW - 20), rand(20, simH - 20))
+    for (let i = 0; i < 100; i++) spawnBoid('herbivore', rand(0, simW), rand(0, simH))
+    for (let i = 0; i < 3; i++) spawnBoid('predator', rand(0, simW), rand(0, simH))
+    for (let i = 0; i < 15; i++) spawnBoid('scavenger', rand(0, simW), rand(0, simH))
+
+    els.seedNote.textContent = ''
+  }
+
+  function applyPresetExtinctionEvent() {
+    clearAll()
+    for (let i = 0; i < 10; i++) spawnFood(rand(20, simW - 20), rand(20, simH - 20))
+    for (let i = 0; i < 30; i++) spawnBoid('herbivore', rand(0, simW), rand(0, simH))
+    for (let i = 0; i < 20; i++) spawnBoid('predator', rand(0, simW), rand(0, simH))
+    for (let i = 0; i < 5; i++) spawnBoid('scavenger', rand(0, simW), rand(0, simH))
+
+    els.seedNote.textContent = ''
+  }
+
+  function applyPresetEvolutionLab() {
+    clearAll()
+    const rng = seededRandom(Math.floor(Math.random() * 1000000))
+
+    for (let i = 0; i < 25; i++) spawnFood(rand(20, simW - 20), rand(20, simH - 20))
+
+    // Wide variance + 2x mutation rate
+    opts.genetics.mutationRate = clamp(opts.genetics.mutationRate * 2, 0.05, 0.25)
+    els.mutationRate.value = String(opts.genetics.mutationRate)
+
+    for (let i = 0; i < 50; i++) spawnBoid('herbivore', rand(0, simW), rand(0, simH), genesForEvolutionLab(rng))
+    for (let i = 0; i < 10; i++) spawnBoid('predator', rand(0, simW), rand(0, simH), genesForEvolutionLab(rng))
+    for (let i = 0; i < 15; i++) spawnBoid('scavenger', rand(0, simW), rand(0, simH), genesForEvolutionLab(rng))
+
+    syncSettingsLabels()
+    els.seedNote.textContent = 'Evolution Lab: wide genes + higher mutation'
+  }
+
+  els.presetBalanced.addEventListener('click', () => applyPresetBalancedFromSeed(undefined))
+  els.presetGenesis.addEventListener('click', applyPresetGenesis)
+  els.presetPredator.addEventListener('click', applyPresetPredatorParadise)
+  els.presetExtinction.addEventListener('click', applyPresetExtinctionEvent)
+  els.presetEvolutionLab.addEventListener('click', applyPresetEvolutionLab)
+
+  els.btnRandomSeed.addEventListener('click', () => {
+    els.seedInput.value = String(Math.floor(Math.random() * 1000000))
+  })
+
+  els.btnApplySeed.addEventListener('click', () => {
+    const seed = parseInt(els.seedInput.value, 10)
+    if (Number.isFinite(seed)) applyPresetBalancedFromSeed(seed)
+  })
+
+  // Performance banner actions (stub)
+  els.btnReduce.addEventListener('click', () => {
+    boids = boids.filter((_, i) => i % 2 === 0)
+    els.perfBanner.hidden = true
+  })
+
+  els.btnDisableTrails.addEventListener('click', () => {
+    opts.visuals.trails = false
+    els.togTrails.checked = false
+    els.perfBanner.hidden = true
+  })
+
+  els.btnDismiss.addEventListener('click', () => {
+    els.perfBanner.hidden = true
+  })
+
+  // Pointer interactions: tap and long-press cluster
+  let pressTimer: number | null = null
+  let clusterTimer: number | null = null
+  let pressPoint: { x: number; y: number } | null = null
+  let clusterCount = 0
+
+  function getCanvasPoint(e: PointerEvent): { x: number; y: number } {
+    const rect = els.canvas.getBoundingClientRect()
+    return {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    }
+  }
+
+  function startCluster(point: { x: number; y: number }) {
+    clusterCount = 1
+    clusterTimer = window.setInterval(() => {
+      clusterCount = Math.min(20, clusterCount + 1)
+    }, 100)
+  }
+
+  function flushCluster(point: { x: number; y: number }) {
+    const n = clusterCount
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2
+      const r = Math.random() * 12
+      spawnBoid(selectedSpecies, point.x + Math.cos(a) * r, point.y + Math.sin(a) * r)
+    }
+  }
+
+  els.canvas.addEventListener('pointerdown', (e) => {
+    els.canvas.setPointerCapture(e.pointerId)
+    pressPoint = getCanvasPoint(e)
+
+    // Tap spawns immediately; hold accumulates additional ones.
+    spawnBoid(selectedSpecies, pressPoint.x, pressPoint.y)
+
+    pressTimer = window.setTimeout(() => {
+      if (!pressPoint) return
+      startCluster(pressPoint)
+    }, 250)
+  })
+
+  els.canvas.addEventListener('pointerup', () => {
+    if (pressTimer) window.clearTimeout(pressTimer)
+    pressTimer = null
+
+    if (clusterTimer) window.clearInterval(clusterTimer)
+
+    if (clusterTimer && pressPoint) {
+      flushCluster(pressPoint)
+    }
+
+    clusterTimer = null
+    pressPoint = null
+  })
+
+  els.canvas.addEventListener('pointercancel', () => {
+    if (pressTimer) window.clearTimeout(pressTimer)
+    if (clusterTimer) window.clearInterval(clusterTimer)
+    pressTimer = null
+    clusterTimer = null
+    pressPoint = null
+  })
+
+  // --- Main loop (placeholder update, real boids next) ---
+
+  let lastT = performance.now()
+  let fpsSmoothed = 60
+  let lowFpsStart: number | null = null
+
+  function update(dtSeconds: number) {
+    // Placeholder: slowly add food.
+    if (Math.random() < 0.02) {
+      spawnFood(rand(20, simW - 20), rand(20, simH - 20))
+      if (food.length > 200) food.splice(0, food.length - 200)
+    }
+
+    for (const b of boids) {
+      b.age += dtSeconds
+      // Placeholder drift
+      b.x += b.vx * 30 * dtSeconds
+      b.y += b.vy * 30 * dtSeconds
+
+      // Wrap (placeholder)
+      const w = simW
+      const h = simH
+
+      if (b.x < 0) b.x += w
+      if (b.x > w) b.x -= w
+      if (b.y < 0) b.y += h
+      if (b.y > h) b.y -= h
+    }
+  }
+
+  function syncStats() {
+    const herb = boids.filter((b) => b.species === 'herbivore').length
+    const pred = boids.filter((b) => b.species === 'predator').length
+    const scav = boids.filter((b) => b.species === 'scavenger').length
+
+    els.herm.textContent = String(herb)
+    els.pred.textContent = String(pred)
+    els.scav.textContent = String(scav)
+    els.food.textContent = String(food.length)
+    els.carrion.textContent = String(carrion.length)
+
+    els.births.textContent = String(counters.births)
+    els.deaths.textContent = String(counters.deaths)
+    els.hunts.textContent = String(counters.hunts)
+    els.decomp.textContent = String(counters.decomp)
+
+    els.fps.textContent = fpsSmoothed.toFixed(0)
+  }
+
+  function tick(now: number) {
+    const dt = Math.min(0.05, (now - lastT) / 1000)
+    lastT = now
+
+    const fps = 1 / Math.max(1e-6, dt)
+    fpsSmoothed = fpsSmoothed * 0.9 + fps * 0.1
+
+    if (!paused) {
+      update(dt * opts.simSpeed)
+    }
+
+    draw()
+    syncStats()
+
+    // Perf warning: <20 fps for 3s
+    if (fpsSmoothed < 20) {
+      if (lowFpsStart == null) lowFpsStart = now
+      if (now - lowFpsStart > 3000) {
+        els.perfText.textContent = `Low performance detected (${fpsSmoothed.toFixed(0)} fps). Consider reducing population or disabling trails.`
+        els.perfBanner.hidden = false
+      }
+    } else {
+      lowFpsStart = null
+      if (!els.perfBanner.hidden) els.perfBanner.hidden = true
+    }
+
+    requestAnimationFrame(tick)
+  }
+
+  // Init
+  syncSettingsLabels()
+  selectTab('presets')
+
+  // Seed from URL, if present
+  const url = new URL(window.location.href)
+  const seedParam = url.searchParams.get('seed')
+  if (seedParam) {
+    els.seedInput.value = seedParam
+    const seed = parseInt(seedParam, 10)
+    if (Number.isFinite(seed)) {
+      applyPresetBalancedFromSeed(seed)
+    } else {
+      applyPresetBalancedFromSeed(undefined)
+    }
+  } else {
+    applyPresetBalancedFromSeed(undefined)
+  }
+
+  requestAnimationFrame(tick)
+</script>
