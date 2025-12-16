@@ -1438,8 +1438,20 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     }
   }
 
+  function removeIndicesInPlace<T>(arr: T[], toRemove: Set<number>) {
+    if (toRemove.size === 0) return
+
+    let w = 0
+    for (let i = 0; i < arr.length; i++) {
+      if (toRemove.has(i)) continue
+      arr[w] = arr[i]
+      w++
+    }
+    arr.length = w
+  }
+
   function update(dtSeconds: number) {
-    // rebuild grids
+    // rebuild grids (indices must remain stable within this tick)
     boidGrid.clear()
     foodGrid.clear()
     carrionGrid.clear()
@@ -1448,19 +1460,25 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     for (let i = 0; i < food.length; i++) foodGrid.insert(food[i].x, food[i].y, i)
     for (let i = 0; i < carrion.length; i++) carrionGrid.insert(carrion[i].x, carrion[i].y, i)
 
+    const boidsToRemove = new Set<number>()
+    const foodToRemove = new Set<number>()
+    const carrionToRemove = new Set<number>()
+
     // food growth
     const expectedFood = opts.world.foodSpawnRate * dtSeconds
     if (Math.random() < expectedFood) {
       spawnFood(rand(20, simW - 20), rand(20, simH - 20))
-      if (food.length > opts.world.foodMax) food.splice(0, food.length - opts.world.foodMax)
     }
 
     // carrion decay -> food (decomposition)
-    for (let i = carrion.length - 1; i >= 0; i--) {
+    for (let i = 0; i < carrion.length; i++) {
+      if (carrionToRemove.has(i)) continue
       const c = carrion[i]
+      if (!c) continue
+
       c.age += dtSeconds
       if (c.age > opts.world.carrionDecaySeconds) {
-        carrion.splice(i, 1)
+        carrionToRemove.add(i)
         for (let k = 0; k < opts.decomposition.yield; k++) {
           const a = Math.random() * Math.PI * 2
           const r = 6 + Math.random() * 14
@@ -1472,7 +1490,9 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
 
     // boids step
     for (let i = 0; i < boids.length; i++) {
+      if (boidsToRemove.has(i)) continue
       const b = boids[i]
+      if (!b) continue
 
       b.age += dtSeconds
       b.cooldown.eat = Math.max(0, b.cooldown.eat - dtSeconds)
@@ -1486,6 +1506,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
           let eatIndex = -1
           let eatD2 = Infinity
           for (const fi of neighborScratch) {
+            if (foodToRemove.has(fi)) continue
             const f = food[fi]
             if (!f) continue
             const d2 = distSq(b.x, b.y, f.x, f.y)
@@ -1496,10 +1517,12 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
           }
           if (eatIndex >= 0 && eatD2 < 12 * 12) {
             const f = food[eatIndex]
-            food.splice(eatIndex, 1)
-            b.energy = clamp(b.energy + opts.energy.eatFoodGain * b.genes.efficiency, 0, b.maxEnergy)
-            b.cooldown.eat = 0.25
-            addParticle(f.x, f.y, opts.colors.herbivore)
+            if (f) {
+              foodToRemove.add(eatIndex)
+              b.energy = clamp(b.energy + opts.energy.eatFoodGain * b.genes.efficiency, 0, b.maxEnergy)
+              b.cooldown.eat = 0.25
+              addParticle(f.x, f.y, opts.colors.herbivore)
+            }
           }
         } else if (b.species === 'predator') {
           neighborScratch.length = 0
@@ -1508,6 +1531,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
           let killD2 = Infinity
           for (const bi of neighborScratch) {
             if (bi === i) continue
+            if (boidsToRemove.has(bi)) continue
             const o = boids[bi]
             if (!o || o.species !== 'herbivore') continue
             const d2 = distSq(b.x, b.y, o.x, o.y)
@@ -1518,15 +1542,15 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
           }
           if (killIndex >= 0 && killD2 < 14 * 14) {
             const prey = boids[killIndex]
-            boids.splice(killIndex, 1)
-            if (killIndex < i) i--
-            counters.hunts++
-            counters.deaths++
-            carrion.push({ x: prey.x, y: prey.y, mass: 1.1, age: 0 })
-            if (carrion.length > opts.world.carrionMax) carrion.splice(0, carrion.length - opts.world.carrionMax)
-            b.energy = clamp(b.energy + opts.energy.eatHerbivoreGain * b.genes.efficiency, 0, b.maxEnergy)
-            b.cooldown.eat = 0.35
-            addParticle(prey.x, prey.y, opts.colors.predator)
+            if (prey && !boidsToRemove.has(killIndex)) {
+              boidsToRemove.add(killIndex)
+              counters.hunts++
+              counters.deaths++
+              carrion.push({ x: prey.x, y: prey.y, mass: 1.1, age: 0 })
+              b.energy = clamp(b.energy + opts.energy.eatHerbivoreGain * b.genes.efficiency, 0, b.maxEnergy)
+              b.cooldown.eat = 0.35
+              addParticle(prey.x, prey.y, opts.colors.predator)
+            }
           }
         } else if (b.species === 'scavenger') {
           neighborScratch.length = 0
@@ -1534,7 +1558,9 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
           let eatIndex = -1
           let eatD2 = Infinity
           for (const ci of neighborScratch) {
+            if (carrionToRemove.has(ci)) continue
             const c = carrion[ci]
+            if (!c) continue
             const d2 = distSq(b.x, b.y, c.x, c.y)
             if (d2 < eatD2) {
               eatD2 = d2
@@ -1543,19 +1569,21 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
           }
           if (eatIndex >= 0 && eatD2 < 14 * 14) {
             const c = carrion[eatIndex]
-            const take = Math.min(c.mass, 0.45)
-            c.mass -= take
-            b.energy = clamp(b.energy + take * 34 * b.genes.efficiency, 0, b.maxEnergy)
-            b.cooldown.eat = 0.3
-            addParticle(c.x, c.y, opts.colors.scavenger)
-            if (c.mass <= 0.06) {
-              carrion.splice(eatIndex, 1)
-              for (let k = 0; k < opts.decomposition.yield; k++) {
-                const a = Math.random() * Math.PI * 2
-                const r = 6 + Math.random() * 14
-                spawnFood(clamp(c.x + Math.cos(a) * r, 4, simW - 4), clamp(c.y + Math.sin(a) * r, 4, simH - 4))
+            if (c && !carrionToRemove.has(eatIndex)) {
+              const take = Math.min(c.mass, 0.45)
+              c.mass -= take
+              b.energy = clamp(b.energy + take * 34 * b.genes.efficiency, 0, b.maxEnergy)
+              b.cooldown.eat = 0.3
+              addParticle(c.x, c.y, opts.colors.scavenger)
+              if (c.mass <= 0.06) {
+                carrionToRemove.add(eatIndex)
+                for (let k = 0; k < opts.decomposition.yield; k++) {
+                  const a = Math.random() * Math.PI * 2
+                  const r = 6 + Math.random() * 14
+                  spawnFood(clamp(c.x + Math.cos(a) * r, 4, simW - 4), clamp(c.y + Math.sin(a) * r, 4, simH - 4))
+                }
+                counters.decomp++
               }
-              counters.decomp++
             }
           }
         }
@@ -1568,10 +1596,8 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
         counters.deaths++
         const mass = b.species === 'predator' ? 2.1 : b.species === 'scavenger' ? 1.4 : 1.1
         carrion.push({ x: b.x, y: b.y, mass, age: 0 })
-        if (carrion.length > opts.world.carrionMax) carrion.splice(0, carrion.length - opts.world.carrionMax)
         addParticle(b.x, b.y, opts.colors.dead)
-        boids.splice(i, 1)
-        i--
+        boidsToRemove.add(i)
         continue
       }
 
@@ -1602,7 +1628,10 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
 
       for (const j of neighborScratch) {
         if (j === i) continue
+        if (boidsToRemove.has(j)) continue
         const o = boids[j]
+        if (!o) continue
+
         const d2 = distSq(b.x, b.y, o.x, o.y)
         if (d2 > pr * pr) continue
 
@@ -1673,7 +1702,9 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
         let bestIndex = -1
         let bestD2 = Infinity
         for (const fi of neighborScratch) {
+          if (foodToRemove.has(fi)) continue
           const f = food[fi]
+          if (!f) continue
           const d2 = distSq(b.x, b.y, f.x, f.y)
           if (d2 < bestD2) {
             bestD2 = d2
@@ -1682,9 +1713,11 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
         }
         if (bestIndex >= 0) {
           const f = food[bestIndex]
-          const v = steerToward(b, f.x, f.y, opts.boids.forage.herbivore)
-          steer.x += v.x
-          steer.y += v.y
+          if (f) {
+            const v = steerToward(b, f.x, f.y, opts.boids.forage.herbivore)
+            steer.x += v.x
+            steer.y += v.y
+          }
         }
 
         // flee from predators
@@ -1704,7 +1737,9 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
         let bestIndex = -1
         let bestD2 = Infinity
         for (const ci of neighborScratch) {
+          if (carrionToRemove.has(ci)) continue
           const c = carrion[ci]
+          if (!c) continue
           const d2 = distSq(b.x, b.y, c.x, c.y)
           if (d2 < bestD2) {
             bestD2 = d2
@@ -1713,9 +1748,11 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
         }
         if (bestIndex >= 0) {
           const c = carrion[bestIndex]
-          const v = steerToward(b, c.x, c.y, opts.boids.scavenge.scavenger)
-          steer.x += v.x
-          steer.y += v.y
+          if (c) {
+            const v = steerToward(b, c.x, c.y, opts.boids.scavenge.scavenger)
+            steer.x += v.x
+            steer.y += v.y
+          }
         }
 
         // mild avoidance of predators
@@ -1753,6 +1790,13 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
         b.trail.length = 0
       }
     }
+
+    removeIndicesInPlace(food, foodToRemove)
+    removeIndicesInPlace(carrion, carrionToRemove)
+    removeIndicesInPlace(boids, boidsToRemove)
+
+    if (food.length > opts.world.foodMax) food.splice(0, food.length - opts.world.foodMax)
+    if (carrion.length > opts.world.carrionMax) carrion.splice(0, carrion.length - opts.world.carrionMax)
 
     updateParticles(dtSeconds)
   }
