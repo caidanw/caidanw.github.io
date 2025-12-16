@@ -81,8 +81,8 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       </div>
 
       <div class="tab-content" id="tab-visuals" hidden>
-        <label class="toggle"><input type="checkbox" id="togTrails" checked /> Trails</label>
-        <label class="toggle"><input type="checkbox" id="togFov" checked /> FOV cones</label>
+        <label class="toggle"><input type="checkbox" id="togTrails" /> Trails</label>
+        <label class="toggle"><input type="checkbox" id="togFov" /> FOV cones</label>
         <label class="toggle"><input type="checkbox" id="togVectors" /> Velocity vectors</label>
         <label class="toggle"><input type="checkbox" id="togPerception" /> Perception radius</label>
         <label class="toggle"><input type="checkbox" id="togGrid" /> Spatial grid</label>
@@ -458,14 +458,14 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       predator: '#e12120',
       scavenger: '#2120e1',
       background: '#0a0a0a',
-      carrion: '#666688',
+      carrion: '#886688',
       dead: '#808080',
     },
     energy: {
-      herbivoreMax: 100,
-      predatorMax: 140,
-      scavengerMax: 120,
-      eatFoodGain: 18,
+      herbivoreMax: 200,
+      predatorMax: 480,
+      scavengerMax: 340,
+      eatFoodGain: 32,
       eatHerbivoreGain: 55,
       // carrion mass is converted into energy via scavenger efficiency
       herbivoreDrain: 0.14,
@@ -476,8 +476,8 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     },
     boids: {
       baseMaxSpeed: {
-        herbivore: 78,
-        predator: 102,
+        herbivore: 108,
+        predator: 126,
         scavenger: 84,
       },
       baseMaxForce: {
@@ -487,15 +487,15 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       },
       // perception radii are multiplied by gene.perception
       perception: {
-        herbivore: 70,
-        predator: 95,
-        scavenger: 78,
+        herbivore: 142,
+        predator: 220,
+        scavenger: 182,
       },
       // field-of-view (degrees, full cone)
       fov: {
-        herbivore: 155,
-        predator: 185,
-        scavenger: 165,
+        herbivore: 180,
+        predator: 85,
+        scavenger: 360,
       },
       separation: {
         herbivore: 22,
@@ -539,20 +539,23 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       },
     },
     world: {
-      foodMax: 260,
-      carrionMax: 220,
-      foodSpawnRate: 0.75, // per second
-      carrionDecaySeconds: 18,
+      foodMax: 460,
+      carrionMax: 420,
+      foodSpawnRate: 1, // per second
+      carrionDecaySeconds: 36,
     },
     life: {
       maturitySeconds: 12,
-      juvenileScale: 0.55,
+      juvenileScale: 0.35,
+
+      // Multiplier for speed/force at birth (lerps to 1 by maturity).
+      juvenileMobility: 1.4,
     },
     reproduction: {
       rate: 0.15,
       matingRadius: 26,
       maturity: 0.95,
-      herbivoreThreshold: 80,
+      herbivoreThreshold: 100,
       predatorThreshold: 120,
       scavengerThreshold: 100,
 
@@ -579,11 +582,11 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       left: false,
     },
     visuals: {
-      trails: true,
+      trails: false,
       fov: true,
       vectors: false,
       perception: false,
-      grid: false,
+      grid: true,
     },
     simSpeed: 1,
   }
@@ -1043,7 +1046,8 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
   }
 
   function mobilityScaleForBoid(b: Boid): number {
-    return lerp(0.7, 1, maturityForBoid(b))
+    const m = maturityForBoid(b)
+    return lerp(opts.life.juvenileMobility, 1, m)
   }
 
   function shouldReproduce(b: Boid): boolean {
@@ -1138,14 +1142,23 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
   // --- Rendering helpers (placeholder) ---
 
   function drawBackground() {
+    // Reset state that could otherwise accumulate brightness/alpha across frames.
+    ctx.save()
+    ctx.globalCompositeOperation = 'source-over'
+    ctx.globalAlpha = 1
+    ctx.shadowBlur = 0
+    ctx.shadowColor = 'transparent'
+
     if (opts.visuals.trails) {
-      ctx.fillStyle = 'rgba(10, 10, 10, 0.14)'
-      ctx.fillRect(0, 0, simW, simH)
-      return
+      // Higher alpha = faster fade (prevents permanent burn-in).
+      const fade = 0.24
+      ctx.fillStyle = `rgba(10, 10, 10, ${fade})`
+    } else {
+      ctx.fillStyle = opts.colors.background
     }
 
-    ctx.fillStyle = opts.colors.background
     ctx.fillRect(0, 0, simW, simH)
+    ctx.restore()
   }
 
   function draw() {
