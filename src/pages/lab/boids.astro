@@ -516,8 +516,8 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       },
       // field-of-view (degrees, full cone)
       fov: {
-        herbivore: 180,
-        predator: 85,
+        herbivore: 200,
+        predator: 45,
         scavenger: 360,
       },
       separation: {
@@ -590,8 +590,8 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     },
     genetics: {
       mutationRate: 0.1,
-      min: 0.5,
-      max: 1.5,
+      min: 0.75,
+      max: 1.25,
       mutationAmount: 0.1, // ±5% since (rand-0.5)*0.1
 
       // gene budget constraint: sum of genes <= budget
@@ -606,7 +606,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     },
     visuals: {
       trails: false,
-      fov: false,
+      fov: true,
       vectors: false,
       perception: false,
       grid: true,
@@ -1824,7 +1824,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     const baseDamage = 55
 
     // Predator efficiency converts to stronger bites.
-    const scaled = (baseDamage * (1.85 / toughness) * (0.85 + 0.3 * predator.genes.efficiency))
+    const scaled = baseDamage * (1.85 / toughness) * (0.85 + 0.3 * predator.genes.efficiency)
     return clamp(scaled, 18, 120)
   }
 
@@ -2092,7 +2092,6 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
           }
         }
       }
-
 
       // reproduction
       if (shouldReproduce(b)) {
