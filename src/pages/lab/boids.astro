@@ -1515,45 +1515,21 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     els.simSpeedValue.textContent = `${opts.simSpeed.toFixed(1)}x`
   }
 
-  els.reproRate.addEventListener('input', () => {
-    opts.reproduction.rate = parseFloat(els.reproRate.value)
-    syncSettingsLabels()
-  })
+  function bindSlider(input: HTMLInputElement, setter: (v: number) => void, parse: (s: string) => number = parseFloat) {
+    input.addEventListener('input', () => {
+      setter(parse(input.value))
+      syncSettingsLabels()
+    })
+  }
 
-  els.decompYield.addEventListener('input', () => {
-    opts.decomposition.yield = parseInt(els.decompYield.value, 10)
-    syncSettingsLabels()
-  })
-
-  els.mutationRate.addEventListener('input', () => {
-    opts.genetics.mutationRate = parseFloat(els.mutationRate.value)
-    syncSettingsLabels()
-  })
-
-  els.geneBudget.addEventListener('input', () => {
-    opts.genetics.budget = parseFloat(els.geneBudget.value)
-    syncSettingsLabels()
-  })
-
-  els.metabolism.addEventListener('input', () => {
-    opts.energy.metabolism = parseFloat(els.metabolism.value)
-    syncSettingsLabels()
-  })
-
-  els.predSatiation.addEventListener('input', () => {
-    opts.reproduction.predatorSatiationSeconds = parseFloat(els.predSatiation.value)
-    syncSettingsLabels()
-  })
-
-  els.predHunger.addEventListener('input', () => {
-    opts.reproduction.predatorHungerThreshold = parseFloat(els.predHunger.value)
-    syncSettingsLabels()
-  })
-
-  els.simSpeed.addEventListener('input', () => {
-    opts.simSpeed = parseFloat(els.simSpeed.value)
-    syncSettingsLabels()
-  })
+  bindSlider(els.reproRate, (v) => (opts.reproduction.rate = v))
+  bindSlider(els.decompYield, (v) => (opts.decomposition.yield = v), (s) => parseInt(s, 10))
+  bindSlider(els.mutationRate, (v) => (opts.genetics.mutationRate = v))
+  bindSlider(els.geneBudget, (v) => (opts.genetics.budget = v))
+  bindSlider(els.metabolism, (v) => (opts.energy.metabolism = v))
+  bindSlider(els.predSatiation, (v) => (opts.reproduction.predatorSatiationSeconds = v))
+  bindSlider(els.predHunger, (v) => (opts.reproduction.predatorHungerThreshold = v))
+  bindSlider(els.simSpeed, (v) => (opts.simSpeed = v))
 
   els.togTrails.addEventListener('change', () => (opts.visuals.trails = els.togTrails.checked))
   els.togFov.addEventListener('change', () => (opts.visuals.fov = els.togFov.checked))
