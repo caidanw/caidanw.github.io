@@ -1170,6 +1170,15 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     food.push({ x, y })
   }
 
+  function spawnDecompositionFood(cx: number, cy: number) {
+    for (let k = 0; k < opts.decomposition.yield; k++) {
+      const a = Math.random() * Math.PI * 2
+      const r = 6 + Math.random() * 14
+      spawnFood(clamp(cx + Math.cos(a) * r, 4, simW - 4), clamp(cy + Math.sin(a) * r, 4, simH - 4))
+    }
+    counters.decomp++
+  }
+
   function clearAll() {
     boids = []
     food = []
@@ -1995,12 +2004,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       c.age += dtSeconds
       if (c.age > opts.world.carrionDecaySeconds) {
         carrionToRemove.add(i)
-        for (let k = 0; k < opts.decomposition.yield; k++) {
-          const a = Math.random() * Math.PI * 2
-          const r = 6 + Math.random() * 14
-          spawnFood(clamp(c.x + Math.cos(a) * r, 4, simW - 4), clamp(c.y + Math.sin(a) * r, 4, simH - 4))
-        }
-        counters.decomp++
+        spawnDecompositionFood(c.x, c.y)
       }
     }
 
@@ -2081,12 +2085,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
               addParticle(c.x, c.y, opts.colors.scavenger)
               if (c.mass <= 0.06) {
                 carrionToRemove.add(nearest.index)
-                for (let k = 0; k < opts.decomposition.yield; k++) {
-                  const a = Math.random() * Math.PI * 2
-                  const r = 6 + Math.random() * 14
-                  spawnFood(clamp(c.x + Math.cos(a) * r, 4, simW - 4), clamp(c.y + Math.sin(a) * r, 4, simH - 4))
-                }
-                counters.decomp++
+                spawnDecompositionFood(c.x, c.y)
               }
             }
           }
