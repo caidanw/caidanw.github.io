@@ -2174,13 +2174,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
           sepY -= dy * inv
         }
 
-        if (b.species === 'herbivore' && o.species === 'predator') {
-          const s = 1 / Math.max(1e-6, d2)
-          fleeX -= dx * s
-          fleeY -= dy * s
-        }
-
-        if (b.species === 'scavenger' && o.species === 'predator') {
+        if ((b.species === 'herbivore' || b.species === 'scavenger') && o.species === 'predator') {
           const s = 1 / Math.max(1e-6, d2)
           fleeX -= dx * s
           fleeY -= dy * s
