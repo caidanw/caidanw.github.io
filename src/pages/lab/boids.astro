@@ -1106,13 +1106,14 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     return lerp(opts.life.juvenileMobility, 1, m)
   }
 
-  function shouldReproduce(b: Boid): boolean {
+  function shouldReproduce(b: Boid, dtSeconds: number): boolean {
     if (b.cooldown.reproduce > 0) return false
     if (maturityForBoid(b) < opts.reproduction.maturity) return false
     if (b.energy < reproductionThresholdForSpecies(b.species)) return false
 
+    // Scale probability by dt to make frame-rate independent
     // species with efficient genes reproduce slightly more
-    const p = opts.reproduction.rate * (0.85 + 0.3 * b.genes.efficiency)
+    const p = opts.reproduction.rate * (0.85 + 0.3 * b.genes.efficiency) * dtSeconds
     return Math.random() < p
   }
 
@@ -2086,7 +2087,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       }
 
       // reproduction
-      if (shouldReproduce(b)) {
+      if (shouldReproduce(b, dtSeconds)) {
         const mateIndex = findMateIndex(i, b, boidsToRemove)
         if (mateIndex != null) {
           const mate = boids[mateIndex]
