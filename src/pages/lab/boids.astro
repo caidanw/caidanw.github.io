@@ -1230,31 +1230,34 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
   function draw() {
     drawBackground()
 
-    // Food
-    for (const f of food) {
+    // Food (batched - single state setup for all items)
+    if (food.length > 0) {
       ctx.save()
       ctx.globalAlpha = 0.55
       ctx.fillStyle = opts.colors.herbivore
       ctx.shadowColor = opts.colors.herbivore
       ctx.shadowBlur = 10
-      ctx.beginPath()
-      ctx.arc(f.x, f.y, 2.6, 0, Math.PI * 2)
-      ctx.fill()
+      for (const f of food) {
+        ctx.beginPath()
+        ctx.arc(f.x, f.y, 2.6, 0, Math.PI * 2)
+        ctx.fill()
+      }
       ctx.restore()
     }
 
-    // Carrion
-    for (const c of carrion) {
-      const alpha = clamp(0.2 + (1 - c.age / opts.world.carrionDecaySeconds) * 0.8, 0, 1)
+    // Carrion (batched - only alpha varies per item)
+    if (carrion.length > 0) {
       ctx.save()
-      ctx.globalAlpha = alpha
       ctx.strokeStyle = opts.colors.carrion
       ctx.shadowColor = opts.colors.carrion
       ctx.shadowBlur = 10
       ctx.lineWidth = 1
-      ctx.beginPath()
-      ctx.arc(c.x, c.y, 4 + c.mass * 3.2, 0, Math.PI * 2)
-      ctx.stroke()
+      for (const c of carrion) {
+        ctx.globalAlpha = clamp(0.2 + (1 - c.age / opts.world.carrionDecaySeconds) * 0.8, 0, 1)
+        ctx.beginPath()
+        ctx.arc(c.x, c.y, 4 + c.mass * 3.2, 0, Math.PI * 2)
+        ctx.stroke()
+      }
       ctx.restore()
     }
 
@@ -1336,8 +1339,8 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       const rightX = backX - Math.cos(wingAngle) * wing
       const rightY = backY - Math.sin(wingAngle) * wing
 
+      // Draw trail (uses shadowBlur)
       if (opts.visuals.trails && b.trail.length > 2) {
-        ctx.save()
         ctx.globalAlpha = alpha * 0.25
         ctx.strokeStyle = color
         ctx.shadowColor = color
@@ -1350,10 +1353,9 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
           for (const pt of b.trail) ctx.lineTo(pt.x, pt.y)
         }
         ctx.stroke()
-        ctx.restore()
       }
 
-      ctx.save()
+      // Draw boid body (uses shadowBlur)
       ctx.globalAlpha = alpha
       ctx.lineWidth = clamp(1.0 + (g.efficiency - 1) * 2.4, 0.9, 3.2)
       ctx.strokeStyle = color
@@ -1366,10 +1368,12 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       ctx.lineTo(rightX, rightY)
       ctx.closePath()
       ctx.stroke()
-      ctx.restore()
+    }
+
+    function drawBoidDebug(b: Boid) {
+      const color = b.species === 'predator' ? opts.colors.predator : b.species === 'scavenger' ? opts.colors.scavenger : opts.colors.herbivore
 
       if (opts.visuals.vectors) {
-        ctx.save()
         ctx.globalAlpha = 0.5
         ctx.strokeStyle = color
         ctx.lineWidth = 1
@@ -1377,25 +1381,21 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
         ctx.moveTo(b.x, b.y)
         ctx.lineTo(b.x + b.vx * 0.14, b.y + b.vy * 0.14)
         ctx.stroke()
-        ctx.restore()
       }
 
       if (opts.visuals.perception) {
         const pr = perceptionForBoid(b)
-        ctx.save()
         ctx.globalAlpha = 0.08
         ctx.strokeStyle = color
         ctx.lineWidth = 1
         ctx.beginPath()
         ctx.arc(b.x, b.y, pr, 0, Math.PI * 2)
         ctx.stroke()
-        ctx.restore()
       }
 
       if (opts.visuals.fov) {
         const pr = perceptionForBoid(b)
         const half = fovForBoid(b)
-        ctx.save()
         ctx.globalAlpha = 0.08
         ctx.strokeStyle = color
         ctx.lineWidth = 1
@@ -1404,26 +1404,37 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
         ctx.arc(b.x, b.y, pr, b.dir - half, b.dir + half)
         ctx.closePath()
         ctx.stroke()
-        ctx.restore()
       }
     }
 
-    // Boids
-    for (const b of boids) {
-      drawBoidArrow(b)
+    // Boids (single save/restore for all boids)
+    if (boids.length > 0) {
+      ctx.save()
+      for (const b of boids) {
+        drawBoidArrow(b)
+      }
+      // Debug overlays don't need shadowBlur - disable it once for all
+      if (opts.visuals.vectors || opts.visuals.perception || opts.visuals.fov) {
+        ctx.shadowBlur = 0
+        for (const b of boids) {
+          drawBoidDebug(b)
+        }
+      }
+      ctx.restore()
     }
 
-    // Particles
-    for (const p of particles) {
-      const a = clamp(p.life / 0.7, 0, 1)
+    // Particles (batched - minimize save/restore)
+    if (particles.length > 0) {
       ctx.save()
-      ctx.globalAlpha = a
-      ctx.fillStyle = p.color
-      ctx.shadowColor = p.color
       ctx.shadowBlur = 10
-      ctx.beginPath()
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
-      ctx.fill()
+      for (const p of particles) {
+        ctx.globalAlpha = clamp(p.life / 0.7, 0, 1)
+        ctx.fillStyle = p.color
+        ctx.shadowColor = p.color
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
+        ctx.fill()
+      }
       ctx.restore()
     }
 
