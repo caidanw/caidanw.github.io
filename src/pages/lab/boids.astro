@@ -88,6 +88,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       </div>
 
       <div class="tab-content" id="tab-visuals" hidden>
+        <label class="toggle"><input type="checkbox" id="togGlow" checked /> Glow effects</label>
         <label class="toggle"><input type="checkbox" id="togTrails" /> Trails</label>
         <label class="toggle"><input type="checkbox" id="togFov" /> FOV cones</label>
         <label class="toggle"><input type="checkbox" id="togVectors" /> Velocity vectors</label>
@@ -619,6 +620,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       left: false,
     },
     visuals: {
+      glow: true,
       trails: false,
       fov: false,
       vectors: false,
@@ -689,6 +691,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     btnRandomSeed: document.getElementById('btnRandomSeed') as HTMLButtonElement,
     btnApplySeed: document.getElementById('btnApplySeed') as HTMLButtonElement,
 
+    togGlow: document.getElementById('togGlow') as HTMLInputElement,
     togTrails: document.getElementById('togTrails') as HTMLInputElement,
     togFov: document.getElementById('togFov') as HTMLInputElement,
     togVectors: document.getElementById('togVectors') as HTMLInputElement,
@@ -1235,8 +1238,10 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       ctx.save()
       ctx.globalAlpha = 0.55
       ctx.fillStyle = opts.colors.herbivore
-      ctx.shadowColor = opts.colors.herbivore
-      ctx.shadowBlur = 10
+      if (opts.visuals.glow) {
+        ctx.shadowColor = opts.colors.herbivore
+        ctx.shadowBlur = 10
+      }
       for (const f of food) {
         ctx.beginPath()
         ctx.arc(f.x, f.y, 2.6, 0, Math.PI * 2)
@@ -1249,8 +1254,10 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     if (carrion.length > 0) {
       ctx.save()
       ctx.strokeStyle = opts.colors.carrion
-      ctx.shadowColor = opts.colors.carrion
-      ctx.shadowBlur = 10
+      if (opts.visuals.glow) {
+        ctx.shadowColor = opts.colors.carrion
+        ctx.shadowBlur = 10
+      }
       ctx.lineWidth = 1
       for (const c of carrion) {
         ctx.globalAlpha = clamp(0.2 + (1 - c.age / opts.world.carrionDecaySeconds) * 0.8, 0, 1)
@@ -1275,8 +1282,10 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       ctx.save()
       ctx.globalAlpha = 0.85
       ctx.strokeStyle = color
-      ctx.shadowColor = color
-      ctx.shadowBlur = 16
+      if (opts.visuals.glow) {
+        ctx.shadowColor = color
+        ctx.shadowBlur = 16
+      }
       ctx.lineWidth = 1.5
 
       ctx.beginPath()
@@ -1343,8 +1352,10 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       if (opts.visuals.trails && b.trail.length > 2) {
         ctx.globalAlpha = alpha * 0.25
         ctx.strokeStyle = color
-        ctx.shadowColor = color
-        ctx.shadowBlur = 10
+        if (opts.visuals.glow) {
+          ctx.shadowColor = color
+          ctx.shadowBlur = 10
+        }
         ctx.lineWidth = 1
         ctx.beginPath()
         const first = b.trail.at(0)
@@ -1359,8 +1370,10 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       ctx.globalAlpha = alpha
       ctx.lineWidth = clamp(1.0 + (g.efficiency - 1) * 2.4, 0.9, 3.2)
       ctx.strokeStyle = color
-      ctx.shadowColor = color
-      ctx.shadowBlur = 14 + clamp((g.perception - 1) * 20, -6, 10)
+      if (opts.visuals.glow) {
+        ctx.shadowColor = color
+        ctx.shadowBlur = 14 + clamp((g.perception - 1) * 20, -6, 10)
+      }
 
       ctx.beginPath()
       ctx.moveTo(tipX, tipY)
@@ -1426,11 +1439,15 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     // Particles (batched - minimize save/restore)
     if (particles.length > 0) {
       ctx.save()
-      ctx.shadowBlur = 10
+      if (opts.visuals.glow) {
+        ctx.shadowBlur = 10
+      }
       for (const p of particles) {
         ctx.globalAlpha = clamp(p.life / 0.7, 0, 1)
         ctx.fillStyle = p.color
-        ctx.shadowColor = p.color
+        if (opts.visuals.glow) {
+          ctx.shadowColor = p.color
+        }
         ctx.beginPath()
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
         ctx.fill()
@@ -1552,6 +1569,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
   bindSlider(els.predHunger, (v) => (opts.reproduction.predatorHungerThreshold = v))
   bindSlider(els.simSpeed, (v) => (opts.simSpeed = v))
 
+  els.togGlow.addEventListener('change', () => (opts.visuals.glow = els.togGlow.checked))
   els.togTrails.addEventListener('change', () => (opts.visuals.trails = els.togTrails.checked))
   els.togFov.addEventListener('change', () => (opts.visuals.fov = els.togFov.checked))
   els.togVectors.addEventListener('change', () => (opts.visuals.vectors = els.togVectors.checked))
