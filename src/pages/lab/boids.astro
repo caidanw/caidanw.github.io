@@ -587,6 +587,18 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     },
     decomposition: {
       yield: 4,
+      spawnRadius: { min: 6, max: 20 },
+    },
+    interaction: {
+      herbivoreEatQueryRadius: 14,
+      herbivoreEatRadius: 12,
+      predatorAttackQueryRadius: 18,
+      predatorAttackRadius: 14,
+      scavengerEatQueryRadius: 18,
+      scavengerEatRadius: 14,
+      carrionTakeAmount: 0.45,
+      carrionEnergyMultiplier: 34,
+      carrionDepletionThreshold: 0.06,
     },
     genetics: {
       mutationRate: 0.1,
@@ -1173,7 +1185,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
   function spawnDecompositionFood(cx: number, cy: number) {
     for (let k = 0; k < opts.decomposition.yield; k++) {
       const a = Math.random() * Math.PI * 2
-      const r = 6 + Math.random() * 14
+      const r = opts.decomposition.spawnRadius.min + Math.random() * (opts.decomposition.spawnRadius.max - opts.decomposition.spawnRadius.min)
       spawnFood(clamp(cx + Math.cos(a) * r, 4, simW - 4), clamp(cy + Math.sin(a) * r, 4, simH - 4))
     }
     counters.decomp++
@@ -2022,8 +2034,8 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       // eating interactions (simple)
       if (b.cooldown.eat <= 0) {
         if (b.species === 'herbivore') {
-          const nearest = findNearestIndex(foodGrid, food, b.x, b.y, 14, foodToRemove)
-          if (nearest && nearest.d2 < 12 * 12) {
+          const nearest = findNearestIndex(foodGrid, food, b.x, b.y, opts.interaction.herbivoreEatQueryRadius, foodToRemove)
+          if (nearest && nearest.d2 < opts.interaction.herbivoreEatRadius * opts.interaction.herbivoreEatRadius) {
             const f = food[nearest.index]
             if (f) {
               foodToRemove.add(nearest.index)
@@ -2034,7 +2046,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
           }
         } else if (b.species === 'predator') {
           neighborScratch.length = 0
-          boidGrid.query(b.x, b.y, 18, neighborScratch)
+          boidGrid.query(b.x, b.y, opts.interaction.predatorAttackQueryRadius, neighborScratch)
 
           let killIndex = -1
           let killD2 = Infinity
@@ -2051,7 +2063,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
             }
           }
 
-          if (killIndex >= 0 && killD2 < 14 * 14) {
+          if (killIndex >= 0 && killD2 < opts.interaction.predatorAttackRadius * opts.interaction.predatorAttackRadius) {
             const prey = boids[killIndex]
             if (prey && !boidsToRemove.has(killIndex)) {
               const damage = predatorBiteDamage(b, prey)
@@ -2074,16 +2086,16 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
             }
           }
         } else if (b.species === 'scavenger') {
-          const nearest = findNearestIndex(carrionGrid, carrion, b.x, b.y, 18, carrionToRemove)
-          if (nearest && nearest.d2 < 14 * 14) {
+          const nearest = findNearestIndex(carrionGrid, carrion, b.x, b.y, opts.interaction.scavengerEatQueryRadius, carrionToRemove)
+          if (nearest && nearest.d2 < opts.interaction.scavengerEatRadius * opts.interaction.scavengerEatRadius) {
             const c = carrion[nearest.index]
             if (c && !carrionToRemove.has(nearest.index)) {
-              const take = Math.min(c.mass, 0.45)
+              const take = Math.min(c.mass, opts.interaction.carrionTakeAmount)
               c.mass -= take
-              b.energy = clamp(b.energy + take * 34 * b.genes.efficiency, 0, b.maxEnergy)
+              b.energy = clamp(b.energy + take * opts.interaction.carrionEnergyMultiplier * b.genes.efficiency, 0, b.maxEnergy)
               b.cooldown.eat = 0.3
               addParticle(c.x, c.y, opts.colors.scavenger)
-              if (c.mass <= 0.06) {
+              if (c.mass <= opts.interaction.carrionDepletionThreshold) {
                 carrionToRemove.add(nearest.index)
                 spawnDecompositionFood(c.x, c.y)
               }
