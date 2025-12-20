@@ -2054,7 +2054,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
               prey.energy -= damage
 
               b.energy = clamp(b.energy + predatorBiteEnergyGain(b, prey, damage), 0, b.maxEnergy)
-              b.cooldown.eat = 0.25
+              b.cooldown.eat = 1
 
               addParticle(prey.x, prey.y, opts.colors.predator)
 
