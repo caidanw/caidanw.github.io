@@ -473,6 +473,8 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
 </style>
 
 <script>
+  import { RingBuffer } from '../../lib/ringbuffer'
+
   type Species = 'herbivore' | 'predator' | 'scavenger'
 
   const opts = {
@@ -766,7 +768,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       reproduce: number
       hunt: number
     }
-    trail: { x: number; y: number }[]
+    trail: RingBuffer<{ x: number; y: number }>
   }
 
   type FoodSource = { x: number; y: number }
@@ -1056,7 +1058,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       age: 0,
       dir: heading(vx, vy),
       cooldown: { eat: 0.2, reproduce: 0.8, hunt: 0 },
-      trail: [],
+      trail: new RingBuffer(16),
     })
 
     a.cooldown.reproduce = 1.4
@@ -1147,7 +1149,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       age: 0,
       dir: heading(vx, vy),
       cooldown: { eat: 0.2, reproduce: 0.8, hunt: 0 },
-      trail: [],
+      trail: new RingBuffer(16),
     })
 
     parent.cooldown.reproduce = 1.4
@@ -1174,7 +1176,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       age: 0,
       dir: heading(vx, vy),
       cooldown: { eat: 0, reproduce: 0, hunt: 0 },
-      trail: [],
+      trail: new RingBuffer(16),
     })
   }
 
@@ -1341,8 +1343,11 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
         ctx.shadowBlur = 10
         ctx.lineWidth = 1
         ctx.beginPath()
-        ctx.moveTo(b.trail[0].x, b.trail[0].y)
-        for (let i = 1; i < b.trail.length; i++) ctx.lineTo(b.trail[i].x, b.trail[i].y)
+        const first = b.trail.at(0)
+        if (first) {
+          ctx.moveTo(first.x, first.y)
+          for (const pt of b.trail) ctx.lineTo(pt.x, pt.y)
+        }
         ctx.stroke()
         ctx.restore()
       }
@@ -2268,9 +2273,8 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
 
       if (opts.visuals.trails) {
         b.trail.push({ x: b.x, y: b.y })
-        if (b.trail.length > 16) b.trail.shift()
       } else {
-        b.trail.length = 0
+        b.trail.clear()
       }
     }
 
