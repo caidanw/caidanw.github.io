@@ -2122,7 +2122,12 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       // neighborhood
       neighborScratch.length = 0
       const pr = perceptionForBoid(b)
+      const prSq = pr * pr
       boidGrid.query(b.x, b.y, pr, neighborScratch)
+
+      // Cache computed values for this boid
+      const maxSpeed = maxSpeedForBoid(b)
+      const maxForce = maxForceForBoid(b)
 
       const prevDir = b.dir
       let sepX = 0
@@ -2153,7 +2158,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
         if (!o) continue
 
         const d2 = distSq(b.x, b.y, o.x, o.y)
-        if (d2 > pr * pr) continue
+        if (d2 > prSq) continue
 
         const dx = o.x - b.x
         const dy = o.y - b.y
@@ -2193,8 +2198,8 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       if (neighborCount > 0) {
         // alignment
         const ali = normalize({ x: aliX / neighborCount, y: aliY / neighborCount })
-        steer.x += (ali.x * maxSpeedForBoid(b) - b.vx) * opts.boids.alignment[b.species]
-        steer.y += (ali.y * maxSpeedForBoid(b) - b.vy) * opts.boids.alignment[b.species]
+        steer.x += (ali.x * maxSpeed - b.vx) * opts.boids.alignment[b.species]
+        steer.y += (ali.y * maxSpeed - b.vy) * opts.boids.alignment[b.species]
 
         // cohesion
         const center = { x: cohX / neighborCount, y: cohY / neighborCount }
@@ -2204,8 +2209,8 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
 
         // separation
         const sep = normalize({ x: sepX, y: sepY })
-        steer.x += sep.x * maxSpeedForBoid(b) * 0.55
-        steer.y += sep.y * maxSpeedForBoid(b) * 0.55
+        steer.x += sep.x * maxSpeed * 0.55
+        steer.y += sep.y * maxSpeed * 0.55
       }
 
       // species-specific goals
@@ -2228,8 +2233,8 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
         const health = clamp(b.energy / Math.max(1, b.maxEnergy), 0, 1)
         const panic = clamp(panicBase * (1.15 - 0.25 * maturity) * (1.25 - 0.55 * health), 0, 1.45)
         const fleeWeight = opts.boids.flee.herbivore * (1 + 1.35 * panic)
-        steer.x += flee.x * maxSpeedForBoid(b) * fleeWeight
-        steer.y += flee.y * maxSpeedForBoid(b) * fleeWeight
+        steer.x += flee.x * maxSpeed * fleeWeight
+        steer.y += flee.y * maxSpeed * fleeWeight
       } else if (b.species === 'predator') {
         if (hasChase) {
           const v = steerToward(b, chaseTargetX, chaseTargetY, opts.boids.chase.predator)
@@ -2250,21 +2255,21 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
 
         // mild avoidance of predators
         const flee = normalize({ x: fleeX, y: fleeY })
-        steer.x += flee.x * maxSpeedForBoid(b) * opts.boids.flee.scavenger
-        steer.y += flee.y * maxSpeedForBoid(b) * opts.boids.flee.scavenger
+        steer.x += flee.x * maxSpeed * opts.boids.flee.scavenger
+        steer.y += flee.y * maxSpeed * opts.boids.flee.scavenger
       }
 
       // wander (deterministic-ish)
       const w = opts.boids.wander[b.species]
-      steer.x += (Math.cos(b.dir + Math.sin(b.age * 0.7)) * maxSpeedForBoid(b) - b.vx) * w
-      steer.y += (Math.sin(b.dir + Math.cos(b.age * 0.8)) * maxSpeedForBoid(b) - b.vy) * w
+      steer.x += (Math.cos(b.dir + Math.sin(b.age * 0.7)) * maxSpeed - b.vx) * w
+      steer.y += (Math.sin(b.dir + Math.cos(b.age * 0.8)) * maxSpeed - b.vy) * w
 
       // integrate
-      const accel = clampLen(steer, maxForceForBoid(b))
+      const accel = clampLen(steer, maxForce)
       b.vx += accel.x * dtSeconds
       b.vy += accel.y * dtSeconds
 
-      const v = clampLen({ x: b.vx, y: b.vy }, maxSpeedForBoid(b))
+      const v = clampLen({ x: b.vx, y: b.vy }, maxSpeed)
       b.vx = v.x
       b.vy = v.y
 
