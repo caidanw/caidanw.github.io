@@ -487,11 +487,11 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       dead: '#808080',
     },
     energy: {
-      herbivoreMax: 200,
+      herbivoreMax: 250,
       predatorMax: 480,
       scavengerMax: 340,
       eatFoodGain: 32,
-      eatHerbivoreGain: 55,
+      eatHerbivoreGain: 45,
       // carrion mass is converted into energy via scavenger efficiency
       herbivoreDrain: 0.14,
       predatorDrain: 0.22,
@@ -564,28 +564,28 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       },
     },
     world: {
-      foodMax: 460,
-      carrionMax: 420,
+      foodMax: 400,
+      carrionMax: 400,
       foodSpawnRate: 1, // per second
       carrionDecaySeconds: 36,
     },
     life: {
-      maturitySeconds: 12,
-      juvenileScale: 0.35,
+      maturitySeconds: 60,
+      juvenileScale: 0.2,
 
       // Multiplier for speed/force at birth (lerps to 1 by maturity).
-      juvenileMobility: 1.4,
+      juvenileMobility: 1.6,
     },
     reproduction: {
       rate: 0.15,
-      matingRadius: 26,
+      matingRadius: 20,
       maturity: 0.95,
-      herbivoreThreshold: 110,
+      herbivoreThreshold: 140,
       predatorThreshold: 120,
       scavengerThreshold: 100,
 
-      predatorSatiationSeconds: 2.25,
-      predatorHungerThreshold: 0.92,
+      predatorSatiationSeconds: 2.0,
+      predatorHungerThreshold: 0.9,
     },
     decomposition: {
       yield: 4,
@@ -604,8 +604,8 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
     },
     genetics: {
       mutationRate: 0.1,
-      min: 0.75,
-      max: 1.25,
+      min: 0.5,
+      max: 1.5,
       mutationAmount: 0.1, // ±5% since (rand-0.5)*0.1
 
       // gene budget constraint: sum of genes <= budget
@@ -1529,7 +1529,11 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
   }
 
   bindSlider(els.reproRate, (v) => (opts.reproduction.rate = v))
-  bindSlider(els.decompYield, (v) => (opts.decomposition.yield = v), (s) => parseInt(s, 10))
+  bindSlider(
+    els.decompYield,
+    (v) => (opts.decomposition.yield = v),
+    (s) => parseInt(s, 10),
+  )
   bindSlider(els.mutationRate, (v) => (opts.genetics.mutationRate = v))
   bindSlider(els.geneBudget, (v) => (opts.genetics.budget = v))
   bindSlider(els.metabolism, (v) => (opts.energy.metabolism = v))
