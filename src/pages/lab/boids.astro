@@ -2126,7 +2126,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       const pr = perceptionForBoid(b)
       boidGrid.query(b.x, b.y, pr, neighborScratch)
 
-      const selfDir = b.dir
+      const prevDir = b.dir
       let sepX = 0
       let sepY = 0
       let aliX = 0
@@ -2274,7 +2274,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
       b.y += b.vy * dtSeconds
 
       b.dir = heading(b.vx, b.vy)
-      if (lenSq(v) < 0.0001) b.dir = selfDir
+      if (lenSq(v) < 0.0001) b.dir = prevDir
 
       applyBounds(b)
 
