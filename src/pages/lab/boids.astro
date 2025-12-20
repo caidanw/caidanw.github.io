@@ -633,7 +633,7 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
   const els = {
     canvas: document.getElementById('canvas') as HTMLCanvasElement,
     fps: document.getElementById('fps') as HTMLSpanElement,
-    herm: document.getElementById('statHerb') as HTMLSpanElement,
+    herb: document.getElementById('statHerb') as HTMLSpanElement,
     pred: document.getElementById('statPred') as HTMLSpanElement,
     scav: document.getElementById('statScav') as HTMLSpanElement,
     food: document.getElementById('statFood') as HTMLSpanElement,
@@ -2297,11 +2297,16 @@ import HeaderLayout from '../../layouts/HeaderLayout.astro'
   }
 
   function syncStats() {
-    const herb = boids.filter((b) => b.species === 'herbivore').length
-    const pred = boids.filter((b) => b.species === 'predator').length
-    const scav = boids.filter((b) => b.species === 'scavenger').length
+    let herb = 0
+    let pred = 0
+    let scav = 0
+    for (const b of boids) {
+      if (b.species === 'herbivore') herb++
+      else if (b.species === 'predator') pred++
+      else scav++
+    }
 
-    els.herm.textContent = String(herb)
+    els.herb.textContent = String(herb)
     els.pred.textContent = String(pred)
     els.scav.textContent = String(scav)
     els.food.textContent = String(food.length)
