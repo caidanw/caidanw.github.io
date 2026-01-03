@@ -1,0 +1,145 @@
+---
+import Breadcrumbs from '@/components/Breadcrumbs.astro'
+import Layout from './Layout.astro'
+
+interface Props {
+  frontmatter: {
+    title: string
+    date: Date
+    description?: string
+  }
+}
+
+const { frontmatter } = Astro.props
+
+const formattedDate = new Date(frontmatter.date).toLocaleDateString('en-US', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+})
+---
+
+<Layout title={frontmatter.title} description={frontmatter.description}>
+  <header>
+    <Breadcrumbs />
+  </header>
+
+  <main>
+    <article>
+      <header class="post-header">
+        <h1>{frontmatter.title}</h1>
+        <time datetime={frontmatter.date.toString()}>{formattedDate}</time>
+      </header>
+      <div class="post-content">
+        <slot />
+      </div>
+    </article>
+  </main>
+</Layout>
+
+<style>
+  header {
+    border-bottom: 1px solid var(--theme-border);
+    padding: 0.5rem;
+  }
+
+  main {
+    padding-top: 2rem;
+    padding-bottom: 4rem;
+  }
+
+  .post-header {
+    margin-bottom: 2rem;
+    border: none;
+    padding: 0;
+
+    h1 {
+      font-size: 1.75rem;
+      font-weight: bold;
+      line-height: 1.2;
+      margin-bottom: 0.5rem;
+    }
+
+    time {
+      color: var(--theme-text-dim);
+      font-size: 0.875rem;
+    }
+  }
+
+  .post-content {
+    line-height: 1.7;
+
+    :global(p) {
+      margin-bottom: 1.5rem;
+    }
+
+    :global(em) {
+      font-style: italic;
+    }
+
+    :global(strong) {
+      font-weight: bold;
+    }
+
+    :global(h2) {
+      font-size: 1.5rem;
+      font-weight: bold;
+      margin-top: 2rem;
+      margin-bottom: 1rem;
+    }
+
+    :global(h3) {
+      font-size: 1.25rem;
+      font-weight: bold;
+      margin-top: 1.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    :global(ul),
+    :global(ol) {
+      margin-bottom: 1.5rem;
+      padding-left: 1.5rem;
+    }
+
+    :global(li) {
+      margin-bottom: 0.5rem;
+    }
+
+    :global(blockquote) {
+      border-left: 3px solid var(--theme-accent);
+      padding-left: 1rem;
+      margin: 1.5rem 0;
+      color: var(--theme-text-subtle);
+      font-style: italic;
+    }
+
+    :global(code) {
+      font-family: var(--font-mono);
+      font-size: 0.875em;
+      background: var(--theme-border);
+      padding: 0.125rem 0.375rem;
+      border-radius: 0.25rem;
+    }
+
+    :global(pre) {
+      background: var(--theme-border);
+      padding: 1rem;
+      border-radius: 0.5rem;
+      overflow-x: auto;
+      margin-bottom: 1.5rem;
+
+      :global(code) {
+        background: none;
+        padding: 0;
+      }
+    }
+
+    :global(a) {
+      color: var(--theme-accent);
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+</style>
