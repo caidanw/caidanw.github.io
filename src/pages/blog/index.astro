@@ -61,13 +61,12 @@ function formatDate(date: string) {
     padding: 0 1rem;
 
     @media (min-width: 768px) {
-      padding: 0rem 1.5rem;
+      padding: 0 1.5rem;
     }
   }
 
   h1 {
-    font-size: 2.5rem;
-    font-weight: 700;
+    font-weight: normal;
   }
 
   .subtitle {
@@ -85,17 +84,11 @@ function formatDate(date: string) {
     display: flex;
     align-items: baseline;
     gap: 1rem;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.25rem;
   }
 
   .post-title {
     display: inline-block;
-    font-size: 1.5rem;
-    font-weight: 700;
-
-    &::after {
-      height: 2px;
-    }
   }
 
   time {
@@ -105,8 +98,9 @@ function formatDate(date: string) {
   }
 
   .post-description {
-    color: var(--theme-text-subtle);
+    color: var(--theme-text-dim);
     font-size: 1rem;
     text-wrap: pretty;
+    padding-left: 1.2em;
   }
 </style>
