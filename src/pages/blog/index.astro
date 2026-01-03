@@ -25,7 +25,7 @@ const sortedPosts = posts.sort((a, b) => {
 function formatDate(date: string) {
   return new Date(date).toLocaleDateString('en-US', {
     year: 'numeric',
-    month: 'long',
+    month: 'short',
     day: 'numeric',
   })
 }
@@ -41,10 +41,10 @@ function formatDate(date: string) {
       {
         sortedPosts.map((post) => (
           <article class="post">
+            <time datetime={post.frontmatter.date.toString()}>{formatDate(post.frontmatter.date)}</time>
             <a href={post.url} class="post-title list">
               {post.frontmatter.title}
             </a>
-            <time datetime={post.frontmatter.date.toString()}>{formatDate(post.frontmatter.date)}</time>
           </article>
         ))
       }
