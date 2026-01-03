@@ -1,0 +1,112 @@
+---
+import Hr from '@components/Hr.astro'
+import HeaderLayout from '@/layouts/HeaderLayout.astro'
+
+interface PostFrontmatter {
+  title: string
+  date: string
+  description?: string
+}
+
+interface Post {
+  frontmatter: PostFrontmatter
+  url: string
+}
+
+// Get all blog posts and sort by date (newest first)
+const postModules = import.meta.glob<Post>('./*.md', { eager: true })
+const posts = Object.values(postModules)
+const sortedPosts = posts.sort((a, b) => {
+  const dateA = new Date(a.frontmatter.date)
+  const dateB = new Date(b.frontmatter.date)
+  return dateB.getTime() - dateA.getTime()
+})
+
+function formatDate(date: string) {
+  return new Date(date).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+}
+---
+
+<HeaderLayout title="Blog - Caidan Williams" description="Thoughts and writings by Caidan Williams">
+  <main>
+    <h1>Blog</h1>
+    <p class="subtitle">Thoughts and writings on coding, creativity, and more.</p>
+    <Hr />
+
+    <div class="posts-grid">
+      {
+        sortedPosts.map((post) => (
+          <article class="post">
+            <div class="post-header">
+              <a href={post.url} class="post-title list">
+                {post.frontmatter.title}
+              </a>
+              <time datetime={post.frontmatter.date.toString()}>{formatDate(post.frontmatter.date)}</time>
+            </div>
+            {post.frontmatter.description && <p class="post-description">{post.frontmatter.description}</p>}
+          </article>
+        ))
+      }
+    </div>
+  </main>
+</HeaderLayout>
+
+<style>
+  main {
+    margin: 1rem auto;
+    padding: 0 1rem;
+
+    @media (min-width: 768px) {
+      padding: 0rem 1.5rem;
+    }
+  }
+
+  h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+  }
+
+  .subtitle {
+    color: var(--theme-text-dim);
+    margin-bottom: 1rem;
+  }
+
+  .posts-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .post-header {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .post-title {
+    display: inline-block;
+    font-size: 1.5rem;
+    font-weight: 700;
+
+    &::after {
+      height: 2px;
+    }
+  }
+
+  time {
+    font-size: 0.875rem;
+    color: var(--theme-text-dim);
+    white-space: nowrap;
+  }
+
+  .post-description {
+    color: var(--theme-text-subtle);
+    font-size: 1rem;
+    text-wrap: pretty;
+  }
+</style>
