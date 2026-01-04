@@ -29,11 +29,14 @@
 }
 
 :root {
-  font-size: 16px;
+  --min-fs: 14; /* font size (px) at mobile */
+  --max-fs: 24; /* font size (px) at desktop */
+  --min-vw: 375; /* mobile viewport width (px) */
+  --max-vw: 1280; /* desktop viewport width (px) */
+  --slope: calc((var(--max-fs) - var(--min-fs)) / (var(--max-vw) - var(--min-vw)));
+  --intercept: calc(var(--min-fs) - var(--slope) * var(--min-vw));
 
-  @media (min-width: 768px) {
-    font-size: 20px;
-  }
+  font-size: clamp(calc(var(--min-fs) * 1px), calc(var(--slope) * 100vw + var(--intercept) * 1px), calc(var(--max-fs) * 1px));
 }
 
 [data-theme='light'] {
