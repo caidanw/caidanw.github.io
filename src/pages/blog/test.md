@@ -1,233 +1,111 @@
 ---
 layout: src/layouts/BlogPost.astro
-title: Test
+title: Markdown Test Post
 date: 2026-01-03
-description: test file
+description: A comprehensive test file for previewing blog post styling
 draft: true
 ---
 
-# Markdown-Cheat-Sheet
+This is a test blog post to preview how various markdown elements render. Use this to verify styling and layout.
 
-Some marks are listed here, others like header are in different files
+## Text Formatting
+
+Regular paragraph text. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+
+**Bold text**, _italic text_, and **_bold italic text_**. Also ~~strikethrough~~.
 
 ## Headers
 
-Header marks used to indicate the start of a topic
-The available types of headers are listed bellow:
-
-### Header 1
-
-Example: `# Header example`
-
-Result:
-
-# Header 1
-
----
-
-### Header 2
-
-Example: `## Header example`
-
-Result:
-
-## Header example
-
----
+The headers below demonstrate h3 through h6 (h1 is the title, h2 is used for sections):
 
 ### Header 3
 
-Example: `### Header example`
+#### Header 4
 
-Result:
+##### Header 5
 
-### Header example
-
----
-
-### Header 4
-
-Example: `#### Header example`
-
-Result:
-
-#### Header example
-
----
-
-### Header 5
-
-Example: `##### Header example`
-
-Result:
-
-##### Header example
-
----
-
-### Header 6
-
-Example: `###### Header example`
-
-Result:
-
-###### Header example
-
----
-
-## Simple MarkDown
-
-| Name   | Code         | How to use               | Result   |
-| ------ | ------------ | ------------------------ | -------- |
-| Italic | `*` or `_`   | `*Test*` or `_Test_`     | _Test_   |
-| Bold   | `**` or `__` | `**Test**` or `__Test__` | **Test** |
-| Strike | `~~`         | `~~Test~~`               | ~~Test~~ |
-
-You can mix these marks like this:
-
-Strucure: `_**Test**_`
-
-Result: _**Test**_
+###### Header 6
 
 ## Lists
 
-### Numeric List
+### Unordered List
 
-Example:
+- First item
+- Second item
+- Third item
+  - Nested item
+  - Another nested item
+- Fourth item
 
-```
-0. Test 1
-0. Test 2
-0. Test 3
-0. Test 4
-0. Test 5
-```
+### Ordered List
 
-Result:
+1. First step
+2. Second step
+3. Third step
+   1. Sub-step A
+   2. Sub-step B
+4. Fourth step
 
-0. Test 1
-1. Test 2
-2. Test 3
-3. Test 4
-4. Test 5
+### Task List
 
-### Marks List
+- [ ] Incomplete task
+- [x] Completed task
+- [ ] Another incomplete task
 
-Example:
+## Links and Images
 
-```
-* Test 1
-* Test 2
-* Test 3
-   * Test 4
-* Test 5
-```
+Here's a [link to GitHub](https://github.com).
 
-Result:
+![Placeholder image](https://picsum.photos/600/300)
 
-- Test 1
-- Test 2
-- Test 3
-  - Test 4
-- Test 5
+## Blockquotes
 
-### Tasks List
-
-Example:
-
-```
-- [ ] Test 1
-- [ ] Test 2
-- [ ] Test 3
-- [x] Test 4
-- [ ] Test 5
-```
-
-Result:
-
-- [ ] Test 1
-- [ ] Test 2
-- [ ] Test 3
-- [x] Test 4
-- [ ] Test 5
-
-## Images
-
-Images can be added to your MD file like this:
-Example: `![Github Logo](https://i.imgur.com/5cUA6pt.png)`
-
-Result:
-
-![Github Logo](https://i.imgur.com/5cUA6pt.png)
-
-## Links
-
-Links can be added to your MD file like this:
-
-Example: `[Github](https://github.com)`
-
-Result: [github](https://github.com)
+> This is a blockquote. It can contain multiple lines and is useful for highlighting quotes or important notes.
+>
+> It can span multiple paragraphs too.
 
 ## Code
 
-### Isolated code
+Inline code: `const greeting = "Hello, world!";`
 
-You can add code to your md file if you want by doing this:
+Code block with syntax highlighting:
 
-Example: \`console.log("Test");\`
-
-Result: `console.log("Test");`
-
-### Slice of code
-
-What if you want to use multiple lines?
-
-Example: \`\`\`
-
-if(text === "hi") {
-
-console.log("hello");
-
-} else {
-
-console.log("hi");
-
+```javascript
+function fibonacci(n) {
+  if (n <= 1) return n
+  return fibonacci(n - 1) + fibonacci(n - 2)
 }
 
-\`\`\`
-
-Result:
-
+console.log(fibonacci(10)) // 55
 ```
-if(text === "hi") {
-  console.log("hello");
-} else {
-  console.log("hi");
+
+```css
+.blog-post {
+  max-width: 65ch;
+  margin: 0 auto;
+  line-height: 1.6;
 }
 ```
-
-## Quotes
-
-We can quete text like others people comments.
-
-Example: `> Test`
-
-Result:
-
-> Test
 
 ## Tables
 
-Example:
+| Feature             | Supported | Notes            |
+| ------------------- | :-------: | ---------------- |
+| Bold                |    Yes    | Use `**text**`   |
+| Italic              |    Yes    | Use `*text*`     |
+| Tables              |    Yes    | As shown here    |
+| Syntax Highlighting |  Partial  | Depends on setup |
 
-```
-Centralized | Left alignment | Right alignment | Default alignment
-:---:|:---|---:|---
-Test | Test | Test | Test
-```
+## Horizontal Rule
 
-Result:
+Content above the rule.
 
-| Centralized | Left alignment | Right alignment | Default alignment |
-| :---------: | :------------- | --------------: | ----------------- |
-|    Test     | Test           |            Test | Test              |
+---
+
+Content below the rule.
+
+## Long Content Test
+
+This section tests how longer paragraphs flow. Writing good technical content requires clarity and precision. Each sentence should build upon the last, creating a coherent narrative that guides the reader through complex topics. When explaining code or technical concepts, it's important to balance depth with accessibility.
+
+Here's another paragraph to test spacing between blocks. The rhythm of a blog post matters - too dense and readers get lost, too sparse and it feels insubstantial. Finding the right balance takes practice and iteration.
