@@ -15,14 +15,12 @@ interface Post {
   url: string
 }
 
-// Get all blog posts and sort by date (newest first)
-const postModules = import.meta.glob<Post>('./*.md', { eager: true })
-const posts = Object.values(postModules).filter((post) => import.meta.env.DEV || !post.frontmatter.draft)
-const sortedPosts = posts.sort((a, b) => {
-  const dateA = new Date(a.frontmatter.date)
-  const dateB = new Date(b.frontmatter.date)
-  return dateB.getTime() - dateA.getTime()
-})
+const isPublished = (post: Post) => import.meta.env.DEV || !post.frontmatter.draft
+const byDateDescending = (a: Post, b: Post) => new Date(b.frontmatter.date).getTime() - new Date(a.frontmatter.date).getTime()
+
+const posts = Object.values(import.meta.glob<Post>('./*.md', { eager: true }))
+  .filter(isPublished)
+  .sort(byDateDescending)
 
 function formatDate(date: string) {
   return new Date(date).toLocaleDateString('en-US', {
@@ -42,7 +40,7 @@ function formatDate(date: string) {
 
     <div class="posts-list">
       {
-        sortedPosts.map((post) => (
+        posts.map((post) => (
           <article class="post">
             <time datetime={post.frontmatter.date.toString()}>{formatDate(post.frontmatter.date)}</time>
             <a href={post.url} class="post-title list">
