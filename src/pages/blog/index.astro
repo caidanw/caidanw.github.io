@@ -1,6 +1,7 @@
 ---
 import Hr from '@components/Hr.astro'
 import HeaderLayout from '@/layouts/HeaderLayout.astro'
+import ListHeader from '@/components/ListHeader.astro'
 
 interface PostFrontmatter {
   title: string
@@ -33,11 +34,12 @@ function formatDate(date: string) {
 
 <HeaderLayout title="Blog - Caidan Williams" description="Thoughts and writings by Caidan Williams">
   <main>
-    <h1>Blog</h1>
-    <p class="subtitle">Thoughts and writings on coding, creativity, and more.</p>
-    <Hr />
+    <ListHeader>
+      <h1>Blog</h1>
+      <p>Thoughts and writings on coding, creativity, and more.</p>
+    </ListHeader>
 
-    <div class="posts-grid">
+    <div class="posts-list">
       {
         sortedPosts.map((post) => (
           <article class="post">
@@ -53,25 +55,7 @@ function formatDate(date: string) {
 </HeaderLayout>
 
 <style>
-  main {
-    margin: 1rem auto;
-    padding: 0 1rem;
-
-    @media (min-width: 768px) {
-      padding: 0 1.5rem;
-    }
-  }
-
-  h1 {
-    font-weight: normal;
-  }
-
-  .subtitle {
-    color: var(--theme-text-dim);
-    margin-bottom: 1rem;
-  }
-
-  .posts-grid {
+  .posts-list {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
@@ -88,7 +72,6 @@ function formatDate(date: string) {
   }
 
   time {
-    font-size: 0.875rem;
     color: var(--theme-text-dim);
     white-space: nowrap;
   }
