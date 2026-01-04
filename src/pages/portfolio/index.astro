@@ -2,7 +2,7 @@
 import Layout from '@layouts/Layout.astro'
 import Hr from '@components/Hr.astro'
 import Breadcrumbs from '@/components/Breadcrumbs.astro'
-import HeaderLayout from '@/layouts/HeaderLayout.astro'
+import BreadcrumbLayout from '@/layouts/BreadcrumbLayout.astro'
 
 const projects = [
   {
@@ -22,7 +22,7 @@ const projects = [
 ]
 ---
 
-<HeaderLayout title="Portfolio - Caidan Williams" description="Selected projects and experiments">
+<BreadcrumbLayout title="Portfolio - Caidan Williams" description="Selected projects and experiments">
   <main>
     <h1>Portfolio</h1>
     <p class="subtitle">A showcase of selected projects and experiments I've worked on.</p>
@@ -49,7 +49,7 @@ const projects = [
       }
     </div>
   </main>
-</HeaderLayout>
+</BreadcrumbLayout>
 
 <style>
   main {
