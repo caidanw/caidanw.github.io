@@ -2,12 +2,13 @@
   --font-sans: 'Nunito', sans-serif;
   --font-mono: 'ServerMono', monospace;
 
-  --color-white: hsl(0, 0%, 92%);
+  --color-white: hsl(0, 0%, 88%);
   --color-gray-lighter: hsl(0, 0%, 82%);
   --color-gray-light: hsl(0, 0%, 68%);
   --color-gray: hsl(0, 0%, 54%);
   --color-gray-dark: hsl(0, 0%, 28%);
   --color-gray-darker: hsl(0, 0%, 17%);
+  --color-gray-darkest: hsl(0, 0%, 12%);
   --color-black: hsl(0, 0%, 7%);
   --color-akira-red: #e12120;
 

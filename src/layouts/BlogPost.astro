@@ -108,11 +108,14 @@ const formattedDate = new Date(frontmatter.date).toLocaleDateString('en-US', {
     }
 
     pre {
-      background: var(--theme-border);
-      padding: 1rem;
+      padding: 0.75rem 1rem;
       border-radius: 0.5rem;
       overflow-x: auto;
       margin-bottom: 1.5rem;
+
+      --blended-dark-bg: color-mix(in srgb, var(--theme-bg) 66%, black);
+      background: var(--blended-dark-bg) !important;
+      /* border: 1px solid var(--theme-border); */
 
       code {
         background: none;
