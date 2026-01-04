@@ -9,68 +9,67 @@ import LinkedInIcon from '../assets/icon_linkedin.svg'
 ---
 
 <Layout>
-  <main>
-    <header>
-      <h1>I'm <strong>Caidan Williams</strong></h1>
-      <p>a self-taught web developer and designer.</p>
-    </header>
-    <nav class="socials" aria-label="Social Media Links">
-      <a href="https://github.com/caidanw" aria-label="GitHub Profile" target="_blank" rel="noopener">
-        <GithubIcon />
-      </a>
-      <a href="https://bsky.app/profile/caidan.dev" aria-label="Bluesky Profile" target="_blank" rel="noopener">
-        <BlueskyIcon />
-      </a>
-      <a href="https://twitter.com/caidanwilliams" aria-label="Twitter Profile" target="_blank" rel="noopener">
-        <TwitterIcon />
-      </a>
-      <a href="https://threads.net/@ancientsunshine" aria-label="Threads Profile" target="_blank" rel="noopener">
-        <ThreadsIcon />
-      </a>
-      <a href="https://linkedin.com/in/caidan-williams" aria-label="LinkedIn Profile" target="_blank" rel="noopener">
-        <LinkedInIcon />
-      </a>
-    </nav>
-    <hr />
-    <PageNav />
-  </main>
+  <div class="container">
+    <main>
+      <header>
+        <h1>I'm <strong>Caidan Williams</strong></h1>
+        <p>a self-taught web developer and designer.</p>
+      </header>
+      <nav class="socials" aria-label="Social Media Links">
+        <a href="https://github.com/caidanw" aria-label="GitHub Profile" target="_blank" rel="noopener">
+          <GithubIcon />
+        </a>
+        <a href="https://bsky.app/profile/caidan.dev" aria-label="Bluesky Profile" target="_blank" rel="noopener">
+          <BlueskyIcon />
+        </a>
+        <a href="https://twitter.com/caidanwilliams" aria-label="Twitter Profile" target="_blank" rel="noopener">
+          <TwitterIcon />
+        </a>
+        <a href="https://threads.net/@ancientsunshine" aria-label="Threads Profile" target="_blank" rel="noopener">
+          <ThreadsIcon />
+        </a>
+        <a href="https://linkedin.com/in/caidan-williams" aria-label="LinkedIn Profile" target="_blank" rel="noopener">
+          <LinkedInIcon />
+        </a>
+      </nav>
+      <hr />
+      <PageNav />
+    </main>
+  </div>
 </Layout>
 
 <style>
-  main {
-    max-width: fit-content;
-    margin: 0 auto;
-    padding: 0 2rem;
-    min-height: 100dvh;
+  .container {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 1rem;
+    align-items: center;
+    min-height: 100dvh;
+  }
 
-    @media (max-width: 768px) {
-      padding: 0 1.5rem;
-    }
+  main {
+    max-width: fit-content;
+  }
+
+  header {
+    margin-bottom: 1.5rem;
   }
 
   h1 {
     font-weight: normal;
+    font-size: 2rem;
     + p {
       font-size: 1.25rem;
-      line-height: 1.25;
+      line-height: 1;
     }
   }
 
   .socials {
     display: flex;
-    gap: 0.5rem;
-    margin-left: -0.5rem;
+    gap: 2rem;
+    margin-bottom: 1.5rem;
 
     a {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0.5rem;
-
       svg {
         width: 1.5rem;
         height: 1.5rem;
@@ -89,6 +88,6 @@ import LinkedInIcon from '../assets/icon_linkedin.svg'
     border: none;
     border-top: 1px solid var(--theme-border);
     margin-top: 0.5rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 2rem;
   }
 </style>
