@@ -67,7 +67,10 @@ a {
 a.list {
   display: inline-block;
   width: fit-content;
-  padding-left: 1.2em;
+  line-height: 1.25;
+
+  --symbol-offset: 1rem;
+  padding-left: var(--symbol-offset);
 
   &::before {
     content: '+ ';
@@ -80,7 +83,7 @@ a.list {
     content: '';
     position: absolute;
     bottom: 0;
-    left: 1.2em;
+    left: var(--symbol-offset);
     width: 0;
     height: 1px;
     background: var(--theme-accent);
@@ -89,7 +92,7 @@ a.list {
 
   &:hover::after {
     width: 100%;
-    width: calc(100% - 1.2em);
+    width: calc(100% - var(--symbol-offset));
   }
 }
 
