@@ -85,10 +85,19 @@ const formattedDate = new Date(frontmatter.date).toLocaleDateString('en-US', {
     ol {
       margin-bottom: 1.5rem;
       padding-left: 1.5rem;
-    }
 
-    li {
-      margin-bottom: 0.5rem;
+      ul,
+      ol {
+        margin-bottom: 0;
+      }
+
+      &.contains-task-list {
+        padding-left: 0.5rem;
+      }
+
+      li.task-list-item {
+        list-style: none;
+      }
     }
 
     blockquote {
