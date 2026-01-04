@@ -29,10 +29,10 @@
 }
 
 :root {
-  --min-fs: 14; /* font size (px) at mobile */
+  --min-fs: 16; /* font size (px) at mobile */
   --max-fs: 24; /* font size (px) at desktop */
   --min-vw: 375; /* mobile viewport width (px) */
-  --max-vw: 1280; /* desktop viewport width (px) */
+  --max-vw: 1920; /* desktop viewport width (px) */
   --slope: calc((var(--max-fs) - var(--min-fs)) / (var(--max-vw) - var(--min-vw)));
   --intercept: calc(var(--min-fs) - var(--slope) * var(--min-vw));
 
