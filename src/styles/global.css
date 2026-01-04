@@ -48,12 +48,8 @@ body {
 
 main {
   max-width: 64ch;
-  margin: 0 auto;
-  padding: 0 1rem;
-
-  @media (max-width: 768px) {
-    padding: 0 1.5rem;
-  }
+  margin: 2rem auto;
+  padding: 0 1.5rem;
 }
 
 a {
