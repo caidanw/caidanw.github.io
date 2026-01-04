@@ -1,7 +1,7 @@
 ---
-import Hr from '@components/Hr.astro'
 import BreadcrumbLayout from '@/layouts/BreadcrumbLayout.astro'
 import ListHeader from '@/components/ListHeader.astro'
+import { format, compareDesc } from 'date-fns'
 
 interface PostFrontmatter {
   title: string
@@ -16,19 +16,13 @@ interface Post {
 }
 
 const isPublished = (post: Post) => import.meta.env.DEV || !post.frontmatter.draft
-const byDateDescending = (a: Post, b: Post) => new Date(b.frontmatter.date).getTime() - new Date(a.frontmatter.date).getTime()
+const byDateDescending = (a: Post, b: Post) => compareDesc(a.frontmatter.date, b.frontmatter.date)
 
 const posts = Object.values(import.meta.glob<Post>('./*.md', { eager: true }))
   .filter(isPublished)
   .sort(byDateDescending)
 
-function formatDate(date: string) {
-  return new Date(date).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: '2-digit',
-  })
-}
+const formatDate = (date: string) => format(date, 'MMM dd, yyyy')
 ---
 
 <BreadcrumbLayout title="Blog - Caidan Williams" description="Thoughts and writings by Caidan Williams">
