@@ -7,6 +7,7 @@ interface PostFrontmatter {
   title: string
   date: string
   description?: string
+  draft?: boolean
 }
 
 interface Post {
@@ -16,7 +17,7 @@ interface Post {
 
 // Get all blog posts and sort by date (newest first)
 const postModules = import.meta.glob<Post>('./*.md', { eager: true })
-const posts = Object.values(postModules)
+const posts = Object.values(postModules).filter((post) => import.meta.env.DEV || !post.frontmatter.draft)
 const sortedPosts = posts.sort((a, b) => {
   const dateA = new Date(a.frontmatter.date)
   const dateB = new Date(b.frontmatter.date)
