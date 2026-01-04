@@ -1,6 +1,7 @@
 ---
 import Breadcrumbs from '@/components/Breadcrumbs.astro'
 import BreadcrumbLayout from './BreadcrumbLayout.astro'
+import Hr from '@/components/Hr.astro'
 
 interface Props {
   frontmatter: {
@@ -26,6 +27,7 @@ const formattedDate = new Date(frontmatter.date).toLocaleDateString('en-US', {
         <h1>{frontmatter.title}</h1>
         <time datetime={frontmatter.date.toString()}>{formattedDate}</time>
       </header>
+      <Hr />
       <div class="post-content">
         <slot />
       </div>
@@ -34,31 +36,18 @@ const formattedDate = new Date(frontmatter.date).toLocaleDateString('en-US', {
 </BreadcrumbLayout>
 
 <style>
-  header {
-    border-bottom: 1px solid var(--theme-border);
-    padding: 0.5rem;
-  }
-
   main {
-    padding-top: 2rem;
     padding-bottom: 4rem;
   }
 
   .post-header {
-    margin-bottom: 2rem;
-    border: none;
-    padding: 0;
-
     h1 {
-      font-size: 1.75rem;
-      font-weight: bold;
-      line-height: 1.2;
-      margin-bottom: 0.5rem;
+      font-size: 1.5rem;
+      font-weight: 600;
     }
 
     time {
       color: var(--theme-text-dim);
-      font-size: 0.875rem;
     }
   }
 
