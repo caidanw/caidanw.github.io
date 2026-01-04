@@ -147,5 +147,30 @@ const formattedDate = new Date(frontmatter.date).toLocaleDateString('en-US', {
       border: 1px solid var(--theme-border);
       margin: 1.5rem 0;
     }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1.5rem;
+
+      th,
+      td {
+        border: 1px solid var(--theme-border);
+        padding: 0.5rem 1rem;
+        text-align: left;
+
+        &[align='center'] {
+          text-align: center;
+        }
+
+        &[align='right'] {
+          text-align: right;
+        }
+      }
+
+      th {
+        background: var(--theme-table-header-bg);
+      }
+    }
   }
 </style>
