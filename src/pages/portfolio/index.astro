@@ -1,7 +1,5 @@
 ---
-import Layout from '@layouts/Layout.astro'
-import Hr from '@components/Hr.astro'
-import Breadcrumbs from '@/components/Breadcrumbs.astro'
+import ListHeader from '@/components/ListHeader.astro'
 import BreadcrumbLayout from '@/layouts/BreadcrumbLayout.astro'
 
 const projects = [
@@ -24,9 +22,10 @@ const projects = [
 
 <BreadcrumbLayout title="Portfolio - Caidan Williams" description="Selected projects and experiments">
   <main>
-    <h1>Portfolio</h1>
-    <p class="subtitle">A showcase of selected projects and experiments I've worked on.</p>
-    <Hr />
+    <ListHeader>
+      <h1>Portfolio</h1>
+      <p class="subtitle">A showcase of selected projects and experiments I've worked on.</p>
+    </ListHeader>
 
     <div class="projects-grid">
       {
@@ -52,25 +51,6 @@ const projects = [
 </BreadcrumbLayout>
 
 <style>
-  main {
-    margin: 1rem auto;
-    padding: 0 1rem;
-
-    @media (min-width: 768px) {
-      padding: 0rem 1.5rem;
-    }
-  }
-
-  h1 {
-    font-size: 2.5rem;
-    font-weight: 700;
-  }
-
-  .subtitle {
-    color: var(--theme-text-dim);
-    margin-bottom: 1rem;
-  }
-
   .projects-grid {
     display: flex;
     flex-direction: column;
