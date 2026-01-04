@@ -1,5 +1,5 @@
 ---
-layout: ../../layouts/BlogPost.astro
+layout: src/layouts/BlogPost.astro
 title: "Coding: The Purest Form of Art"
 date: 2019-11-07
 description: "Exploring why coding is one of the purest forms of artistic expression"
