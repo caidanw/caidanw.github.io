@@ -20,6 +20,9 @@
   --theme-text-subtle: light-dark(var(--color-gray-darker), var(--color-gray-lighter));
   --theme-text-dim: light-dark(var(--color-gray-dark), var(--color-gray));
 
+  --theme-code-bg: light-dark(var(--color-gray-lighter), var(--color-gray-darker));
+  --theme-code-text: light-dark(var(--color-gray-darkest), var(--color-gray-lighter));
+
   --theme-accent: var(--color-akira-red);
   --theme-accent-light: hsl(from var(--color-akira-red) h s calc(l + 15));
   --theme-accent-dark: hsl(from var(--color-akira-red) h s calc(l - 15));
