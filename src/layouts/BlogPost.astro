@@ -1,6 +1,6 @@
 ---
 import Breadcrumbs from '@/components/Breadcrumbs.astro'
-import Layout from './Layout.astro'
+import HeaderLayout from './HeaderLayout.astro'
 
 interface Props {
   frontmatter: {
@@ -19,11 +19,7 @@ const formattedDate = new Date(frontmatter.date).toLocaleDateString('en-US', {
 })
 ---
 
-<Layout title={frontmatter.title} description={frontmatter.description}>
-  <header>
-    <Breadcrumbs />
-  </header>
-
+<HeaderLayout title={frontmatter.title} description={frontmatter.description}>
   <main>
     <article>
       <header class="post-header">
@@ -35,7 +31,7 @@ const formattedDate = new Date(frontmatter.date).toLocaleDateString('en-US', {
       </div>
     </article>
   </main>
-</Layout>
+</HeaderLayout>
 
 <style>
   header {
