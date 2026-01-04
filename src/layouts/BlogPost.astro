@@ -122,9 +122,12 @@ const formattedDate = new Date(frontmatter.date).toLocaleDateString('en-US', {
 
     a {
       color: var(--theme-accent);
+      text-decoration: underline;
+      text-decoration-color: transparent;
+      transition: text-decoration-color 0.2s ease;
 
       &:hover {
-        text-decoration: underline;
+        text-decoration-color: var(--theme-accent);
       }
     }
   }
