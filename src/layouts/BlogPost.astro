@@ -39,6 +39,7 @@ const { frontmatter } = Astro.props
     h1 {
       font-size: 2rem;
       font-weight: bold;
+      text-wrap: pretty;
     }
 
     time {
@@ -51,7 +52,7 @@ const { frontmatter } = Astro.props
     line-height: 1.7;
 
     p {
-      margin-bottom: 1.5rem;
+      margin-bottom: 1lh;
     }
 
     em {
@@ -62,18 +63,38 @@ const { frontmatter } = Astro.props
       font-weight: bold;
     }
 
+    h1 {
+      font-size: 2rem;
+      border-bottom: 1px solid var(--theme-border);
+    }
+
     h2 {
       font-size: 1.5rem;
-      font-weight: bold;
-      margin-top: 2rem;
-      margin-bottom: 1rem;
+      border-bottom: 1px dashed var(--theme-border);
     }
 
     h3 {
       font-size: 1.25rem;
+      border-bottom: 1px dotted var(--theme-border);
+    }
+
+    h4 {
+      font-size: 1.125rem;
+    }
+    h5,
+    h6 {
+      font-size: 1rem;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
       font-weight: bold;
-      margin-top: 1.5rem;
-      margin-bottom: 0.75rem;
+      margin-top: 1.5lh;
+      margin-bottom: 0.5lh;
     }
 
     ul,
@@ -98,9 +119,13 @@ const { frontmatter } = Astro.props
     blockquote {
       border-left: 3px solid var(--theme-accent);
       padding-left: 1rem;
-      margin: 1.5rem 0;
+      margin: 1lh 0 2lh;
       color: var(--theme-text-subtle);
       font-style: italic;
+
+      p {
+        margin-bottom: 0.5lh;
+      }
     }
 
     code {
