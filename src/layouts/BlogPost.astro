@@ -2,22 +2,19 @@
 import Breadcrumbs from '@/components/Breadcrumbs.astro'
 import BreadcrumbLayout from './BreadcrumbLayout.astro'
 import Hr from '@/components/Hr.astro'
+import { format, parseISO } from 'date-fns'
 
 interface Props {
   frontmatter: {
     title: string
-    date: Date
+    date: string
     description?: string
   }
 }
 
 const { frontmatter } = Astro.props
 
-const formattedDate = new Date(frontmatter.date).toLocaleDateString('en-US', {
-  year: 'numeric',
-  month: 'long',
-  day: 'numeric',
-})
+const formattedDate = format(frontmatter.date, 'MMMM d, yyyy')
 ---
 
 <BreadcrumbLayout title={frontmatter.title} description={frontmatter.description}>
@@ -25,7 +22,7 @@ const formattedDate = new Date(frontmatter.date).toLocaleDateString('en-US', {
     <article>
       <header class="post-header">
         <h1>{frontmatter.title}</h1>
-        <time datetime={frontmatter.date.toString()}>{formattedDate}</time>
+        <time datetime={frontmatter.date}>{formattedDate}</time>
       </header>
       <Hr />
       <div class="post-content">
