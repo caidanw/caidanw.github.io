@@ -10,6 +10,7 @@
   --color-gray-darker: hsl(0, 0%, 17%);
   --color-gray-darkest: hsl(0, 0%, 12%);
   --color-black: hsl(0, 0%, 7%);
+  --color-blacker: hsl(0, 0%, 4%);
   --color-akira-red: #e12120;
 
   color-scheme: dark;
