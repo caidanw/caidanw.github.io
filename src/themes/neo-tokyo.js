@@ -42,35 +42,21 @@ function mute(hex, darken = -20, desat = 0.2) {
 }
 
 // ============================================================================
-// PALETTE DEFINITION (Nord-style structure)
+// PALETTE DEFINITION
 // ============================================================================
 
-// --- Polar Night (Dark backgrounds) ---
-// Warm-tinted darks to match the Akira aesthetic
-const polarNight = {
-  nord0: '#0a0a0a', // Deepest background
-  nord1: '#1a1a1a', // Elevated surfaces
-  nord2: '#252525', // Selection, highlights
-  nord3: '#404040', // Comments, subtle UI
-}
-
-// --- Snow Storm (Light foregrounds) ---
-// Slightly warm whites
-const snowStorm = {
-  nord4: '#a0a0a0', // Muted text, inactive
-  nord5: '#c0c0c0', // Secondary text
-  nord6: '#d8d8d8', // Primary foreground
-}
-
-// --- Frost (Structural colors) ---
-// Instead of Nord's blues, use warm grays with subtle red undertone
-// These are for functions, keywords, structural elements
-// Increased contrast between levels
-const frost = {
-  frost0: '#a08080', // Lightest mauve - for types, classes
-  frost1: '#b09595', // Brighter - for function calls
-  frost2: '#6a5555', // Darker - for support, built-ins
-  frost3: '#504040', // Deepest - for operators, punctuation
+// --- Unified Gray Scale ---
+// Single source of truth for all gray levels
+const gray = {
+  0: '#0a0a0a', // Background
+  1: '#1a1a1a', // Elevated surfaces
+  2: '#2a2a2a', // Selection/highlights
+  3: '#454545', // Comments
+  4: '#606060', // Punctuation, operators
+  5: '#888888', // Support functions, built-ins
+  6: '#a8a8a8', // Types, classes
+  7: '#c8c8c8', // Object keys, attributes
+  8: '#e0e0e0', // Primary text, variables
 }
 
 // --- Aurora (Semantic accent colors) ---
@@ -107,22 +93,22 @@ export default {
   name: 'neo-tokyo',
   type: 'dark',
   colors: {
-    'editor.background': polarNight.nord0,
-    'editor.foreground': snowStorm.nord6,
+    'editor.background': gray[0],
+    'editor.foreground': gray[8],
   },
   tokenColors: [
     // === Default ===
     {
       settings: {
-        foreground: snowStorm.nord6,
+        foreground: gray[8],
       },
     },
 
-    // === Comments (Polar Night - nord3) ===
+    // === Comments (gray 3) ===
     {
       scope: ['comment', 'comment.line', 'comment.block', 'comment.block.documentation', 'punctuation.definition.comment'],
       settings: {
-        foreground: polarNight.nord3,
+        foreground: gray[3],
         fontStyle: 'italic',
       },
     },
@@ -137,7 +123,6 @@ export default {
 
     // === Storage (Aurora - RED) ===
     // const, let, var, function, class, interface, async, type
-    // This is the "structure definition" color - making declarations stand out
     {
       scope: ['storage', 'storage.type', 'storage.modifier', 'support.type.builtin'],
       settings: {
@@ -146,7 +131,6 @@ export default {
     },
 
     // === Import/Export (Aurora - RED) ===
-    // import, export, from - module boundaries are important
     {
       scope: ['keyword.control.import', 'keyword.control.export', 'keyword.control.from', 'keyword.control.default'],
       settings: {
@@ -155,7 +139,6 @@ export default {
     },
 
     // === Control Flow Keywords (Aurora - purple) ===
-    // if, else, return, for, while, switch, etc.
     {
       scope: ['keyword.control', 'keyword.control.conditional', 'keyword.control.loop', 'keyword.control.flow'],
       settings: {
@@ -164,7 +147,6 @@ export default {
     },
 
     // === Other Keywords (Aurora - purple) ===
-    // Fallback for other keyword types
     {
       scope: 'keyword',
       settings: {
@@ -172,7 +154,7 @@ export default {
       },
     },
 
-    // === Functions (Aurora - yellow) ===
+    // === Function definitions (Aurora - yellow) ===
     {
       scope: 'entity.name.function',
       settings: {
@@ -180,28 +162,28 @@ export default {
       },
     },
 
-    // === Support functions (Frost - frost1) ===
+    // === Support functions (gray 5) ===
     // console.log, Math.floor, etc.
     {
       scope: 'support.function',
       settings: {
-        foreground: frost.frost1,
+        foreground: gray[5],
       },
     },
 
-    // === Types, Classes (Frost - frost0) ===
+    // === Types, Classes (gray 6) ===
     {
       scope: ['entity.name.type', 'entity.name.class', 'support.type'],
       settings: {
-        foreground: frost.frost0,
+        foreground: gray[6],
       },
     },
 
-    // === Variables (Snow Storm - nord6) ===
+    // === Variables (gray 8) ===
     {
       scope: 'variable',
       settings: {
-        foreground: snowStorm.nord6,
+        foreground: gray[8],
       },
     },
 
@@ -213,19 +195,19 @@ export default {
       },
     },
 
-    // === Operators (Frost - frost3) ===
+    // === Operators (gray 4) ===
     {
       scope: 'keyword.operator',
       settings: {
-        foreground: frost.frost3,
+        foreground: gray[4],
       },
     },
 
-    // === Punctuation (Frost - frost3) ===
+    // === Punctuation (gray 4) ===
     {
       scope: 'punctuation',
       settings: {
-        foreground: frost.frost3,
+        foreground: gray[4],
       },
     },
 
@@ -237,35 +219,35 @@ export default {
       },
     },
 
-    // === Attributes (Aurora - yellow muted) ===
+    // === Attributes (gray 7) ===
     {
       scope: 'entity.other.attribute-name',
       settings: {
-        foreground: mute(aurora.yellow, -20, 0.2),
+        foreground: gray[7],
       },
     },
 
-    // === CSS Properties (Frost - frost1) ===
+    // === CSS Properties (gray 7) ===
     {
       scope: 'support.type.property-name',
       settings: {
-        foreground: frost.frost1,
+        foreground: gray[7],
       },
     },
 
-    // === Object Keys (Snow Storm - nord5) ===
+    // === Object Keys (gray 7) ===
     {
       scope: 'meta.object-literal.key',
       settings: {
-        foreground: snowStorm.nord5,
+        foreground: gray[7],
       },
     },
 
-    // === Regex (Frost - frost2) ===
+    // === Regex (gray 5) ===
     {
       scope: 'string.regexp',
       settings: {
-        foreground: frost.frost2,
+        foreground: gray[5],
       },
     },
 
