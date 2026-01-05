@@ -60,28 +60,22 @@ const gray = {
 }
 
 // --- Aurora (Semantic accent colors) ---
-// Based on Akira red, with carefully chosen companions
-// Following Nord: red=errors, orange=constants, yellow=functions,
-//                 green=strings, purple=keywords
 const aurora = {
-  // Red - The signature Akira color, slightly muted for comfort
+  // Red - bright for errors only
   red: mute('#e12120', 0, 0.2),
-  redMuted: mute('#e12120', -20, 0.4),
+  // Red muted - for structural keywords (const, import, function, class)
+  redMuted: mute('#e12120', -20, 0.35),
 
-  // Orange - Warm, for numbers and constants
-  // Derived: red shifted toward yellow
+  // Orange - for numbers and constants
   orange: mute('#d4694a', 0, 0),
 
-  // Yellow/Gold - For function names (high visibility, frequently called)
-  // Muted gold that complements the red
+  // Yellow/Gold - for function names
   yellow: mute('#c9a848', 0, 0),
 
-  // Green - For strings (the "content" color)
-  // Warmer, less minty - more sage/olive tone
+  // Green - for strings
   green: mute('#7a9a6a', 0, 0),
 
-  // Purple - More blue-leaning purple for control flow
-  // Shifted toward indigo/periwinkle
+  // Purple - for control flow (if, return, for, while)
   purple: mute('#7a7aaa', 0, 0),
 }
 
@@ -121,20 +115,20 @@ export default {
       },
     },
 
-    // === Storage (Aurora - RED) ===
+    // === Storage (Aurora - redMuted) ===
     // const, let, var, function, class, interface, async, type
     {
       scope: ['storage', 'storage.type', 'storage.modifier', 'support.type.builtin'],
       settings: {
-        foreground: aurora.red,
+        foreground: aurora.redMuted,
       },
     },
 
-    // === Import/Export (Aurora - RED) ===
+    // === Import/Export (Aurora - redMuted) ===
     {
       scope: ['keyword.control.import', 'keyword.control.export', 'keyword.control.from', 'keyword.control.default'],
       settings: {
-        foreground: aurora.red,
+        foreground: aurora.redMuted,
       },
     },
 
@@ -256,6 +250,14 @@ export default {
       scope: 'constant.character.escape',
       settings: {
         foreground: aurora.orange,
+      },
+    },
+
+    // === Errors (Aurora - red) ===
+    {
+      scope: ['invalid', 'invalid.illegal', 'invalid.deprecated'],
+      settings: {
+        foreground: aurora.red,
       },
     },
   ],
