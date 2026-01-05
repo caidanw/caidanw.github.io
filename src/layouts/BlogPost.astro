@@ -1,0 +1,209 @@
+---
+import Breadcrumbs from '@/components/Breadcrumbs.astro'
+import BreadcrumbLayout from './BreadcrumbLayout.astro'
+import Hr from '@/components/Hr.astro'
+import DateTime from '@/components/DateTime.astro'
+
+interface Props {
+  frontmatter: {
+    title: string
+    date: string
+    description?: string
+  }
+}
+
+const { frontmatter } = Astro.props
+---
+
+<BreadcrumbLayout title={frontmatter.title} description={frontmatter.description}>
+  <main>
+    <article>
+      <header class="post-header">
+        <h1>{frontmatter.title}</h1>
+        <DateTime date={frontmatter.date} />
+      </header>
+      <Hr />
+      <div class="post-content">
+        <slot />
+      </div>
+    </article>
+  </main>
+</BreadcrumbLayout>
+
+<style>
+  main {
+    padding-bottom: 4rem;
+  }
+
+  .post-header {
+    h1 {
+      font-size: 2rem;
+      font-weight: bold;
+      text-wrap: pretty;
+    }
+
+    time {
+      color: var(--theme-text-dim);
+    }
+  }
+
+  .post-content {
+    display: contents;
+    line-height: 1.7;
+
+    /* prettier-ignore */
+    /* * { border: 1px solid red; } */
+
+    p {
+      margin-bottom: 1lh;
+    }
+
+    em {
+      font-style: italic;
+    }
+
+    strong {
+      font-weight: bold;
+    }
+
+    h1 {
+      font-size: 2rem;
+      border-bottom: 1px solid var(--theme-border);
+    }
+
+    h2 {
+      font-size: 1.5rem;
+      border-bottom: 1px dashed var(--theme-border);
+    }
+
+    h3 {
+      font-size: 1.25rem;
+      border-bottom: 1px dotted var(--theme-border);
+    }
+
+    h4 {
+      font-size: 1.125rem;
+    }
+    h5,
+    h6 {
+      font-size: 1rem;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      font-weight: bold;
+      margin-top: 1.5lh;
+      margin-bottom: 0.5lh;
+    }
+
+    ul,
+    ol {
+      margin-bottom: 1.5rem;
+      padding-left: 1.5rem;
+
+      ul,
+      ol {
+        margin-bottom: 0;
+      }
+
+      li {
+        padding-left: 0.5ch;
+      }
+
+      li.task-list-item {
+        list-style: none;
+        position: relative;
+
+        input[type='checkbox'] {
+          width: 16px;
+          height: 16px;
+          position: absolute;
+          left: -1.8ch;
+          top: 50%;
+          transform: translateY(-50%);
+        }
+      }
+    }
+
+    blockquote {
+      border-left: 3px solid var(--theme-accent);
+      padding-left: 1rem;
+      margin: 1lh 0 1.5lh;
+      color: var(--theme-text-subtle);
+      font-style: italic;
+
+      p {
+        margin-bottom: 0.5lh;
+      }
+    }
+
+    code {
+      font-family: var(--font-mono);
+      color: var(--theme-code-text);
+      background: var(--theme-code-bg);
+      padding: 0.25rem;
+      border-radius: 0.25rem;
+    }
+
+    pre {
+      font-size: 0.875rem;
+      line-height: 1.5;
+      overflow-x: auto;
+      border-radius: 0.5rem;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1.5rem;
+
+      background-color: var(--color-blacker) !important;
+
+      code {
+        background: none;
+        padding: 0;
+      }
+    }
+
+    a {
+      color: var(--theme-accent);
+      text-decoration: underline;
+      text-decoration-color: transparent;
+      transition: text-decoration-color 0.2s ease;
+
+      &:hover {
+        text-decoration-color: var(--theme-accent);
+      }
+    }
+
+    hr {
+      border: 1px solid var(--theme-border);
+      margin: 1.5rem 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1.5rem;
+
+      th,
+      td {
+        border: 1px solid var(--theme-table-border);
+        padding: 0.5rem 1rem;
+        text-align: left;
+
+        &[align='center'] {
+          text-align: center;
+        }
+
+        &[align='right'] {
+          text-align: right;
+        }
+      }
+
+      th {
+        background: var(--theme-table-header-bg);
+      }
+    }
+  }
+</style>

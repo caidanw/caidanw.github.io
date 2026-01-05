@@ -8,7 +8,9 @@
   --color-gray: hsl(0, 0%, 54%);
   --color-gray-dark: hsl(0, 0%, 28%);
   --color-gray-darker: hsl(0, 0%, 17%);
+  --color-gray-darkest: hsl(0, 0%, 12%);
   --color-black: hsl(0, 0%, 7%);
+  --color-blacker: hsl(0, 0%, 4%);
   --color-akira-red: #e12120;
 
   color-scheme: dark;
@@ -19,17 +21,26 @@
   --theme-text-subtle: light-dark(var(--color-gray-darker), var(--color-gray-lighter));
   --theme-text-dim: light-dark(var(--color-gray-dark), var(--color-gray));
 
+  --theme-code-bg: light-dark(var(--color-gray-lighter), var(--color-gray-darker));
+  --theme-code-text: light-dark(var(--color-gray-darkest), var(--color-gray-lighter));
+
+  --theme-table-header-bg: light-dark(var(--color-gray-lighter), var(--color-gray-darkest));
+  --theme-table-border: light-dark(var(--color-gray-light), var(--color-gray-darker));
+
   --theme-accent: var(--color-akira-red);
   --theme-accent-light: hsl(from var(--color-akira-red) h s calc(l + 15));
   --theme-accent-dark: hsl(from var(--color-akira-red) h s calc(l - 15));
 }
 
 :root {
-  font-size: 16px;
+  --min-fs: 16; /* font size (px) at mobile */
+  --max-fs: 22; /* font size (px) at desktop */
+  --min-vw: 375; /* mobile viewport width (px) */
+  --max-vw: 2560; /* desktop viewport width (px) */
+  --slope: calc((var(--max-fs) - var(--min-fs)) / (var(--max-vw) - var(--min-vw)));
+  --intercept: calc(var(--min-fs) - var(--slope) * var(--min-vw));
 
-  @media (min-width: 768px) {
-    font-size: 20px;
-  }
+  font-size: clamp(calc(var(--min-fs) * 1px), calc(var(--slope) * 100vw + var(--intercept) * 1px), calc(var(--max-fs) * 1px));
 }
 
 [data-theme='light'] {
@@ -47,13 +58,9 @@ body {
 }
 
 main {
-  max-width: 64ch;
-  margin: 0 auto;
-  padding: 0 1rem;
-
-  @media (max-width: 768px) {
-    padding: 0 1.5rem;
-  }
+  max-width: 74ch;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
 }
 
 a {
@@ -71,11 +78,16 @@ a {
 a.list {
   display: inline-block;
   width: fit-content;
-  padding-left: 1.2em;
+  line-height: 1.25;
+
+  --symbol-offset: 1em;
+  padding-left: var(--symbol-offset);
 
   &::before {
     content: '+ ';
     color: var(--theme-accent);
+    font-weight: normal;
+    line-height: 1.1;
     position: absolute;
     left: 0;
   }
@@ -84,7 +96,7 @@ a.list {
     content: '';
     position: absolute;
     bottom: 0;
-    left: 1.2em;
+    left: var(--symbol-offset);
     width: 0;
     height: 1px;
     background: var(--theme-accent);
@@ -93,7 +105,7 @@ a.list {
 
   &:hover::after {
     width: 100%;
-    width: calc(100% - 1.2em);
+    width: calc(100% - var(--symbol-offset));
   }
 }
 

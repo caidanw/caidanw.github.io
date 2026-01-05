@@ -1,9 +1,9 @@
 ---
-import HeaderLayout from '@/layouts/HeaderLayout.astro'
+import BreadcrumbLayout from '@/layouts/BreadcrumbLayout.astro'
 import ssImage from '@/assets/stipple_studio.png'
 ---
 
-<HeaderLayout
+<BreadcrumbLayout
   title="Stipple Studio"
   description="Interactive stippling tool with real-time visualization of the image processing pipeline"
   image={ssImage}
@@ -133,7 +133,7 @@ import ssImage from '@/assets/stipple_studio.png'
       </div>
     </div>
   </div>
-</HeaderLayout>
+</BreadcrumbLayout>
 
 <script>
   import { getInputElement, getButtonElement, getCanvasElement } from '../../lib/dom.ts'

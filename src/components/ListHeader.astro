@@ -1,0 +1,25 @@
+---
+import Hr from '@components/Hr.astro'
+---
+
+<header>
+  <slot />
+</header>
+<Hr />
+
+<style>
+  header {
+    > h1 {
+      font-size: 2rem;
+      font-weight: bold;
+      letter-spacing: 0.05em;
+
+      + p {
+        font-size: 1rem;
+        color: var(--theme-text-dim);
+        line-height: 1;
+        margin-bottom: 1rem;
+      }
+    }
+  }
+</style>

@@ -1,8 +1,6 @@
 ---
-import Layout from '@layouts/Layout.astro'
-import Hr from '@components/Hr.astro'
-import Breadcrumbs from '@/components/Breadcrumbs.astro'
-import HeaderLayout from '@/layouts/HeaderLayout.astro'
+import ListHeader from '@/components/ListHeader.astro'
+import BreadcrumbLayout from '@/layouts/BreadcrumbLayout.astro'
 
 const projects = [
   {
@@ -22,11 +20,12 @@ const projects = [
 ]
 ---
 
-<HeaderLayout title="Portfolio - Caidan Williams" description="Selected projects and experiments">
+<BreadcrumbLayout title="Portfolio - Caidan Williams" description="Selected projects and experiments">
   <main>
-    <h1>Portfolio</h1>
-    <p class="subtitle">A showcase of selected projects and experiments I've worked on.</p>
-    <Hr />
+    <ListHeader>
+      <h1>Portfolio</h1>
+      <p class="subtitle">A showcase of selected projects and experiments I've worked on.</p>
+    </ListHeader>
 
     <div class="projects-grid">
       {
@@ -49,28 +48,9 @@ const projects = [
       }
     </div>
   </main>
-</HeaderLayout>
+</BreadcrumbLayout>
 
 <style>
-  main {
-    margin: 1rem auto;
-    padding: 0 1rem;
-
-    @media (min-width: 768px) {
-      padding: 0rem 1.5rem;
-    }
-  }
-
-  h1 {
-    font-size: 2.5rem;
-    font-weight: 700;
-  }
-
-  .subtitle {
-    color: var(--theme-text-dim);
-    margin-bottom: 1rem;
-  }
-
   .projects-grid {
     display: flex;
     flex-direction: column;
@@ -81,17 +61,12 @@ const projects = [
     display: flex;
     align-items: baseline;
     gap: 1rem;
-    margin-bottom: 0.5rem;
   }
 
   .project-title {
     display: inline-block;
-    font-size: 1.5rem;
-    font-weight: 700;
-
-    &::after {
-      height: 2px;
-    }
+    font-size: 1rem;
+    font-weight: bold;
   }
 
   .source-link {

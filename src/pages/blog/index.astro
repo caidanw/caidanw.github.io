@@ -1,0 +1,72 @@
+---
+import BreadcrumbLayout from '@/layouts/BreadcrumbLayout.astro'
+import ListHeader from '@/components/ListHeader.astro'
+import { format, compareDesc } from 'date-fns'
+
+interface PostFrontmatter {
+  title: string
+  date: string
+  description?: string
+  draft?: boolean
+}
+
+interface Post {
+  frontmatter: PostFrontmatter
+  url: string
+}
+
+const isPublished = (post: Post) => import.meta.env.DEV || !post.frontmatter.draft
+const byDateDescending = (a: Post, b: Post) => compareDesc(a.frontmatter.date, b.frontmatter.date)
+
+const posts = Object.values(import.meta.glob<Post>('./*.md', { eager: true }))
+  .filter(isPublished)
+  .sort(byDateDescending)
+
+const formatDate = (date: string) => format(date, 'MMM dd, yyyy')
+---
+
+<BreadcrumbLayout title="Blog - Caidan Williams" description="Thoughts and writings by Caidan Williams">
+  <main>
+    <ListHeader>
+      <h1>Blog</h1>
+      <p>Thoughts and writings on coding, creativity, and more.</p>
+    </ListHeader>
+
+    <div class="posts-list">
+      {
+        posts.map((post) => (
+          <article class="post">
+            <time datetime={post.frontmatter.date.toString()}>{formatDate(post.frontmatter.date)}</time>
+            <a href={post.url} class="post-title list">
+              {post.frontmatter.title}
+            </a>
+          </article>
+        ))
+      }
+    </div>
+  </main>
+</BreadcrumbLayout>
+
+<style>
+  .posts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .post {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+  }
+
+  .post-title {
+    display: inline-block;
+  }
+
+  time {
+    color: var(--theme-text-dim);
+    white-space: nowrap;
+    font-family: var(--font-mono);
+  }
+</style>
