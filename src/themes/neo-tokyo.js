@@ -65,11 +65,12 @@ const snowStorm = {
 // --- Frost (Structural colors) ---
 // Instead of Nord's blues, use warm grays with subtle red undertone
 // These are for functions, keywords, structural elements
+// Increased contrast between levels
 const frost = {
-  frost0: '#8a7575', // Calm, muted mauve - for types, classes
-  frost1: '#9c8888', // Warmer - for function calls
-  frost2: '#7a6a6a', // Darker - for support, built-ins
-  frost3: '#6b5858', // Deepest - for operators, punctuation
+  frost0: '#a08080', // Lightest mauve - for types, classes
+  frost1: '#b09595', // Brighter - for function calls
+  frost2: '#6a5555', // Darker - for support, built-ins
+  frost3: '#504040', // Deepest - for operators, punctuation
 }
 
 // --- Aurora (Semantic accent colors) ---
@@ -77,25 +78,25 @@ const frost = {
 // Following Nord: red=errors, orange=constants, yellow=functions,
 //                 green=strings, purple=keywords
 const aurora = {
-  // Red - The signature Akira color. For keywords, control flow, errors
-  red: '#e12120',
-  redMuted: mute('#e12120', -10, 0.15),
+  // Red - The signature Akira color, slightly muted for comfort
+  red: mute('#e12120', 0, 0.2),
+  redMuted: mute('#e12120', -20, 0.4),
 
   // Orange - Warm, for numbers and constants
   // Derived: red shifted toward yellow
-  orange: mute('#d4694a', 0, 0.1),
+  orange: mute('#d4694a', 0, 0),
 
   // Yellow/Gold - For function names (high visibility, frequently called)
   // Muted gold that complements the red
-  yellow: mute('#c9a848', 0, 0.15),
+  yellow: mute('#c9a848', 0, 0),
 
   // Green - For strings (the "content" color)
-  // Desaturated teal-green that doesn't clash with red
-  green: mute('#5a9a7a', 10, 0.1),
+  // Warmer, less minty - more sage/olive tone
+  green: mute('#7a9a6a', 0, 0),
 
-  // Purple - For storage/modifiers (const, let, class)
-  // Muted purple that bridges red and the cooler tones
-  purple: mute('#9a6a8a', 0, 0.1),
+  // Purple - More blue-leaning purple for control flow
+  // Shifted toward indigo/periwinkle
+  purple: mute('#7a7aaa', 0, 0),
 }
 
 // ============================================================================
@@ -119,7 +120,7 @@ export default {
 
     // === Comments (Polar Night - nord3) ===
     {
-      scope: 'comment',
+      scope: ['comment', 'comment.line', 'comment.block', 'comment.block.documentation', 'punctuation.definition.comment'],
       settings: {
         foreground: polarNight.nord3,
         fontStyle: 'italic',
@@ -134,19 +135,38 @@ export default {
       },
     },
 
-    // === Keywords (Aurora - red) ===
-    // if, else, return, for, while, etc.
+    // === Storage (Aurora - RED) ===
+    // const, let, var, function, class, interface, async, type
+    // This is the "structure definition" color - making declarations stand out
     {
-      scope: 'keyword',
+      scope: ['storage', 'storage.type', 'storage.modifier', 'support.type.builtin'],
       settings: {
         foreground: aurora.red,
       },
     },
 
-    // === Storage (Aurora - purple) ===
-    // const, let, var, function, class, interface
+    // === Import/Export (Aurora - RED) ===
+    // import, export, from - module boundaries are important
     {
-      scope: 'storage',
+      scope: ['keyword.control.import', 'keyword.control.export', 'keyword.control.from', 'keyword.control.default'],
+      settings: {
+        foreground: aurora.red,
+      },
+    },
+
+    // === Control Flow Keywords (Aurora - purple) ===
+    // if, else, return, for, while, switch, etc.
+    {
+      scope: ['keyword.control', 'keyword.control.conditional', 'keyword.control.loop', 'keyword.control.flow'],
+      settings: {
+        foreground: aurora.purple,
+      },
+    },
+
+    // === Other Keywords (Aurora - purple) ===
+    // Fallback for other keyword types
+    {
+      scope: 'keyword',
       settings: {
         foreground: aurora.purple,
       },
@@ -171,19 +191,7 @@ export default {
 
     // === Types, Classes (Frost - frost0) ===
     {
-      scope: 'entity.name.type',
-      settings: {
-        foreground: frost.frost0,
-      },
-    },
-    {
-      scope: 'support.type',
-      settings: {
-        foreground: frost.frost0,
-      },
-    },
-    {
-      scope: 'entity.name.class',
+      scope: ['entity.name.type', 'entity.name.class', 'support.type'],
       settings: {
         foreground: frost.frost0,
       },
@@ -199,19 +207,7 @@ export default {
 
     // === Constants, Numbers (Aurora - orange) ===
     {
-      scope: 'constant',
-      settings: {
-        foreground: aurora.orange,
-      },
-    },
-    {
-      scope: 'constant.numeric',
-      settings: {
-        foreground: aurora.orange,
-      },
-    },
-    {
-      scope: 'constant.language',
+      scope: ['constant', 'constant.numeric', 'constant.language'],
       settings: {
         foreground: aurora.orange,
       },
