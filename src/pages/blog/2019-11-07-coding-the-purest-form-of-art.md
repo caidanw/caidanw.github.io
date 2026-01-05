@@ -5,7 +5,7 @@ date: '2017-11-07T18:38:00-07:00'
 description: 'Exploring why coding is one of the purest forms of artistic expression'
 ---
 
-> Hello from 2025! For context, I wrote this essay for a class in senior year of high school.
+> Hello from 2025! For context, I wrote this essay for a class in my senior year of high school.
 
 _"Coding is the purest form of art."_ said my best friend Dylan Katz. Although this is a subjective statement, it has stayed with me over the years. I agree with this statement, and I have found a few reasons why this holds true for me. Coding is a practice in which a person handcrafts words and logic statements to give extremely specific commands to a computer. And when working within a digital space there are very few limitations that a developer will ever encounter. This allows a developer to create almost anything whether it be an autonomous artificial intelligence, a real-world robot that is able to defuse bombs, or a completely digital world in which a person can explore. The art of coding is beautiful, boundless, and useful.
 
