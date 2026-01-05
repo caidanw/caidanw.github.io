@@ -110,12 +110,22 @@ const { frontmatter } = Astro.props
         margin-bottom: 0;
       }
 
-      &.contains-task-list {
-        padding-left: 0.5rem;
+      li {
+        padding-left: 0.5ch;
       }
 
       li.task-list-item {
         list-style: none;
+        position: relative;
+
+        input[type='checkbox'] {
+          width: 16px;
+          height: 16px;
+          position: absolute;
+          left: -1.8ch;
+          top: 50%;
+          transform: translateY(-50%);
+        }
       }
     }
 
