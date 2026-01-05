@@ -1,7 +1,7 @@
 ---
 layout: src/layouts/BlogPost.astro
 title: 'Coding: The Purest Form of Art'
-date: '2019-11-07T12:00:00-07:00'
+date: '2017-11-07T18:38:00-07:00'
 description: 'Exploring why coding is one of the purest forms of artistic expression'
 ---
 
