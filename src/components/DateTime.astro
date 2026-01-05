@@ -1,0 +1,12 @@
+---
+import { format } from 'date-fns'
+
+interface Props {
+  date: string
+}
+
+const { date } = Astro.props
+const formattedDate = format(date, 'MMMM d, yyyy')
+---
+
+<time datetime={date}>{formattedDate}</time>
