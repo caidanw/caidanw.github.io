@@ -1,7 +1,7 @@
 ---
 layout: src/layouts/BlogPost.astro
 title: Markdown Test Post
-date: 2026-01-03
+date: '2026-01-03T12:00:00-08:00'
 description: A comprehensive test file for previewing blog post styling
 draft: true
 ---
