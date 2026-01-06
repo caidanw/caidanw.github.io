@@ -68,6 +68,11 @@ const { frontmatter } = Astro.props
       font-size: 2rem;
       line-height: 1.2;
       border-bottom: 1px solid var(--theme-border);
+
+      &:first-child {
+        margin: 0;
+        border-bottom: none;
+      }
     }
 
     h2 {
