@@ -17,15 +17,13 @@ const { frontmatter } = Astro.props
 
 <BreadcrumbLayout title={frontmatter.title} description={frontmatter.description}>
   <main>
-    <article>
+    <article class="post-content">
       <header class="post-header">
         <h1>{frontmatter.title}</h1>
         <DateTime date={frontmatter.date} />
       </header>
       <Hr />
-      <div class="post-content">
-        <slot />
-      </div>
+      <slot />
     </article>
   </main>
 </BreadcrumbLayout>
