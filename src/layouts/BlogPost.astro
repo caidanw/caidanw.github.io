@@ -182,9 +182,12 @@ const { frontmatter } = Astro.props
     }
 
     table {
-      width: 100%;
+      display: block;
+      width: max-content;
+      max-width: 100%;
       border-collapse: collapse;
       margin-bottom: 1.5rem;
+      overflow-x: auto;
 
       th,
       td {
