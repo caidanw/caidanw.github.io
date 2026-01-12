@@ -20,14 +20,24 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
           <div class="section-title">Presets</div>
           <div class="preset-row">
             <select id="presetSelect" class="preset-select">
-              <option value="default">Default</option>
-              <option value="terminal">Terminal</option>
-              <option value="matrix">Matrix Rain</option>
-              <option value="retro">Retro CRT</option>
-              <option value="cosmic">Cosmic</option>
-              <option value="fog">Fog</option>
+              <optgroup label="Built-in">
+                <option value="default">Default</option>
+                <option value="terminal">Terminal</option>
+                <option value="matrix">Matrix Rain</option>
+                <option value="retro">Retro CRT</option>
+                <option value="cosmic">Cosmic</option>
+                <option value="fog">Fog</option>
+              </optgroup>
+              <optgroup label="Custom" id="customPresetsGroup">
+              </optgroup>
             </select>
             <button id="btnRandomize">Randomize</button>
+          </div>
+          <div class="preset-row preset-actions">
+            <button id="btnSavePreset">Save</button>
+            <button id="btnExport">Export</button>
+            <button id="btnImport">Import</button>
+            <input type="file" id="importFile" accept=".json" style="display: none;" />
           </div>
         </div>
 
@@ -827,8 +837,8 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   setupSlider('threshold5', 2)
 
   // Apply preset
-  function applyPreset(presetName: string) {
-    const preset = presets[presetName]
+  function applyPreset(presetName: string, source: Record<string, Partial<State>> = presets) {
+    const preset = source[presetName]
     if (!preset) return
 
     Object.entries(preset).forEach(([key, value]) => {
@@ -894,6 +904,139 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   }
 
   btnRandomize.addEventListener('click', randomize)
+
+  // ============================================
+  // Custom Presets (localStorage)
+  // ============================================
+  const STORAGE_KEY = 'glyphNoise_customPresets'
+  const customPresetsGroup = document.getElementById('customPresetsGroup') as HTMLOptGroupElement
+  const btnSavePreset = document.getElementById('btnSavePreset') as HTMLButtonElement
+  const btnExport = document.getElementById('btnExport') as HTMLButtonElement
+  const btnImport = document.getElementById('btnImport') as HTMLButtonElement
+  const importFile = document.getElementById('importFile') as HTMLInputElement
+
+  let customPresets: Record<string, Partial<State>> = {}
+
+  function loadCustomPresets() {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY)
+      if (stored) {
+        customPresets = JSON.parse(stored)
+        refreshCustomPresetsUI()
+      }
+    } catch (e) {
+      console.warn('Failed to load custom presets:', e)
+    }
+  }
+
+  function saveCustomPresets() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(customPresets))
+    } catch (e) {
+      console.warn('Failed to save custom presets:', e)
+    }
+  }
+
+  function refreshCustomPresetsUI() {
+    // Clear existing options
+    customPresetsGroup.innerHTML = ''
+
+    // Add options for each custom preset
+    Object.keys(customPresets).forEach((name) => {
+      const option = document.createElement('option')
+      option.value = `custom:${name}`
+      option.textContent = name
+      customPresetsGroup.appendChild(option)
+    })
+  }
+
+  function savePreset() {
+    const name = prompt('Enter preset name:')
+    if (!name || name.trim() === '') return
+
+    const trimmedName = name.trim()
+
+    // Capture current state
+    customPresets[trimmedName] = { ...state }
+    saveCustomPresets()
+    refreshCustomPresetsUI()
+
+    // Select the new preset
+    presetSelect.value = `custom:${trimmedName}`
+  }
+
+  function exportPresets() {
+    if (Object.keys(customPresets).length === 0) {
+      alert('No custom presets to export')
+      return
+    }
+
+    const exportData = {
+      version: 1,
+      presets: customPresets,
+    }
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'glyph-noise-presets.json'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  function importPresets(file: File) {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target?.result as string)
+
+        if (!data.presets || typeof data.presets !== 'object') {
+          alert('Invalid preset file format')
+          return
+        }
+
+        // Merge with existing custom presets
+        Object.assign(customPresets, data.presets)
+        saveCustomPresets()
+        refreshCustomPresetsUI()
+
+        alert(`Imported ${Object.keys(data.presets).length} preset(s)`)
+      } catch (err) {
+        alert('Failed to parse preset file')
+        console.error(err)
+      }
+    }
+    reader.readAsText(file)
+  }
+
+  // Event listeners for preset management
+  btnSavePreset.addEventListener('click', savePreset)
+  btnExport.addEventListener('click', exportPresets)
+  btnImport.addEventListener('click', () => importFile.click())
+  importFile.addEventListener('change', () => {
+    if (importFile.files && importFile.files[0]) {
+      importPresets(importFile.files[0])
+      importFile.value = '' // Reset for next import
+    }
+  })
+
+  // Update preset select handler to support custom presets
+  presetSelect.removeEventListener('change', () => {})
+  presetSelect.addEventListener('change', () => {
+    const value = presetSelect.value
+    if (value.startsWith('custom:')) {
+      const name = value.slice(7)
+      if (customPresets[name]) {
+        applyPreset(name, customPresets)
+      }
+    } else {
+      applyPreset(value)
+    }
+  })
+
+  // Load custom presets on startup
+  loadCustomPresets()
 
   // Apply random preset on page load
   const presetNames = Object.keys(presets)
@@ -1059,6 +1202,16 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     font-family: var(--font-sans);
     font-size: 0.75rem;
     cursor: pointer;
+  }
+
+  .preset-actions {
+    margin-top: 0.25rem;
+  }
+
+  .preset-actions button {
+    flex: 1;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.7rem;
   }
 
   button {
