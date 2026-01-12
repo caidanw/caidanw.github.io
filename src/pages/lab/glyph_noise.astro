@@ -60,8 +60,8 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
           </label>
           <label class="slider">
             Wave Speed
-            <input type="range" id="waveSpeed" min="0" max="1" step="0.01" value="0.3" />
-            <span class="value" id="waveSpeedValue">0.30</span>
+            <input type="range" id="waveSpeed" min="0" max="1" step="0.01" value="0.5" />
+            <span class="value" id="waveSpeedValue">0.50</span>
           </label>
           <label class="slider">
             Noise Intensity
@@ -72,6 +72,10 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
             Time Speed
             <input type="range" id="timeSpeed" min="0" max="3" step="0.1" value="1.0" />
             <span class="value" id="timeSpeedValue">1.0</span>
+          </label>
+          <label class="seed-input">
+            Seed
+            <input type="text" id="noiseSeed" placeholder="random" value="" />
           </label>
         </div>
 
@@ -181,13 +185,14 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     threshold3: number
     threshold4: number
     threshold5: number
+    noiseSeed: string
   }
 
   const state: State = {
     cellSize: 12,
     waveAmplitude: 0.008,
     waveFrequency: 4.0,
-    waveSpeed: 0.3,
+    waveSpeed: 0.5,
     noiseIntensity: 0.02,
     vignetteIntensity: 0.6,
     vignetteRadius: 0.8,
@@ -201,6 +206,19 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     threshold3: 0.30,
     threshold4: 0.40,
     threshold5: 0.50,
+    noiseSeed: Math.random().toString(36).substring(2, 8),
+  }
+
+  // Hash function to convert seed string to numeric value
+  function hashSeed(seed: string): number {
+    if (!seed) return Math.random() * 1000
+    let hash = 0
+    for (let i = 0; i < seed.length; i++) {
+      const char = seed.charCodeAt(i)
+      hash = ((hash << 5) - hash) + char
+      hash = hash & hash // Convert to 32-bit integer
+    }
+    return Math.abs(hash) % 10000
   }
 
   let isPaused = false
@@ -214,7 +232,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       cellSize: 12,
       waveAmplitude: 0.008,
       waveFrequency: 4.0,
-      waveSpeed: 0.3,
+      waveSpeed: 0.5,
       noiseIntensity: 0.02,
       vignetteIntensity: 0.6,
       vignetteRadius: 0.8,
@@ -233,7 +251,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       cellSize: 10,
       waveAmplitude: 0.005,
       waveFrequency: 3.0,
-      waveSpeed: 0.2,
+      waveSpeed: 0.4,
       noiseIntensity: 0.025,
       vignetteIntensity: 0.7,
       vignetteRadius: 0.9,
@@ -252,7 +270,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       cellSize: 8,
       waveAmplitude: 0.003,
       waveFrequency: 6.0,
-      waveSpeed: 0.6,
+      waveSpeed: 0.8,
       noiseIntensity: 0.015,
       vignetteIntensity: 0.5,
       vignetteRadius: 1.0,
@@ -271,7 +289,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       cellSize: 16,
       waveAmplitude: 0.012,
       waveFrequency: 2.5,
-      waveSpeed: 0.15,
+      waveSpeed: 0.3,
       noiseIntensity: 0.035,
       vignetteIntensity: 0.8,
       vignetteRadius: 0.6,
@@ -290,7 +308,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       cellSize: 14,
       waveAmplitude: 0.015,
       waveFrequency: 2.0,
-      waveSpeed: 0.1,
+      waveSpeed: 0.25,
       noiseIntensity: 0.02,
       vignetteIntensity: 0.4,
       vignetteRadius: 1.2,
@@ -309,7 +327,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       cellSize: 20,
       waveAmplitude: 0.02,
       waveFrequency: 1.5,
-      waveSpeed: 0.08,
+      waveSpeed: 0.2,
       noiseIntensity: 0.01,
       vignetteIntensity: 0.3,
       vignetteRadius: 1.3,
@@ -361,6 +379,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     uniform float u_vignetteRadius;
     uniform float u_brightnessAdjust;
     uniform float u_contrastAdjust;
+    uniform float u_noiseSeed;
 
     // Simplex 3D noise
     vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
@@ -448,14 +467,14 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
 
       // Domain warping - first layer (slow drift)
       vec2 warp1 = vec2(
-        fbm(vec3(uv * 2.0, u_time * 0.03 * u_waveSpeed)),
-        fbm(vec3(uv * 2.0 + vec2(5.3, 1.3), u_time * 0.025 * u_waveSpeed))
+        fbm(vec3(uv * 2.0, u_time * 0.08 * u_waveSpeed + u_noiseSeed)),
+        fbm(vec3(uv * 2.0 + vec2(5.3, 1.3), u_time * 0.06 * u_waveSpeed + u_noiseSeed))
       );
 
       // Domain warping - second layer (subtle turbulence)
       vec2 warp2 = vec2(
-        fbm(vec3(uv * 3.0 + warp1 * 0.5, u_time * 0.02 * u_waveSpeed)),
-        fbm(vec3(uv * 3.0 + vec2(2.7, 4.1) + warp1 * 0.5, u_time * 0.018 * u_waveSpeed))
+        fbm(vec3(uv * 3.0 + warp1 * 0.5, u_time * 0.05 * u_waveSpeed + u_noiseSeed)),
+        fbm(vec3(uv * 3.0 + vec2(2.7, 4.1) + warp1 * 0.5, u_time * 0.04 * u_waveSpeed + u_noiseSeed))
       );
 
       // Apply warping
@@ -463,17 +482,17 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
 
       // Wave distortion
       cloudUV += vec2(
-        sin(uv.y * u_waveFrequency * 10.0 + u_time * u_waveSpeed) * u_waveAmplitude,
-        cos(uv.x * u_waveFrequency * 10.0 + u_time * u_waveSpeed) * u_waveAmplitude
+        sin(uv.y * u_waveFrequency * 10.0 + u_time * 0.3 * u_waveSpeed) * u_waveAmplitude,
+        cos(uv.x * u_waveFrequency * 10.0 + u_time * 0.3 * u_waveSpeed) * u_waveAmplitude
       );
 
       // Sample cloud density
-      float clouds = fbm(vec3(cloudUV * 4.0, u_time * 0.01 * u_waveSpeed)) * 0.5 + 0.5;
-      float detail = fbm(vec3(cloudUV * 8.0, -u_time * 0.015 * u_waveSpeed)) * 0.5 + 0.5;
+      float clouds = fbm(vec3(cloudUV * 4.0, u_time * 0.03 * u_waveSpeed + u_noiseSeed)) * 0.5 + 0.5;
+      float detail = fbm(vec3(cloudUV * 8.0, -u_time * 0.04 * u_waveSpeed + u_noiseSeed)) * 0.5 + 0.5;
       float density = clouds * 0.7 + detail * 0.3;
 
       // Add noise intensity
-      density += (snoise(vec3(uv * 50.0, u_time * 0.1)) * 0.5 + 0.5) * u_noiseIntensity;
+      density += (snoise(vec3(uv * 50.0, u_time * 0.1 * u_waveSpeed + u_noiseSeed)) * 0.5 + 0.5) * u_noiseIntensity;
 
       // Soft threshold for billowing edges
       float visible = smoothstep(0.35, 0.70, density);
@@ -656,6 +675,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     vignetteRadius: gl.getUniformLocation(noiseProgram, 'u_vignetteRadius'),
     brightnessAdjust: gl.getUniformLocation(noiseProgram, 'u_brightnessAdjust'),
     contrastAdjust: gl.getUniformLocation(noiseProgram, 'u_contrastAdjust'),
+    noiseSeed: gl.getUniformLocation(noiseProgram, 'u_noiseSeed'),
   }
 
   // Get uniform locations - glyph program
@@ -766,6 +786,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     gl!.uniform1f(noiseUniforms.vignetteRadius, state.vignetteRadius)
     gl!.uniform1f(noiseUniforms.brightnessAdjust, state.brightnessAdjust)
     gl!.uniform1f(noiseUniforms.contrastAdjust, state.contrastAdjust)
+    gl!.uniform1f(noiseUniforms.noiseSeed, hashSeed(state.noiseSeed))
 
     gl!.bindVertexArray(quadVAO)
     gl!.drawArrays(gl!.TRIANGLE_STRIP, 0, 4)
@@ -836,6 +857,13 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   setupSlider('threshold4', 2)
   setupSlider('threshold5', 2)
 
+  // Setup seed input
+  const seedInput = document.getElementById('noiseSeed') as HTMLInputElement
+  seedInput.value = state.noiseSeed
+  seedInput.addEventListener('input', () => {
+    state.noiseSeed = seedInput.value
+  })
+
   // Apply preset
   function applyPreset(presetName: string, source: Record<string, Partial<State>> = presets) {
     const preset = source[presetName]
@@ -848,6 +876,8 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       const input = document.getElementById(key) as HTMLInputElement
       if (input) {
         input.value = String(value)
+        // Handle seed input separately (no decimal formatting)
+        if (key === 'noiseSeed') return
         const decimals = key === 'cellSize' || key === 'hue' ? 0 :
                         key.includes('Amplitude') || key.includes('Intensity') && key !== 'vignetteIntensity' ? 3 : 2
         updateSliderValue(key, value as number, decimals)
@@ -865,7 +895,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
 
   // Randomize all values within their slider ranges
   function randomize() {
-    const sliderRanges: Record<keyof State, [number, number]> = {
+    const sliderRanges: Record<string, [number, number]> = {
       cellSize: [4, 32],
       waveAmplitude: [0, 0.05],
       waveFrequency: [1, 10],
@@ -898,6 +928,10 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
         updateSliderValue(key, value, decimals)
       }
     })
+
+    // Generate new random seed
+    state.noiseSeed = Math.random().toString(36).substring(2, 8)
+    seedInput.value = state.noiseSeed
 
     // Clear preset selection since we're now randomized
     presetSelect.value = ''
@@ -1282,6 +1316,25 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
 
   .glyph-label {
     font-family: var(--font-mono);
+  }
+
+  .seed-input {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--theme-text-subtle);
+    font-size: 0.75rem;
+  }
+
+  .seed-input input {
+    width: 6rem;
+    background: var(--theme-bg);
+    color: var(--theme-text);
+    border: 1px solid var(--theme-border);
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
   }
 
   .info {
