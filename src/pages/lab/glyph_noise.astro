@@ -7,15 +7,15 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     <canvas id="canvas"></canvas>
 
     <div class="controls" id="controls">
-      <div class="controls-header">
-        <button id="btnToggleControls" class="toggle-btn">Controls</button>
-        <div class="controls-actions">
+      <button class="collapse-btn" id="collapseBtn" aria-label="Toggle controls">
+        <div class="collapse-icon"></div>
+      </button>
+
+      <div class="controls-content" id="controlsContent">
+        <div class="controls-header">
           <button id="btnPause">Pause</button>
           <button id="btnFullscreen">Fullscreen</button>
         </div>
-      </div>
-
-      <div class="controls-body" id="controlsBody">
         <div class="control-section">
           <div class="section-title">Presets</div>
           <div class="preset-grid">
@@ -142,8 +142,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   // ============================================
   const canvas = document.getElementById('canvas') as HTMLCanvasElement
   const controls = document.getElementById('controls') as HTMLDivElement
-  const controlsBody = document.getElementById('controlsBody') as HTMLDivElement
-  const btnToggleControls = document.getElementById('btnToggleControls') as HTMLButtonElement
+  const collapseBtn = document.getElementById('collapseBtn') as HTMLButtonElement
   const btnPause = document.getElementById('btnPause') as HTMLButtonElement
   const btnFullscreen = document.getElementById('btnFullscreen') as HTMLButtonElement
 
@@ -192,7 +191,6 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
 
   let isPaused = false
   let time = 0
-  let controlsVisible = true
 
   // ============================================
   // Presets
@@ -833,10 +831,8 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   })
 
   // Toggle controls
-  btnToggleControls.addEventListener('click', () => {
-    controlsVisible = !controlsVisible
-    controlsBody.style.display = controlsVisible ? 'block' : 'none'
-    btnToggleControls.textContent = controlsVisible ? 'Controls' : 'Show Controls'
+  collapseBtn.addEventListener('click', () => {
+    controls.classList.toggle('collapsed')
   })
 
   // Pause button
@@ -904,22 +900,61 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     z-index: 10;
   }
 
+  .collapse-btn {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--theme-border);
+    border-radius: 4px;
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 10;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+  }
+
+  .collapse-icon {
+    color: white;
+    font-size: 1rem;
+    line-height: 0;
+
+    &::before {
+      content: '-';
+    }
+  }
+
+  .controls.collapsed .collapse-icon::before {
+    content: '+';
+  }
+
+  .controls-content {
+    overflow: hidden;
+  }
+
+  .controls.collapsed {
+    padding: 0.5rem;
+    background: transparent;
+    border-color: transparent;
+
+    .collapse-btn {
+      position: static;
+    }
+
+    .controls-content {
+      display: none;
+    }
+  }
+
   .controls-header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.75rem;
-  }
-
-  .controls-actions {
-    display: flex;
     gap: 0.5rem;
-  }
-
-  .controls-body {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
+    margin-bottom: 0.75rem;
   }
 
   .control-section {
@@ -969,10 +1004,6 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
 
   button:active {
     background: var(--theme-accent);
-  }
-
-  .toggle-btn {
-    font-weight: 600;
   }
 
   .slider {
