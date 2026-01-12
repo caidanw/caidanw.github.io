@@ -211,7 +211,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
 
   // Hash function to convert seed string to numeric value
   function hashSeed(seed: string): number {
-    if (!seed) return Math.random() * 1000
+    if (!seed) return 0 // Empty seed = no offset
     let hash = 0
     for (let i = 0; i < seed.length; i++) {
       const char = seed.charCodeAt(i)
