@@ -475,31 +475,32 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       vec2 center = vec2(0.5, 0.5);
       float dist = length(uv - center);
 
-      // Domain warping - first layer (slow drift)
-      vec2 warp1 = vec2(
-        fbm(vec3(uv * 2.0, u_time * 0.08 * u_waveSpeed + u_noiseSeed)),
-        fbm(vec3(uv * 2.0 + vec2(5.3, 1.3), u_time * 0.06 * u_waveSpeed + u_noiseSeed))
+      // IQ-style domain warping (https://iquilezles.org/articles/warp/)
+      // First layer: q = (fbm(p), fbm(p + offset))
+      vec2 q = vec2(
+        fbm(vec3(uv, u_time * 0.05 * u_waveSpeed + u_noiseSeed)),
+        fbm(vec3(uv + vec2(5.2, 1.3), u_time * 0.04 * u_waveSpeed + u_noiseSeed))
       );
 
-      // Domain warping - second layer (subtle turbulence)
-      vec2 warp2 = vec2(
-        fbm(vec3(uv * 3.0 + warp1 * 0.5, u_time * 0.05 * u_waveSpeed + u_noiseSeed)),
-        fbm(vec3(uv * 3.0 + vec2(2.7, 4.1) + warp1 * 0.5, u_time * 0.04 * u_waveSpeed + u_noiseSeed))
+      // Second layer: r = (fbm(p + 4*q + offset), fbm(p + 4*q + offset))
+      vec2 r = vec2(
+        fbm(vec3(uv + 4.0 * q + vec2(1.7, 9.2), u_time * 0.03 * u_waveSpeed + u_noiseSeed)),
+        fbm(vec3(uv + 4.0 * q + vec2(8.3, 2.8), u_time * 0.025 * u_waveSpeed + u_noiseSeed))
       );
 
-      // Apply warping
-      vec2 cloudUV = uv + warp1 * 0.15 * u_waveAmplitude * 20.0 + warp2 * 0.08 * u_waveAmplitude * 20.0;
+      // Apply domain warping: warpedUV = p + strength * r
+      // Scale so waveAmplitude 0.008 gives moderate warping, 0.15 gives intense
+      float warpStrength = u_waveAmplitude * 50.0;
+      vec2 warpedUV = uv + warpStrength * r;
 
-      // Wave distortion
-      cloudUV += vec2(
+      // Additional sinusoidal wave distortion
+      warpedUV += vec2(
         sin(uv.y * u_waveFrequency * 10.0 + u_time * 0.3 * u_waveSpeed) * u_waveAmplitude,
         cos(uv.x * u_waveFrequency * 10.0 + u_time * 0.3 * u_waveSpeed) * u_waveAmplitude
       );
 
-      // Sample cloud density
-      float clouds = fbm(vec3(cloudUV * 4.0, u_time * 0.03 * u_waveSpeed + u_noiseSeed)) * 0.5 + 0.5;
-      float detail = fbm(vec3(cloudUV * 8.0, -u_time * 0.04 * u_waveSpeed + u_noiseSeed)) * 0.5 + 0.5;
-      float density = clouds * 0.7 + detail * 0.3;
+      // Sample pattern with warped coordinates: fbm(p + 4*r)
+      float density = fbm(vec3(warpedUV * 4.0, u_time * 0.02 * u_waveSpeed + u_noiseSeed)) * 0.5 + 0.5;
 
       // Add noise intensity
       density += (snoise(vec3(uv * 50.0, u_time * 0.1 * u_waveSpeed + u_noiseSeed)) * 0.5 + 0.5) * u_noiseIntensity;
