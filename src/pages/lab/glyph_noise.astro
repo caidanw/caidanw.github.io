@@ -59,11 +59,6 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
             <span class="value" id="waveAmplitudeValue">0.30</span>
           </label>
           <label class="slider">
-            Wave Frequency
-            <input type="range" id="waveFrequency" min="0.5" max="15" step="0.1" value="4.0" />
-            <span class="value" id="waveFrequencyValue">4.0</span>
-          </label>
-          <label class="slider">
             Wave Speed
             <input type="range" id="waveSpeed" min="0" max="2" step="0.01" value="0.5" />
             <span class="value" id="waveSpeedValue">0.50</span>
@@ -98,7 +93,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
           </label>
           <label class="slider">
             Radius
-            <input type="range" id="vignetteRadius" min="0.3" max="1.5" step="0.05" value="0.8" />
+            <input type="range" id="vignetteRadius" min="0" max="1" step="0.05" value="0.8" />
             <span class="value" id="vignetteRadiusValue">0.80</span>
           </label>
         </div>
@@ -180,7 +175,6 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   interface State {
     cellSize: number
     waveAmplitude: number
-    waveFrequency: number
     waveSpeed: number
     noiseIntensity: number
     vignetteIntensity: number
@@ -201,7 +195,6 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   const state: State = {
     cellSize: 12,
     waveAmplitude: 0.3,
-    waveFrequency: 4.0,
     waveSpeed: 0.5,
     noiseIntensity: 0.02,
     vignetteIntensity: 0.6,
@@ -241,7 +234,6 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     default: {
       cellSize: 12,
       waveAmplitude: 0.3,
-      waveFrequency: 4.0,
       waveSpeed: 0.5,
       noiseIntensity: 0.02,
       vignetteIntensity: 0.6,
@@ -260,7 +252,6 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     terminal: {
       cellSize: 10,
       waveAmplitude: 0.2,
-      waveFrequency: 3.0,
       waveSpeed: 0.4,
       noiseIntensity: 0.025,
       vignetteIntensity: 0.7,
@@ -279,7 +270,6 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     matrix: {
       cellSize: 8,
       waveAmplitude: 0.1,
-      waveFrequency: 6.0,
       waveSpeed: 0.8,
       noiseIntensity: 0.015,
       vignetteIntensity: 0.5,
@@ -298,7 +288,6 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     retro: {
       cellSize: 16,
       waveAmplitude: 0.45,
-      waveFrequency: 2.5,
       waveSpeed: 0.3,
       noiseIntensity: 0.035,
       vignetteIntensity: 0.8,
@@ -317,7 +306,6 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     cosmic: {
       cellSize: 14,
       waveAmplitude: 0.55,
-      waveFrequency: 2.0,
       waveSpeed: 0.25,
       noiseIntensity: 0.02,
       vignetteIntensity: 0.4,
@@ -336,7 +324,6 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     fog: {
       cellSize: 20,
       waveAmplitude: 0.7,
-      waveFrequency: 1.5,
       waveSpeed: 0.2,
       noiseIntensity: 0.01,
       vignetteIntensity: 0.3,
@@ -382,7 +369,6 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     uniform float u_time;
     uniform vec2 u_resolution;
     uniform float u_waveAmplitude;
-    uniform float u_waveFrequency;
     uniform float u_waveSpeed;
     uniform float u_noiseIntensity;
     uniform float u_vignetteIntensity;
@@ -492,13 +478,6 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       // Scale so waveAmplitude 0.3 (default) gives moderate warping, 1.0 gives strong
       float warpStrength = u_waveAmplitude * 1.5;
       vec2 warpedUV = uv + warpStrength * r;
-
-      // Sinusoidal wave distortion - scaled so frequency has visible effect
-      float waveAmp = u_waveAmplitude * 0.08;
-      warpedUV += vec2(
-        sin(uv.y * u_waveFrequency * 10.0 + u_time * 0.3 * u_waveSpeed) * waveAmp,
-        cos(uv.x * u_waveFrequency * 10.0 + u_time * 0.3 * u_waveSpeed) * waveAmp
-      );
 
       // Sample pattern with warped coordinates: fbm(p + 4*r)
       float density = fbm(vec3(warpedUV * 4.0, u_time * 0.02 * u_waveSpeed + u_noiseSeed)) * 0.5 + 0.5;
@@ -680,7 +659,6 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     time: gl.getUniformLocation(noiseProgram, 'u_time'),
     resolution: gl.getUniformLocation(noiseProgram, 'u_resolution'),
     waveAmplitude: gl.getUniformLocation(noiseProgram, 'u_waveAmplitude'),
-    waveFrequency: gl.getUniformLocation(noiseProgram, 'u_waveFrequency'),
     waveSpeed: gl.getUniformLocation(noiseProgram, 'u_waveSpeed'),
     noiseIntensity: gl.getUniformLocation(noiseProgram, 'u_noiseIntensity'),
     vignetteIntensity: gl.getUniformLocation(noiseProgram, 'u_vignetteIntensity'),
@@ -791,7 +769,6 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     gl!.uniform1f(noiseUniforms.time, time)
     gl!.uniform2f(noiseUniforms.resolution, width, height)
     gl!.uniform1f(noiseUniforms.waveAmplitude, state.waveAmplitude)
-    gl!.uniform1f(noiseUniforms.waveFrequency, state.waveFrequency)
     gl!.uniform1f(noiseUniforms.waveSpeed, state.waveSpeed)
     gl!.uniform1f(noiseUniforms.noiseIntensity, state.noiseIntensity)
     gl!.uniform1f(noiseUniforms.vignetteIntensity, state.vignetteIntensity)
@@ -852,8 +829,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
 
   // Setup all sliders
   setupSlider('cellSize', 0)
-  setupSlider('waveAmplitude', 3)
-  setupSlider('waveFrequency', 1)
+  setupSlider('waveAmplitude', 2)
   setupSlider('waveSpeed', 2)
   setupSlider('noiseIntensity', 3)
   setupSlider('vignetteIntensity', 2)
@@ -914,15 +890,14 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   function randomize() {
     const sliderRanges: Record<string, [number, number]> = {
       cellSize: [4, 32],
-      waveAmplitude: [0.1, 0.8],
-      waveFrequency: [0.5, 15],
-      waveSpeed: [0, 2],
-      noiseIntensity: [0, 0.25],
+      waveAmplitude: [0.05, 0.2],
+      waveSpeed: [0.35, 1.0],
+      noiseIntensity: [0, 0.1],
       vignetteIntensity: [0, 1],
-      vignetteRadius: [0.3, 1.5],
-      brightnessAdjust: [-0.5, 0.5],
+      vignetteRadius: [0, 1],
+      brightnessAdjust: [-0.25, 0.25],
       contrastAdjust: [0.5, 2],
-      timeSpeed: [0, 3],
+      timeSpeed: [0.5, 1.5],
       hue: [0, 360],
       saturation: [0, 1],
       threshold1: [0, 0.5],
