@@ -470,17 +470,21 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       vec2 drift = u_time * 0.015 * u_waveSpeed * vec2(0.3, 0.2);
 
       // IQ-style domain warping (https://iquilezles.org/articles/warp/)
+      // Warp time - slower evolution for organic morphing
+      float warpTime = u_time * 0.03 * u_waveSpeed;
+
       // First layer: q = (fbm(p + drift), fbm(p + drift + offset))
+      // Drift provides motion, warpTime provides morphing
       vec2 q = vec2(
-        fbm(vec3(uv + drift, u_noiseSeed)),
-        fbm(vec3(uv + drift + vec2(5.2, 1.3), u_noiseSeed))
+        fbm(vec3(uv + drift, warpTime + u_noiseSeed)),
+        fbm(vec3(uv + drift + vec2(5.2, 1.3), warpTime * 0.9 + u_noiseSeed))
       );
 
       // Second layer: r with slightly different drift for parallax depth
       vec2 driftR = u_time * 0.012 * u_waveSpeed * vec2(0.25, 0.15);
       vec2 r = vec2(
-        fbm(vec3(uv + 4.0 * q + vec2(1.7, 9.2) + driftR, u_noiseSeed)),
-        fbm(vec3(uv + 4.0 * q + vec2(8.3, 2.8) + driftR, u_noiseSeed))
+        fbm(vec3(uv + 4.0 * q + vec2(1.7, 9.2) + driftR, warpTime * 0.8 + u_noiseSeed)),
+        fbm(vec3(uv + 4.0 * q + vec2(8.3, 2.8) + driftR, warpTime * 0.7 + u_noiseSeed))
       );
 
       // Apply domain warping: warpedUV = p + strength * r
@@ -488,8 +492,8 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       float warpStrength = u_waveAmplitude * 1.5;
       vec2 warpedUV = uv + warpStrength * r + drift;
 
-      // Sample pattern with warped coordinates
-      float density = fbm(vec3(warpedUV * 4.0, u_noiseSeed)) * 0.5 + 0.5;
+      // Sample pattern with warped coordinates (also evolves over time)
+      float density = fbm(vec3(warpedUV * 4.0, warpTime * 0.5 + u_noiseSeed)) * 0.5 + 0.5;
 
       // Add noise intensity with drift
       density += (snoise(vec3(uv * 50.0 + drift * 10.0, u_noiseSeed)) * 0.5 + 0.5) * u_noiseIntensity;
