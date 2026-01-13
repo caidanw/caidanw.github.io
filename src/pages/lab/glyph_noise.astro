@@ -83,7 +83,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
             Seed
             <div class="seed-controls">
               <input type="text" id="noiseSeed" placeholder="random" value="" />
-              <button id="btnRandomizeSeed" class="icon-btn icon-btn-sm" aria-label="Randomize seed">
+              <button id="btnRandomizeSeed" class="icon-btn" aria-label="Randomize seed">
                 <svg viewBox="0 0 24 24" fill="currentColor"
                   ><rect x="2" y="2" width="20" height="20" rx="3" fill="none" stroke="currentColor" stroke-width="2"></rect><circle cx="8" cy="8" r="1.5"
                   ></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="16" cy="16" r="1.5"></circle><circle cx="16" cy="8" r="1.5"></circle><circle
@@ -1221,8 +1221,10 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
 
   .controls-header {
     display: flex;
+    align-items: stretch;
     gap: 0.5rem;
     margin-bottom: 1rem;
+    max-height: 2rem;
   }
 
   .control-section {
@@ -1269,7 +1271,6 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   .preset-actions button {
     flex: 1;
     padding: 0.3rem 0.5rem;
-    font-size: 0.7rem;
   }
 
   button {
@@ -1279,7 +1280,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     border-radius: 4px;
     padding: 0.4rem 0.8rem;
     font-family: var(--font-sans);
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     cursor: pointer;
     transition:
       background 0.15s,
@@ -1299,24 +1300,24 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     align-items: center;
     justify-content: center;
     padding: 0.4rem;
-    width: 2rem;
-    height: 2rem;
+    min-width: 2rem;
+    min-height: 2rem;
   }
 
   .icon-btn svg {
-    width: 1rem;
-    height: 1rem;
+    min-width: 1rem;
+    min-height: 1rem;
   }
 
   .icon-btn-sm {
-    width: 1.5rem;
-    height: 1.5rem;
+    min-width: 1.5rem;
+    min-height: 1.5rem;
     padding: 0.25rem;
   }
 
   .icon-btn-sm svg {
-    width: 0.75rem;
-    height: 0.75rem;
+    min-width: 0.75rem;
+    min-height: 0.75rem;
   }
 
   .slider {
@@ -1379,7 +1380,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
 
   .seed-controls {
     display: flex;
-    align-items: center;
+    align-items: stretch;
     gap: 0.25rem;
   }
 
@@ -1402,11 +1403,6 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       left: 0.5rem;
       max-width: none;
       max-height: 50vh;
-    }
-
-    .info {
-      bottom: 0.5rem;
-      font-size: 0.65rem;
     }
   }
 </style>
