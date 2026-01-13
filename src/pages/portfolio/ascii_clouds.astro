@@ -1,0 +1,1408 @@
+---
+import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
+---
+
+<BreadcrumbLayout title="Glyph Noise">
+  <div id="app">
+    <canvas id="canvas"></canvas>
+
+    <div class="controls" id="controls">
+      <button class="collapse-btn" id="collapseBtn" aria-label="Toggle controls">
+        <div class="collapse-icon"></div>
+      </button>
+
+      <div class="controls-content" id="controlsContent">
+        <div class="controls-header">
+          <button id="btnPause" class="icon-btn" aria-label="Pause">
+            <svg class="icon-pause" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>
+            </svg>
+            <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor" style="display:none"><polygon points="5,3 19,12 5,21"></polygon></svg>
+          </button>
+          <button id="btnFullscreen">Fullscreen</button>
+        </div>
+        <div class="control-section">
+          <div class="section-title">Presets</div>
+          <div class="preset-row">
+            <select id="presetSelect" class="preset-select">
+              <optgroup label="Built-in">
+                <option value="default">Default</option>
+                <option value="terminal">Terminal</option>
+                <option value="retro">Retro CRT</option>
+                <option value="cosmic">Cosmic</option>
+                <option value="fog">Fog</option>
+                <option value="red">Red</option>
+              </optgroup>
+              <optgroup label="Custom" id="customPresetsGroup"> </optgroup>
+            </select>
+            <button id="btnRandomize" class="icon-btn" aria-label="Randomize">
+              <svg viewBox="0 0 24 24" fill="currentColor"
+                ><rect x="2" y="2" width="20" height="20" rx="3" fill="none" stroke="currentColor" stroke-width="2"></rect><circle cx="8" cy="8" r="1.5"
+                ></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="16" cy="16" r="1.5"></circle><circle cx="16" cy="8" r="1.5"></circle><circle
+                  cx="8"
+                  cy="16"
+                  r="1.5"></circle></svg
+              >
+            </button>
+          </div>
+          <div class="preset-row preset-actions">
+            <button id="btnSavePreset">Save</button>
+            <button id="btnCopy">Copy</button>
+            <button id="btnPaste">Paste</button>
+          </div>
+        </div>
+
+        <div class="control-section">
+          <div class="section-title">Noise</div>
+          <label class="slider">
+            Cell Size
+            <input type="range" id="cellSize" min="4" max="32" step="1" value="18" />
+            <span class="value" id="cellSizeValue">18</span>
+          </label>
+          <label class="slider">
+            Wave Amplitude
+            <input type="range" id="waveAmplitude" min="0" max="1" step="0.01" value="0.5" />
+            <span class="value" id="waveAmplitudeValue">0.50</span>
+          </label>
+          <label class="slider">
+            Wave Speed
+            <input type="range" id="waveSpeed" min="0" max="2" step="0.01" value="1.0" />
+            <span class="value" id="waveSpeedValue">1.00</span>
+          </label>
+          <label class="slider">
+            Noise Intensity
+            <input type="range" id="noiseIntensity" min="0" max="0.25" step="0.005" value="0.125" />
+            <span class="value" id="noiseIntensityValue">0.125</span>
+          </label>
+          <label class="slider">
+            Time Speed
+            <input type="range" id="timeSpeed" min="0" max="3" step="0.1" value="1.5" />
+            <span class="value" id="timeSpeedValue">1.5</span>
+          </label>
+          <label class="seed-input">
+            Seed
+            <div class="seed-controls">
+              <input type="text" id="noiseSeed" placeholder="random" value="" />
+              <button id="btnRandomizeSeed" class="icon-btn" aria-label="Randomize seed">
+                <svg viewBox="0 0 24 24" fill="currentColor"
+                  ><rect x="2" y="2" width="20" height="20" rx="3" fill="none" stroke="currentColor" stroke-width="2"></rect><circle cx="8" cy="8" r="1.5"
+                  ></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="16" cy="16" r="1.5"></circle><circle cx="16" cy="8" r="1.5"></circle><circle
+                    cx="8"
+                    cy="16"
+                    r="1.5"></circle></svg
+                >
+              </button>
+            </div>
+          </label>
+        </div>
+
+        <div class="control-section">
+          <div class="section-title">Vignette</div>
+          <label class="slider">
+            Intensity
+            <input type="range" id="vignetteIntensity" min="0" max="1" step="0.05" value="0.5" />
+            <span class="value" id="vignetteIntensityValue">0.50</span>
+          </label>
+          <label class="slider">
+            Radius
+            <input type="range" id="vignetteRadius" min="0" max="1" step="0.05" value="0.5" />
+            <span class="value" id="vignetteRadiusValue">0.50</span>
+          </label>
+        </div>
+
+        <div class="control-section">
+          <div class="section-title">Color</div>
+          <label class="slider">
+            Hue
+            <input type="range" id="hue" min="0" max="360" step="1" value="180" />
+            <span class="value" id="hueValue">180</span>
+          </label>
+          <label class="slider">
+            Saturation
+            <input type="range" id="saturation" min="0" max="1" step="0.05" value="0.5" />
+            <span class="value" id="saturationValue">0.50</span>
+          </label>
+          <label class="slider">
+            Brightness
+            <input type="range" id="brightnessAdjust" min="-0.5" max="0.5" step="0.05" value="0.0" />
+            <span class="value" id="brightnessAdjustValue">0.00</span>
+          </label>
+          <label class="slider">
+            Contrast
+            <input type="range" id="contrastAdjust" min="0.5" max="2" step="0.05" value="1.25" />
+            <span class="value" id="contrastAdjustValue">1.25</span>
+          </label>
+        </div>
+
+        <div class="control-section">
+          <div class="section-title">Glyph Thresholds</div>
+          <label class="slider">
+            <span class="glyph-label">. dot</span>
+            <input type="range" id="threshold1" min="0" max="0.5" step="0.01" value="0.25" />
+            <span class="value" id="threshold1Value">0.25</span>
+          </label>
+          <label class="slider">
+            <span class="glyph-label">- dash</span>
+            <input type="range" id="threshold2" min="0" max="0.6" step="0.01" value="0.30" />
+            <span class="value" id="threshold2Value">0.30</span>
+          </label>
+          <label class="slider">
+            <span class="glyph-label">+ plus</span>
+            <input type="range" id="threshold3" min="0.1" max="0.7" step="0.01" value="0.40" />
+            <span class="value" id="threshold3Value">0.40</span>
+          </label>
+          <label class="slider">
+            <span class="glyph-label">O ring</span>
+            <input type="range" id="threshold4" min="0.2" max="0.8" step="0.01" value="0.50" />
+            <span class="value" id="threshold4Value">0.50</span>
+          </label>
+          <label class="slider">
+            <span class="glyph-label">X cross</span>
+            <input type="range" id="threshold5" min="0.3" max="1.0" step="0.01" value="0.65" />
+            <span class="value" id="threshold5Value">0.65</span>
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+</BreadcrumbLayout>
+
+<script>
+  // ============================================
+  // DOM Elements
+  // ============================================
+  const canvas = document.getElementById('canvas') as HTMLCanvasElement
+  const controls = document.getElementById('controls') as HTMLDivElement
+  const collapseBtn = document.getElementById('collapseBtn') as HTMLButtonElement
+  const btnPause = document.getElementById('btnPause') as HTMLButtonElement
+  const btnFullscreen = document.getElementById('btnFullscreen') as HTMLButtonElement
+
+  // ============================================
+  // State
+  // ============================================
+  interface State {
+    cellSize: number
+    waveAmplitude: number
+    waveSpeed: number
+    noiseIntensity: number
+    vignetteIntensity: number
+    vignetteRadius: number
+    brightnessAdjust: number
+    contrastAdjust: number
+    timeSpeed: number
+    hue: number
+    saturation: number
+    threshold1: number
+    threshold2: number
+    threshold3: number
+    threshold4: number
+    threshold5: number
+    noiseSeed: string
+  }
+
+  const state: State = {
+    cellSize: 18,
+    waveAmplitude: 0.5,
+    waveSpeed: 1.0,
+    noiseIntensity: 0.125,
+    vignetteIntensity: 0.5,
+    vignetteRadius: 0.5,
+    brightnessAdjust: 0.0,
+    contrastAdjust: 1.25,
+    timeSpeed: 1.5,
+    hue: 180,
+    saturation: 0.5,
+    threshold1: 0.25,
+    threshold2: 0.3,
+    threshold3: 0.4,
+    threshold4: 0.5,
+    threshold5: 0.65,
+    noiseSeed: Math.random().toString(36).substring(2, 8),
+  }
+
+  // Hash function to convert seed string to numeric value
+  function hashSeed(seed: string): number {
+    if (!seed) return 0 // Empty seed = no offset
+    let hash = 0
+    for (let i = 0; i < seed.length; i++) {
+      const char = seed.charCodeAt(i)
+      hash = (hash << 5) - hash + char
+      hash = hash & hash // Convert to 32-bit integer
+    }
+    return Math.abs(hash) % 10000
+  }
+
+  let isPaused = false
+  let time = 0
+
+  // ============================================
+  // Presets
+  // ============================================
+  const presets: Record<string, Partial<State>> = {
+    default: {
+      cellSize: 10,
+      waveAmplitude: 0.15,
+      waveSpeed: 0.5,
+      noiseIntensity: 0.0,
+      vignetteIntensity: 0.5,
+      vignetteRadius: 0.5,
+      brightnessAdjust: 0.0,
+      contrastAdjust: 1.0,
+      timeSpeed: 1.0,
+      hue: 180,
+      saturation: 0.5,
+      threshold1: 0.25,
+      threshold2: 0.3,
+      threshold3: 0.4,
+      threshold4: 0.5,
+      threshold5: 0.65,
+    },
+    terminal: {
+      cellSize: 12,
+      waveAmplitude: 0.2,
+      waveSpeed: 0.4,
+      noiseIntensity: 0.025,
+      vignetteIntensity: 0.65,
+      vignetteRadius: 0.5,
+      brightnessAdjust: -0.15,
+      contrastAdjust: 1.5,
+      timeSpeed: 0.8,
+      hue: 120,
+      saturation: 0.9,
+      threshold1: 0.08,
+      threshold2: 0.18,
+      threshold3: 0.28,
+      threshold4: 0.38,
+      threshold5: 0.48,
+    },
+    retro: {
+      cellSize: 16,
+      waveAmplitude: 0.15,
+      waveSpeed: 0.6,
+      noiseIntensity: 0.035,
+      vignetteIntensity: 0.8,
+      vignetteRadius: 0.6,
+      brightnessAdjust: -0.05,
+      contrastAdjust: 1.5,
+      timeSpeed: 0.7,
+      hue: 35,
+      saturation: 0.85,
+      threshold1: 0.15,
+      threshold2: 0.3,
+      threshold3: 0.5,
+      threshold4: 0.7,
+      threshold5: 1.0,
+    },
+    cosmic: {
+      cellSize: 6,
+      waveAmplitude: 0.5,
+      waveSpeed: 0.5,
+      noiseIntensity: 0.02,
+      vignetteIntensity: 0.4,
+      vignetteRadius: 0.8,
+      brightnessAdjust: 0.0,
+      contrastAdjust: 1,
+      timeSpeed: 1.0,
+      hue: 270,
+      saturation: 0.7,
+      threshold1: 0.08,
+      threshold2: 0.18,
+      threshold3: 0.3,
+      threshold4: 0.44,
+      threshold5: 0.58,
+    },
+    fog: {
+      cellSize: 8,
+      waveAmplitude: 0.7,
+      waveSpeed: 0.5,
+      noiseIntensity: 0.05,
+      vignetteIntensity: 0.8,
+      vignetteRadius: 0.75,
+      brightnessAdjust: 0.2,
+      contrastAdjust: 1,
+      timeSpeed: 0.5,
+      hue: 200,
+      saturation: 0.3,
+      threshold1: 0.15,
+      threshold2: 0.28,
+      threshold3: 0.4,
+      threshold4: 0.52,
+      threshold5: 0.65,
+    },
+    red: {
+      cellSize: 9.477363992838812,
+      waveAmplitude: 0.19866627466604492,
+      waveSpeed: 0.6728127000674906,
+      noiseIntensity: 0.08127384570359468,
+      vignetteIntensity: 0.9012567147515466,
+      vignetteRadius: 0.6647325291352247,
+      brightnessAdjust: -0.0859122219113787,
+      contrastAdjust: 0.6656278165227767,
+      timeSpeed: 1.1643690924738626,
+      hue: 352.8274855467056,
+      saturation: 0.8534068514321124,
+      threshold1: 0.1679224645262462,
+      threshold2: 0.4497505323208811,
+      threshold3: 0.6843052202787598,
+      threshold4: 0.658074487889079,
+      threshold5: 0.7430026789072516,
+    },
+  }
+
+  // ============================================
+  // WebGL Setup
+  // ============================================
+  const gl = canvas.getContext('webgl2')
+  if (!gl) {
+    throw new Error('WebGL 2.0 not supported')
+  }
+
+  // Shader sources
+  const vertexShaderSource = `#version 300 es
+    in vec2 a_position;
+    out vec2 v_uv;
+
+    void main() {
+      v_uv = a_position * 0.5 + 0.5;
+      gl_Position = vec4(a_position, 0.0, 1.0);
+    }
+  `
+
+  const noiseFragmentShaderSource = `#version 300 es
+    precision highp float;
+
+    in vec2 v_uv;
+    out vec4 fragColor;
+
+    uniform float u_time;
+    uniform vec2 u_resolution;
+    uniform float u_waveAmplitude;
+    uniform float u_waveSpeed;
+    uniform float u_noiseIntensity;
+    uniform float u_vignetteIntensity;
+    uniform float u_vignetteRadius;
+    uniform float u_brightnessAdjust;
+    uniform float u_contrastAdjust;
+    uniform float u_noiseSeed;
+
+    // Simplex 3D noise
+    vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+    vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+    vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
+    vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+
+    float snoise(vec3 v) {
+      const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+      const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+
+      vec3 i  = floor(v + dot(v, C.yyy));
+      vec3 x0 = v - i + dot(i, C.xxx);
+
+      vec3 g = step(x0.yzx, x0.xyz);
+      vec3 l = 1.0 - g;
+      vec3 i1 = min(g.xyz, l.zxy);
+      vec3 i2 = max(g.xyz, l.zxy);
+
+      vec3 x1 = x0 - i1 + C.xxx;
+      vec3 x2 = x0 - i2 + C.yyy;
+      vec3 x3 = x0 - D.yyy;
+
+      i = mod289(i);
+      vec4 p = permute(permute(permute(
+                i.z + vec4(0.0, i1.z, i2.z, 1.0))
+              + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+              + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+
+      float n_ = 0.142857142857;
+      vec3 ns = n_ * D.wyz - D.xzx;
+
+      vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+
+      vec4 x_ = floor(j * ns.z);
+      vec4 y_ = floor(j - 7.0 * x_);
+
+      vec4 x = x_ *ns.x + ns.yyyy;
+      vec4 y = y_ *ns.x + ns.yyyy;
+      vec4 h = 1.0 - abs(x) - abs(y);
+
+      vec4 b0 = vec4(x.xy, y.xy);
+      vec4 b1 = vec4(x.zw, y.zw);
+
+      vec4 s0 = floor(b0)*2.0 + 1.0;
+      vec4 s1 = floor(b1)*2.0 + 1.0;
+      vec4 sh = -step(h, vec4(0.0));
+
+      vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
+      vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+
+      vec3 p0 = vec3(a0.xy, h.x);
+      vec3 p1 = vec3(a0.zw, h.y);
+      vec3 p2 = vec3(a1.xy, h.z);
+      vec3 p3 = vec3(a1.zw, h.w);
+
+      vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
+      p0 *= norm.x;
+      p1 *= norm.y;
+      p2 *= norm.z;
+      p3 *= norm.w;
+
+      vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+      m = m * m;
+      return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
+    }
+
+    // Fractional Brownian Motion
+    float fbm(vec3 p) {
+      float value = 0.0;
+      float amplitude = 0.5;
+      float frequency = 1.0;
+      for (int i = 0; i < 4; i++) {
+        value += amplitude * snoise(p * frequency);
+        amplitude *= 0.5;
+        frequency *= 2.0;
+      }
+      return value;
+    }
+
+    void main() {
+      // Calculate vignette from original UV (before aspect correction) so it stays circular
+      vec2 center = vec2(0.5, 0.5);
+      float dist = length(v_uv - center);
+
+      // Fix aspect ratio - reveal more pattern instead of stretching
+      float aspect = u_resolution.x / u_resolution.y;
+      vec2 uv = v_uv;
+      uv.x *= aspect;
+
+      // Persistent drift - pattern flows in a direction
+      // Base rate ensures drift is always visible, scales with waveSpeed
+      vec2 drift = u_time * (0.02 + 0.02 * u_waveSpeed) * vec2(0.3, 0.2);
+
+      // IQ-style domain warping (https://iquilezles.org/articles/warp/)
+      // Warp evolution uses max() to prevent wobbling at low speeds:
+      // - Minimum 0.025 ensures smooth morphing (no visible noise oscillation)
+      // - Scales with waveSpeed at higher values for more dynamic effect
+      float warpTime = u_time * max(0.025, 0.04 * u_waveSpeed);
+
+      // First layer: q = (fbm(p + drift), fbm(p + drift + offset))
+      // Drift provides motion, warpTime provides morphing
+      vec2 q = vec2(
+        fbm(vec3(uv + drift, warpTime + u_noiseSeed)),
+        fbm(vec3(uv + drift + vec2(5.2, 1.3), warpTime * 0.9 + u_noiseSeed))
+      );
+
+      // Second layer: r with slightly different drift for parallax depth
+      vec2 driftR = u_time * (0.016 + 0.016 * u_waveSpeed) * vec2(0.25, 0.15);
+      vec2 r = vec2(
+        fbm(vec3(uv + 4.0 * q + vec2(1.7, 9.2) + driftR, warpTime * 0.8 + u_noiseSeed)),
+        fbm(vec3(uv + 4.0 * q + vec2(8.3, 2.8) + driftR, warpTime * 0.7 + u_noiseSeed))
+      );
+
+      // Apply domain warping: warpedUV = p + strength * r
+      // Scale so waveAmplitude 0.3 (default) gives moderate warping, 1.0 gives strong
+      float warpStrength = u_waveAmplitude * 1.5;
+      vec2 warpedUV = uv + warpStrength * r + drift;
+
+      // Sample pattern with warped coordinates (also evolves over time)
+      float density = fbm(vec3(warpedUV * 4.0, warpTime * 0.5 + u_noiseSeed)) * 0.5 + 0.5;
+
+      // Add noise intensity with drift
+      density += (snoise(vec3(uv * 50.0 + drift * 10.0, u_noiseSeed)) * 0.5 + 0.5) * u_noiseIntensity;
+
+      // Soft threshold for billowing edges
+      float visible = smoothstep(0.35, 0.70, density);
+
+      // Vignette (uses original UV distance so it stays circular)
+      float edgeFade = 1.0 - smoothstep(u_vignetteRadius * 0.5, u_vignetteRadius, dist) * u_vignetteIntensity;
+      visible *= edgeFade;
+
+      // Brightness and contrast adjustments
+      visible = (visible + u_brightnessAdjust) * u_contrastAdjust;
+      visible = clamp(visible, 0.0, 1.0);
+
+      fragColor = vec4(vec3(visible), 1.0);
+    }
+  `
+
+  const glyphFragmentShaderSource = `#version 300 es
+    precision highp float;
+
+    in vec2 v_uv;
+    out vec4 fragColor;
+
+    uniform sampler2D u_noiseTexture;
+    uniform vec2 u_resolution;
+    uniform float u_cellSize;
+    uniform float u_hue;
+    uniform float u_saturation;
+    uniform float u_threshold1;
+    uniform float u_threshold2;
+    uniform float u_threshold3;
+    uniform float u_threshold4;
+    uniform float u_threshold5;
+
+    // HSL to RGB conversion
+    vec3 hsl2rgb(float h, float s, float l) {
+      float c = (1.0 - abs(2.0 * l - 1.0)) * s;
+      float hp = h / 60.0;
+      float x = c * (1.0 - abs(mod(hp, 2.0) - 1.0));
+      vec3 rgb;
+      if (hp < 1.0) rgb = vec3(c, x, 0.0);
+      else if (hp < 2.0) rgb = vec3(x, c, 0.0);
+      else if (hp < 3.0) rgb = vec3(0.0, c, x);
+      else if (hp < 4.0) rgb = vec3(0.0, x, c);
+      else if (hp < 5.0) rgb = vec3(x, 0.0, c);
+      else rgb = vec3(c, 0.0, x);
+      float m = l - c * 0.5;
+      return rgb + m;
+    }
+
+    // Glyph drawing functions (SDF-based)
+    float drawDot(vec2 uv) {
+      vec2 center = vec2(0.5, 0.5);
+      float dist = length(uv - center);
+      return smoothstep(0.2, 0.15, dist);
+    }
+
+    float drawDash(vec2 uv) {
+      float h = smoothstep(0.35, 0.4, uv.y) * smoothstep(0.65, 0.6, uv.y);
+      float w = smoothstep(0.15, 0.2, uv.x) * smoothstep(0.85, 0.8, uv.x);
+      return h * w;
+    }
+
+    float drawPlus(vec2 uv) {
+      float horiz = smoothstep(0.35, 0.4, uv.y) * smoothstep(0.65, 0.6, uv.y) *
+                    smoothstep(0.1, 0.15, uv.x) * smoothstep(0.9, 0.85, uv.x);
+      float vert = smoothstep(0.35, 0.4, uv.x) * smoothstep(0.65, 0.6, uv.x) *
+                   smoothstep(0.1, 0.15, uv.y) * smoothstep(0.9, 0.85, uv.y);
+      return max(horiz, vert);
+    }
+
+    float drawO(vec2 uv) {
+      vec2 center = vec2(0.5, 0.5);
+      float dist = length(uv - center);
+      float outer = smoothstep(0.4, 0.35, dist);
+      float inner = smoothstep(0.2, 0.25, dist);
+      return outer * inner;
+    }
+
+    float drawX(vec2 uv) {
+      vec2 c = uv - 0.5;
+      float d1 = abs(c.x - c.y);
+      float d2 = abs(c.x + c.y);
+      float line1 = smoothstep(0.15, 0.1, d1);
+      float line2 = smoothstep(0.15, 0.1, d2);
+      float bounds = smoothstep(0.45, 0.4, abs(c.x)) * smoothstep(0.45, 0.4, abs(c.y));
+      return max(line1, line2) * bounds;
+    }
+
+    float getGlyph(float brightness, vec2 localUV) {
+      if (brightness < u_threshold1) {
+        return 0.0; // Empty
+      } else if (brightness < u_threshold2) {
+        return drawDot(localUV);
+      } else if (brightness < u_threshold3) {
+        return drawDash(localUV);
+      } else if (brightness < u_threshold4) {
+        return drawPlus(localUV);
+      } else if (brightness < u_threshold5) {
+        return drawO(localUV);
+      } else {
+        return drawX(localUV);
+      }
+    }
+
+    void main() {
+      // Calculate cell coordinates
+      vec2 cellCount = u_resolution / u_cellSize;
+      vec2 cellCoord = floor(v_uv * cellCount);
+      vec2 cellUV = (cellCoord + 0.5) / cellCount;
+
+      // Sample brightness at cell center
+      float brightness = texture(u_noiseTexture, cellUV).r;
+
+      // Get local position within cell (0-1)
+      vec2 localUV = fract(v_uv * cellCount);
+
+      // Get glyph value
+      float glyphValue = getGlyph(brightness, localUV);
+
+      // Apply color
+      vec3 glyphColor = hsl2rgb(u_hue, u_saturation, 0.5 + brightness * 0.3);
+      vec3 bgColor = vec3(0.02, 0.02, 0.02);
+
+      vec3 finalColor = mix(bgColor, glyphColor, glyphValue * brightness);
+
+      fragColor = vec4(finalColor, 1.0);
+    }
+  `
+
+  // Compile shader
+  function compileShader(type: number, source: string): WebGLShader {
+    const shader = gl!.createShader(type)
+    if (!shader) throw new Error('Failed to create shader')
+
+    gl!.shaderSource(shader, source)
+    gl!.compileShader(shader)
+
+    if (!gl!.getShaderParameter(shader, gl!.COMPILE_STATUS)) {
+      const info = gl!.getShaderInfoLog(shader)
+      gl!.deleteShader(shader)
+      throw new Error('Shader compilation error: ' + info)
+    }
+
+    return shader
+  }
+
+  // Create program
+  function createProgram(vertSource: string, fragSource: string): WebGLProgram {
+    const vertShader = compileShader(gl!.VERTEX_SHADER, vertSource)
+    const fragShader = compileShader(gl!.FRAGMENT_SHADER, fragSource)
+
+    const program = gl!.createProgram()
+    if (!program) throw new Error('Failed to create program')
+
+    gl!.attachShader(program, vertShader)
+    gl!.attachShader(program, fragShader)
+    gl!.linkProgram(program)
+
+    if (!gl!.getProgramParameter(program, gl!.LINK_STATUS)) {
+      const info = gl!.getProgramInfoLog(program)
+      throw new Error('Program link error: ' + info)
+    }
+
+    return program
+  }
+
+  // Create programs
+  const noiseProgram = createProgram(vertexShaderSource, noiseFragmentShaderSource)
+  const glyphProgram = createProgram(vertexShaderSource, glyphFragmentShaderSource)
+
+  // Get uniform locations - noise program
+  const noiseUniforms = {
+    time: gl.getUniformLocation(noiseProgram, 'u_time'),
+    resolution: gl.getUniformLocation(noiseProgram, 'u_resolution'),
+    waveAmplitude: gl.getUniformLocation(noiseProgram, 'u_waveAmplitude'),
+    waveSpeed: gl.getUniformLocation(noiseProgram, 'u_waveSpeed'),
+    noiseIntensity: gl.getUniformLocation(noiseProgram, 'u_noiseIntensity'),
+    vignetteIntensity: gl.getUniformLocation(noiseProgram, 'u_vignetteIntensity'),
+    vignetteRadius: gl.getUniformLocation(noiseProgram, 'u_vignetteRadius'),
+    brightnessAdjust: gl.getUniformLocation(noiseProgram, 'u_brightnessAdjust'),
+    contrastAdjust: gl.getUniformLocation(noiseProgram, 'u_contrastAdjust'),
+    noiseSeed: gl.getUniformLocation(noiseProgram, 'u_noiseSeed'),
+  }
+
+  // Get uniform locations - glyph program
+  const glyphUniforms = {
+    noiseTexture: gl.getUniformLocation(glyphProgram, 'u_noiseTexture'),
+    resolution: gl.getUniformLocation(glyphProgram, 'u_resolution'),
+    cellSize: gl.getUniformLocation(glyphProgram, 'u_cellSize'),
+    hue: gl.getUniformLocation(glyphProgram, 'u_hue'),
+    saturation: gl.getUniformLocation(glyphProgram, 'u_saturation'),
+    threshold1: gl.getUniformLocation(glyphProgram, 'u_threshold1'),
+    threshold2: gl.getUniformLocation(glyphProgram, 'u_threshold2'),
+    threshold3: gl.getUniformLocation(glyphProgram, 'u_threshold3'),
+    threshold4: gl.getUniformLocation(glyphProgram, 'u_threshold4'),
+    threshold5: gl.getUniformLocation(glyphProgram, 'u_threshold5'),
+  }
+
+  // Create full-screen quad
+  const quadBuffer = gl.createBuffer()
+  gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer)
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW)
+
+  // Create VAO
+  const quadVAO = gl.createVertexArray()
+  gl.bindVertexArray(quadVAO)
+
+  const positionLoc = gl.getAttribLocation(noiseProgram, 'a_position')
+  gl.enableVertexAttribArray(positionLoc)
+  gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0)
+
+  // Create framebuffer and texture for noise pass
+  let framebuffer: WebGLFramebuffer | null = null
+  let noiseTexture: WebGLTexture | null = null
+
+  function createFramebuffer(width: number, height: number) {
+    // Clean up old resources
+    if (framebuffer) gl!.deleteFramebuffer(framebuffer)
+    if (noiseTexture) gl!.deleteTexture(noiseTexture)
+
+    // Create texture
+    noiseTexture = gl!.createTexture()
+    gl!.bindTexture(gl!.TEXTURE_2D, noiseTexture)
+    gl!.texImage2D(gl!.TEXTURE_2D, 0, gl!.RGBA, width, height, 0, gl!.RGBA, gl!.UNSIGNED_BYTE, null)
+    gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_MIN_FILTER, gl!.LINEAR)
+    gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_MAG_FILTER, gl!.LINEAR)
+    gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_WRAP_S, gl!.CLAMP_TO_EDGE)
+    gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_WRAP_T, gl!.CLAMP_TO_EDGE)
+
+    // Create framebuffer
+    framebuffer = gl!.createFramebuffer()
+    gl!.bindFramebuffer(gl!.FRAMEBUFFER, framebuffer)
+    gl!.framebufferTexture2D(gl!.FRAMEBUFFER, gl!.COLOR_ATTACHMENT0, gl!.TEXTURE_2D, noiseTexture, 0)
+
+    gl!.bindFramebuffer(gl!.FRAMEBUFFER, null)
+  }
+
+  // Resize handler
+  function resize() {
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1))
+    const rect = canvas.getBoundingClientRect()
+    const width = Math.floor(rect.width * dpr)
+    const height = Math.floor(rect.height * dpr)
+
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width
+      canvas.height = height
+      createFramebuffer(width, height)
+    }
+  }
+
+  resize()
+  window.addEventListener('resize', resize)
+
+  // ============================================
+  // Render Loop
+  // ============================================
+  let lastTime = 0
+
+  function render(currentTime: number) {
+    const deltaTime = (currentTime - lastTime) / 1000
+    lastTime = currentTime
+
+    if (!isPaused) {
+      time += deltaTime * state.timeSpeed
+    }
+
+    resize()
+
+    const width = canvas.width
+    const height = canvas.height
+
+    // Pass 1: Render noise to framebuffer
+    gl!.bindFramebuffer(gl!.FRAMEBUFFER, framebuffer)
+    gl!.viewport(0, 0, width, height)
+    gl!.useProgram(noiseProgram)
+
+    gl!.uniform1f(noiseUniforms.time, time)
+    gl!.uniform2f(noiseUniforms.resolution, width, height)
+    gl!.uniform1f(noiseUniforms.waveAmplitude, state.waveAmplitude)
+    gl!.uniform1f(noiseUniforms.waveSpeed, state.waveSpeed)
+    gl!.uniform1f(noiseUniforms.noiseIntensity, state.noiseIntensity)
+    gl!.uniform1f(noiseUniforms.vignetteIntensity, state.vignetteIntensity)
+    gl!.uniform1f(noiseUniforms.vignetteRadius, state.vignetteRadius)
+    gl!.uniform1f(noiseUniforms.brightnessAdjust, state.brightnessAdjust)
+    gl!.uniform1f(noiseUniforms.contrastAdjust, state.contrastAdjust)
+    gl!.uniform1f(noiseUniforms.noiseSeed, hashSeed(state.noiseSeed))
+
+    gl!.bindVertexArray(quadVAO)
+    gl!.drawArrays(gl!.TRIANGLE_STRIP, 0, 4)
+
+    // Pass 2: Render glyphs to screen
+    gl!.bindFramebuffer(gl!.FRAMEBUFFER, null)
+    gl!.viewport(0, 0, width, height)
+    gl!.useProgram(glyphProgram)
+
+    gl!.activeTexture(gl!.TEXTURE0)
+    gl!.bindTexture(gl!.TEXTURE_2D, noiseTexture)
+    gl!.uniform1i(glyphUniforms.noiseTexture, 0)
+
+    gl!.uniform2f(glyphUniforms.resolution, width, height)
+    gl!.uniform1f(glyphUniforms.cellSize, state.cellSize * (window.devicePixelRatio || 1))
+    gl!.uniform1f(glyphUniforms.hue, state.hue)
+    gl!.uniform1f(glyphUniforms.saturation, state.saturation)
+    gl!.uniform1f(glyphUniforms.threshold1, state.threshold1)
+    gl!.uniform1f(glyphUniforms.threshold2, state.threshold2)
+    gl!.uniform1f(glyphUniforms.threshold3, state.threshold3)
+    gl!.uniform1f(glyphUniforms.threshold4, state.threshold4)
+    gl!.uniform1f(glyphUniforms.threshold5, state.threshold5)
+
+    gl!.drawArrays(gl!.TRIANGLE_STRIP, 0, 4)
+
+    requestAnimationFrame(render)
+  }
+
+  requestAnimationFrame(render)
+
+  // ============================================
+  // Controls
+  // ============================================
+  function updateSliderValue(id: string, value: number, decimals: number = 2) {
+    const valueEl = document.getElementById(id + 'Value')
+    if (valueEl) {
+      valueEl.textContent = value.toFixed(decimals)
+    }
+  }
+
+  function setupSlider(id: keyof State, decimals: number = 2) {
+    const input = document.getElementById(id) as HTMLInputElement
+    if (!input) return
+
+    input.addEventListener('input', () => {
+      const value = parseFloat(input.value)
+      state[id] = value as never
+      updateSliderValue(id, value, decimals)
+    })
+  }
+
+  // Setup all sliders
+  setupSlider('cellSize', 0)
+  setupSlider('waveAmplitude', 2)
+  setupSlider('waveSpeed', 2)
+  setupSlider('noiseIntensity', 3)
+  setupSlider('vignetteIntensity', 2)
+  setupSlider('vignetteRadius', 2)
+  setupSlider('brightnessAdjust', 2)
+  setupSlider('contrastAdjust', 2)
+  setupSlider('timeSpeed', 1)
+  setupSlider('hue', 0)
+  setupSlider('saturation', 2)
+  setupSlider('threshold1', 2)
+  setupSlider('threshold2', 2)
+  setupSlider('threshold3', 2)
+  setupSlider('threshold4', 2)
+  setupSlider('threshold5', 2)
+
+  // Setup seed input
+  const seedInput = document.getElementById('noiseSeed') as HTMLInputElement
+  const btnRandomizeSeed = document.getElementById('btnRandomizeSeed') as HTMLButtonElement
+  seedInput.value = state.noiseSeed
+  seedInput.addEventListener('input', () => {
+    state.noiseSeed = seedInput.value
+  })
+  btnRandomizeSeed.addEventListener('click', () => {
+    state.noiseSeed = Math.random().toString(36).substring(2, 8)
+    seedInput.value = state.noiseSeed
+  })
+
+  // Apply preset
+  function applyPreset(presetName: string, source: Record<string, Partial<State>> = presets) {
+    const preset = source[presetName]
+    if (!preset) return
+
+    Object.entries(preset).forEach(([key, value]) => {
+      const k = key as keyof State
+      state[k] = value as never
+
+      const input = document.getElementById(key) as HTMLInputElement
+      if (input) {
+        input.value = String(value)
+        // Handle seed input separately (no decimal formatting)
+        if (key === 'noiseSeed') return
+        const decimals =
+          key === 'cellSize' || key === 'hue' ? 0 : key.includes('Amplitude') || (key.includes('Intensity') && key !== 'vignetteIntensity') ? 3 : 2
+        updateSliderValue(key, value as number, decimals)
+      }
+    })
+  }
+
+  // Preset select
+  const presetSelect = document.getElementById('presetSelect') as HTMLSelectElement
+  const btnRandomize = document.getElementById('btnRandomize') as HTMLButtonElement
+
+  presetSelect.addEventListener('change', () => {
+    applyPreset(presetSelect.value)
+  })
+
+  // Randomize all values within their slider ranges
+  function randomize() {
+    const sliderRanges: Record<string, [number, number]> = {
+      cellSize: [4, 32],
+      waveAmplitude: [0.05, 0.2],
+      waveSpeed: [0.35, 1.0],
+      noiseIntensity: [0, 0.1],
+      vignetteIntensity: [0, 1],
+      vignetteRadius: [0, 1],
+      brightnessAdjust: [-0.25, 0.25],
+      contrastAdjust: [0.5, 2],
+      timeSpeed: [0.5, 1.5],
+      hue: [0, 360],
+      saturation: [0, 1],
+      threshold1: [0, 0.5],
+      threshold2: [0, 0.6],
+      threshold3: [0.1, 0.7],
+      threshold4: [0.2, 0.8],
+      threshold5: [0.3, 1.0],
+    }
+
+    Object.entries(sliderRanges).forEach(([key, [min, max]]) => {
+      const k = key as keyof State
+      const value = min + Math.random() * (max - min)
+      state[k] = value as never
+
+      const input = document.getElementById(key) as HTMLInputElement
+      if (input) {
+        input.value = String(value)
+        const decimals =
+          key === 'cellSize' || key === 'hue' ? 0 : key.includes('Amplitude') || (key.includes('Intensity') && key !== 'vignetteIntensity') ? 3 : 2
+        updateSliderValue(key, value, decimals)
+      }
+    })
+
+    // Generate new random seed
+    state.noiseSeed = Math.random().toString(36).substring(2, 8)
+    seedInput.value = state.noiseSeed
+
+    // Clear preset selection since we're now randomized
+    presetSelect.value = ''
+  }
+
+  btnRandomize.addEventListener('click', randomize)
+
+  // ============================================
+  // Custom Presets (localStorage)
+  // ============================================
+  const STORAGE_KEY = 'glyphNoise_customPresets'
+  const customPresetsGroup = document.getElementById('customPresetsGroup') as HTMLOptGroupElement
+  const btnSavePreset = document.getElementById('btnSavePreset') as HTMLButtonElement
+  const btnCopy = document.getElementById('btnCopy') as HTMLButtonElement
+  const btnPaste = document.getElementById('btnPaste') as HTMLButtonElement
+
+  let customPresets: Record<string, Partial<State>> = {}
+
+  function loadCustomPresets() {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY)
+      if (stored) {
+        customPresets = JSON.parse(stored)
+        refreshCustomPresetsUI()
+      }
+    } catch (e) {
+      console.warn('Failed to load custom presets:', e)
+    }
+  }
+
+  function saveCustomPresets() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(customPresets))
+    } catch (e) {
+      console.warn('Failed to save custom presets:', e)
+    }
+  }
+
+  function refreshCustomPresetsUI() {
+    // Clear existing options
+    customPresetsGroup.innerHTML = ''
+
+    // Add options for each custom preset
+    Object.keys(customPresets).forEach((name) => {
+      const option = document.createElement('option')
+      option.value = `custom:${name}`
+      option.textContent = name
+      customPresetsGroup.appendChild(option)
+    })
+  }
+
+  function savePreset() {
+    const name = prompt('Enter preset name:')
+    if (!name || name.trim() === '') return
+
+    const trimmedName = name.trim()
+
+    // Capture current state
+    customPresets[trimmedName] = { ...state }
+    saveCustomPresets()
+    refreshCustomPresetsUI()
+
+    // Select the new preset
+    presetSelect.value = `custom:${trimmedName}`
+  }
+
+  async function copyPresets() {
+    if (Object.keys(customPresets).length === 0) {
+      alert('No custom presets to copy')
+      return
+    }
+
+    const exportData = {
+      version: 1,
+      presets: customPresets,
+    }
+
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(exportData, null, 2))
+      // Brief visual feedback
+      const originalText = btnCopy.textContent
+      btnCopy.textContent = 'Copied!'
+      setTimeout(() => {
+        btnCopy.textContent = originalText
+      }, 1500)
+    } catch (err) {
+      alert('Failed to copy to clipboard')
+      console.error(err)
+    }
+  }
+
+  async function pastePresets() {
+    try {
+      const text = await navigator.clipboard.readText()
+      const data = JSON.parse(text)
+
+      if (!data.presets || typeof data.presets !== 'object') {
+        alert('Invalid preset format in clipboard')
+        return
+      }
+
+      // Merge with existing custom presets
+      Object.assign(customPresets, data.presets)
+      saveCustomPresets()
+      refreshCustomPresetsUI()
+
+      // Brief visual feedback
+      const originalText = btnPaste.textContent
+      btnPaste.textContent = 'Pasted!'
+      setTimeout(() => {
+        btnPaste.textContent = originalText
+      }, 1500)
+    } catch (err) {
+      alert('Failed to paste from clipboard. Make sure you have valid preset data copied.')
+      console.error(err)
+    }
+  }
+
+  // Event listeners for preset management
+  btnSavePreset.addEventListener('click', savePreset)
+  btnCopy.addEventListener('click', copyPresets)
+  btnPaste.addEventListener('click', pastePresets)
+
+  // Update preset select handler to support custom presets
+  presetSelect.removeEventListener('change', () => {})
+  presetSelect.addEventListener('change', () => {
+    const value = presetSelect.value
+    if (value.startsWith('custom:')) {
+      const name = value.slice(7)
+      if (customPresets[name]) {
+        applyPreset(name, customPresets)
+      }
+    } else {
+      applyPreset(value)
+    }
+  })
+
+  // Load custom presets on startup
+  loadCustomPresets()
+
+  // Apply random preset on page load
+  const presetNames = Object.keys(presets)
+  const randomPreset = presetNames[Math.floor(Math.random() * presetNames.length)]
+  applyPreset(randomPreset)
+  presetSelect.value = randomPreset
+
+  // Toggle controls
+  collapseBtn.addEventListener('click', () => {
+    controls.classList.toggle('collapsed')
+  })
+
+  // Pause button
+  // Helper to update pause button icons
+  function updatePauseIcon() {
+    const pauseIcon = btnPause.querySelector('.icon-pause') as SVGElement
+    const playIcon = btnPause.querySelector('.icon-play') as SVGElement
+    pauseIcon.style.display = isPaused ? 'none' : 'block'
+    playIcon.style.display = isPaused ? 'block' : 'none'
+    btnPause.setAttribute('aria-label', isPaused ? 'Play' : 'Pause')
+  }
+
+  btnPause.addEventListener('click', () => {
+    isPaused = !isPaused
+    updatePauseIcon()
+  })
+
+  // Fullscreen button
+  btnFullscreen.addEventListener('click', () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen()
+    } else {
+      document.getElementById('app')?.requestFullscreen()
+    }
+  })
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') {
+      e.preventDefault()
+      isPaused = !isPaused
+      updatePauseIcon()
+    } else if (e.code === 'KeyF') {
+      if (document.fullscreenElement) {
+        document.exitFullscreen()
+      } else {
+        document.getElementById('app')?.requestFullscreen()
+      }
+    }
+  })
+</script>
+
+<style>
+  #app {
+    position: relative;
+    width: 100%;
+    height: calc(100dvh - 2rem);
+    background: #000;
+    overflow: hidden;
+  }
+
+  #app:fullscreen {
+    height: 100dvh;
+  }
+
+  #canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .controls {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: rgba(0, 0, 0, 0.85);
+    border: 1px solid var(--theme-border);
+    border-radius: 8px;
+    padding: 1rem;
+    max-width: 320px;
+    max-height: calc(100% - 4rem);
+    overflow-y: auto;
+    z-index: 10;
+  }
+
+  .collapse-btn {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: var(--theme-bg);
+    border: 1px solid var(--theme-border);
+    border-radius: 4px;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 10;
+
+    &:hover {
+      background: var(--theme-border);
+    }
+  }
+
+  .collapse-icon {
+    color: white;
+    font-size: 1rem;
+    line-height: 0;
+
+    &::before {
+      content: '-';
+    }
+  }
+
+  .controls.collapsed .collapse-icon::before {
+    content: '+';
+  }
+
+  .controls-content {
+    overflow: hidden;
+  }
+
+  .controls.collapsed {
+    background: transparent;
+    border-color: transparent;
+
+    .collapse-btn {
+      position: static;
+      float: right;
+    }
+
+    .controls-content {
+      display: none;
+    }
+  }
+
+  .controls-header {
+    display: flex;
+    align-items: stretch;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    max-height: 2rem;
+  }
+
+  .control-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+
+    & + .control-section {
+      margin-top: 1rem;
+    }
+  }
+
+  .section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--theme-text-subtle);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid var(--theme-border);
+  }
+
+  .preset-row {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .preset-select {
+    flex: 1;
+    background: var(--theme-bg);
+    color: var(--theme-text);
+    border: 1px solid var(--theme-border);
+    border-radius: 4px;
+    padding: 0.4rem 0.6rem;
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    cursor: pointer;
+  }
+
+  .preset-actions {
+    margin-top: 0.25rem;
+  }
+
+  .preset-actions button {
+    flex: 1;
+    padding: 0.3rem 0.5rem;
+  }
+
+  button {
+    background: var(--theme-bg);
+    color: var(--theme-text);
+    border: 1px solid var(--theme-border);
+    border-radius: 4px;
+    padding: 0.4rem 0.8rem;
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition:
+      background 0.15s,
+      border-color 0.15s;
+  }
+
+  button:hover {
+    background: var(--theme-border);
+  }
+
+  button:active {
+    background: var(--theme-accent);
+  }
+
+  .icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.4rem;
+    min-width: 2rem;
+    min-height: 2rem;
+  }
+
+  .icon-btn svg {
+    min-width: 1rem;
+    min-height: 1rem;
+  }
+
+  .icon-btn-sm {
+    min-width: 1.5rem;
+    min-height: 1.5rem;
+    padding: 0.25rem;
+  }
+
+  .icon-btn-sm svg {
+    min-width: 0.75rem;
+    min-height: 0.75rem;
+  }
+
+  .slider {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.25rem 0.5rem;
+    align-items: center;
+    color: var(--theme-text-subtle);
+    font-size: 0.75rem;
+  }
+
+  .slider input[type='range'] {
+    grid-column: 1 / -1;
+    width: 100%;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--theme-border);
+    border-radius: 2px;
+    cursor: pointer;
+  }
+
+  .slider input[type='range']::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    background: var(--theme-accent);
+    border-radius: 50%;
+    cursor: pointer;
+  }
+
+  .slider input[type='range']::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    background: var(--theme-accent);
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+  }
+
+  .slider .value {
+    font-family: var(--font-mono);
+    color: var(--theme-text);
+    min-width: 3.5em;
+    text-align: right;
+  }
+
+  .glyph-label {
+    font-family: var(--font-mono);
+  }
+
+  .seed-input {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--theme-text-subtle);
+    font-size: 0.75rem;
+  }
+
+  .seed-controls {
+    display: flex;
+    align-items: stretch;
+    gap: 0.25rem;
+  }
+
+  .seed-input input {
+    width: 5rem;
+    background: var(--theme-bg);
+    color: var(--theme-text);
+    border: 1px solid var(--theme-border);
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+  }
+
+  @media (max-width: 640px) {
+    .controls {
+      top: auto;
+      bottom: 3rem;
+      right: 0.5rem;
+      left: 0.5rem;
+      max-width: none;
+      max-height: 50vh;
+    }
+  }
+</style>
