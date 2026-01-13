@@ -47,9 +47,8 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
           </div>
           <div class="preset-row preset-actions">
             <button id="btnSavePreset">Save</button>
-            <button id="btnExport">Export</button>
-            <button id="btnImport">Import</button>
-            <input type="file" id="importFile" accept=".json" style="display: none;" />
+            <button id="btnCopy">Copy</button>
+            <button id="btnPaste">Paste</button>
           </div>
         </div>
 
@@ -957,9 +956,8 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   const STORAGE_KEY = 'glyphNoise_customPresets'
   const customPresetsGroup = document.getElementById('customPresetsGroup') as HTMLOptGroupElement
   const btnSavePreset = document.getElementById('btnSavePreset') as HTMLButtonElement
-  const btnExport = document.getElementById('btnExport') as HTMLButtonElement
-  const btnImport = document.getElementById('btnImport') as HTMLButtonElement
-  const importFile = document.getElementById('importFile') as HTMLInputElement
+  const btnCopy = document.getElementById('btnCopy') as HTMLButtonElement
+  const btnPaste = document.getElementById('btnPaste') as HTMLButtonElement
 
   let customPresets: Record<string, Partial<State>> = {}
 
@@ -1011,9 +1009,9 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     presetSelect.value = `custom:${trimmedName}`
   }
 
-  function exportPresets() {
+  async function copyPresets() {
     if (Object.keys(customPresets).length === 0) {
-      alert('No custom presets to export')
+      alert('No custom presets to copy')
       return
     }
 
@@ -1022,50 +1020,51 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       presets: customPresets,
     }
 
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'glyph-noise-presets.json'
-    a.click()
-    URL.revokeObjectURL(url)
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(exportData, null, 2))
+      // Brief visual feedback
+      const originalText = btnCopy.textContent
+      btnCopy.textContent = 'Copied!'
+      setTimeout(() => {
+        btnCopy.textContent = originalText
+      }, 1500)
+    } catch (err) {
+      alert('Failed to copy to clipboard')
+      console.error(err)
+    }
   }
 
-  function importPresets(file: File) {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      try {
-        const data = JSON.parse(e.target?.result as string)
+  async function pastePresets() {
+    try {
+      const text = await navigator.clipboard.readText()
+      const data = JSON.parse(text)
 
-        if (!data.presets || typeof data.presets !== 'object') {
-          alert('Invalid preset file format')
-          return
-        }
-
-        // Merge with existing custom presets
-        Object.assign(customPresets, data.presets)
-        saveCustomPresets()
-        refreshCustomPresetsUI()
-
-        alert(`Imported ${Object.keys(data.presets).length} preset(s)`)
-      } catch (err) {
-        alert('Failed to parse preset file')
-        console.error(err)
+      if (!data.presets || typeof data.presets !== 'object') {
+        alert('Invalid preset format in clipboard')
+        return
       }
+
+      // Merge with existing custom presets
+      Object.assign(customPresets, data.presets)
+      saveCustomPresets()
+      refreshCustomPresetsUI()
+
+      // Brief visual feedback
+      const originalText = btnPaste.textContent
+      btnPaste.textContent = 'Pasted!'
+      setTimeout(() => {
+        btnPaste.textContent = originalText
+      }, 1500)
+    } catch (err) {
+      alert('Failed to paste from clipboard. Make sure you have valid preset data copied.')
+      console.error(err)
     }
-    reader.readAsText(file)
   }
 
   // Event listeners for preset management
   btnSavePreset.addEventListener('click', savePreset)
-  btnExport.addEventListener('click', exportPresets)
-  btnImport.addEventListener('click', () => importFile.click())
-  importFile.addEventListener('change', () => {
-    if (importFile.files && importFile.files[0]) {
-      importPresets(importFile.files[0])
-      importFile.value = '' // Reset for next import
-    }
-  })
+  btnCopy.addEventListener('click', copyPresets)
+  btnPaste.addEventListener('click', pastePresets)
 
   // Update preset select handler to support custom presets
   presetSelect.removeEventListener('change', () => {})
