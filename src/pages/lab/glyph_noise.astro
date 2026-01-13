@@ -14,8 +14,10 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       <div class="controls-content" id="controlsContent">
         <div class="controls-header">
           <button id="btnPause" class="icon-btn" aria-label="Pause">
-            <svg class="icon-pause" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-            <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor" style="display:none"><polygon points="5,3 19,12 5,21"/></svg>
+            <svg class="icon-pause" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>
+            </svg>
+            <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor" style="display:none"><polygon points="5,3 19,12 5,21"></polygon></svg>
           </button>
           <button id="btnFullscreen">Fullscreen</button>
         </div>
@@ -31,11 +33,16 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
                 <option value="cosmic">Cosmic</option>
                 <option value="fog">Fog</option>
               </optgroup>
-              <optgroup label="Custom" id="customPresetsGroup">
-              </optgroup>
+              <optgroup label="Custom" id="customPresetsGroup"> </optgroup>
             </select>
             <button id="btnRandomize" class="icon-btn" aria-label="Randomize">
-              <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="2" width="20" height="20" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8" cy="8" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="16" cy="16" r="1.5"/><circle cx="16" cy="8" r="1.5"/><circle cx="8" cy="16" r="1.5"/></svg>
+              <svg viewBox="0 0 24 24" fill="currentColor"
+                ><rect x="2" y="2" width="20" height="20" rx="3" fill="none" stroke="currentColor" stroke-width="2"></rect><circle cx="8" cy="8" r="1.5"
+                ></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="16" cy="16" r="1.5"></circle><circle cx="16" cy="8" r="1.5"></circle><circle
+                  cx="8"
+                  cy="16"
+                  r="1.5"></circle></svg
+              >
             </button>
           </div>
           <div class="preset-row preset-actions">
@@ -78,7 +85,13 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
             <div class="seed-controls">
               <input type="text" id="noiseSeed" placeholder="random" value="" />
               <button id="btnRandomizeSeed" class="icon-btn icon-btn-sm" aria-label="Randomize seed">
-                <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="2" width="20" height="20" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8" cy="8" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="16" cy="16" r="1.5"/><circle cx="16" cy="8" r="1.5"/><circle cx="8" cy="16" r="1.5"/></svg>
+                <svg viewBox="0 0 24 24" fill="currentColor"
+                  ><rect x="2" y="2" width="20" height="20" rx="3" fill="none" stroke="currentColor" stroke-width="2"></rect><circle cx="8" cy="8" r="1.5"
+                  ></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="16" cy="16" r="1.5"></circle><circle cx="16" cy="8" r="1.5"></circle><circle
+                    cx="8"
+                    cy="16"
+                    r="1.5"></circle></svg
+                >
               </button>
             </div>
           </label>
@@ -205,9 +218,9 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     hue: 180,
     saturation: 0.5,
     threshold1: 0.25,
-    threshold2: 0.30,
-    threshold3: 0.40,
-    threshold4: 0.50,
+    threshold2: 0.3,
+    threshold3: 0.4,
+    threshold4: 0.5,
     threshold5: 0.65,
     noiseSeed: Math.random().toString(36).substring(2, 8),
   }
@@ -218,7 +231,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     let hash = 0
     for (let i = 0; i < seed.length; i++) {
       const char = seed.charCodeAt(i)
-      hash = ((hash << 5) - hash) + char
+      hash = (hash << 5) - hash + char
       hash = hash & hash // Convert to 32-bit integer
     }
     return Math.abs(hash) % 10000
@@ -281,8 +294,8 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       saturation: 1.0,
       threshold1: 0.05,
       threshold2: 0.12,
-      threshold3: 0.20,
-      threshold4: 0.30,
+      threshold3: 0.2,
+      threshold4: 0.3,
       threshold5: 0.42,
     },
     retro: {
@@ -301,7 +314,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       threshold2: 0.24,
       threshold3: 0.36,
       threshold4: 0.48,
-      threshold5: 0.60,
+      threshold5: 0.6,
     },
     cosmic: {
       cellSize: 14,
@@ -317,7 +330,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       saturation: 0.7,
       threshold1: 0.08,
       threshold2: 0.18,
-      threshold3: 0.30,
+      threshold3: 0.3,
       threshold4: 0.44,
       threshold5: 0.58,
     },
@@ -335,7 +348,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       saturation: 0.3,
       threshold1: 0.15,
       threshold2: 0.28,
-      threshold3: 0.40,
+      threshold3: 0.4,
       threshold4: 0.52,
       threshold5: 0.65,
     },
@@ -698,12 +711,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   // Create full-screen quad
   const quadBuffer = gl.createBuffer()
   gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer)
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-    -1, -1,
-     1, -1,
-    -1,  1,
-     1,  1,
-  ]), gl.STATIC_DRAW)
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW)
 
   // Create VAO
   const quadVAO = gl.createVertexArray()
@@ -884,8 +892,8 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
         input.value = String(value)
         // Handle seed input separately (no decimal formatting)
         if (key === 'noiseSeed') return
-        const decimals = key === 'cellSize' || key === 'hue' ? 0 :
-                        key.includes('Amplitude') || key.includes('Intensity') && key !== 'vignetteIntensity' ? 3 : 2
+        const decimals =
+          key === 'cellSize' || key === 'hue' ? 0 : key.includes('Amplitude') || (key.includes('Intensity') && key !== 'vignetteIntensity') ? 3 : 2
         updateSliderValue(key, value as number, decimals)
       }
     })
@@ -928,8 +936,8 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       const input = document.getElementById(key) as HTMLInputElement
       if (input) {
         input.value = String(value)
-        const decimals = key === 'cellSize' || key === 'hue' ? 0 :
-                        key.includes('Amplitude') || key.includes('Intensity') && key !== 'vignetteIntensity' ? 3 : 2
+        const decimals =
+          key === 'cellSize' || key === 'hue' ? 0 : key.includes('Amplitude') || (key.includes('Intensity') && key !== 'vignetteIntensity') ? 3 : 2
         updateSliderValue(key, value, decimals)
       }
     })
@@ -1271,7 +1279,9 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     font-family: var(--font-sans);
     font-size: 0.8rem;
     cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
+    transition:
+      background 0.15s,
+      border-color 0.15s;
   }
 
   button:hover {
