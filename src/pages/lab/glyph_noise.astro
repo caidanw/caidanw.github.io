@@ -475,12 +475,15 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       vec2 uv = v_uv;
       uv.x *= aspect;
 
-      // Persistent drift - pattern flows in a direction instead of wobbling in place
-      vec2 drift = u_time * 0.015 * u_waveSpeed * vec2(0.3, 0.2);
+      // Persistent drift - pattern flows in a direction
+      // Base rate ensures drift is always visible, scales with waveSpeed
+      vec2 drift = u_time * (0.02 + 0.02 * u_waveSpeed) * vec2(0.3, 0.2);
 
       // IQ-style domain warping (https://iquilezles.org/articles/warp/)
-      // Warp time - slower evolution for organic morphing
-      float warpTime = u_time * 0.03 * u_waveSpeed;
+      // Warp evolution uses max() to prevent wobbling at low speeds:
+      // - Minimum 0.025 ensures smooth morphing (no visible noise oscillation)
+      // - Scales with waveSpeed at higher values for more dynamic effect
+      float warpTime = u_time * max(0.025, 0.04 * u_waveSpeed);
 
       // First layer: q = (fbm(p + drift), fbm(p + drift + offset))
       // Drift provides motion, warpTime provides morphing
@@ -490,7 +493,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       );
 
       // Second layer: r with slightly different drift for parallax depth
-      vec2 driftR = u_time * 0.012 * u_waveSpeed * vec2(0.25, 0.15);
+      vec2 driftR = u_time * (0.016 + 0.016 * u_waveSpeed) * vec2(0.25, 0.15);
       vec2 r = vec2(
         fbm(vec3(uv + 4.0 * q + vec2(1.7, 9.2) + driftR, warpTime * 0.8 + u_noiseSeed)),
         fbm(vec3(uv + 4.0 * q + vec2(8.3, 2.8) + driftR, warpTime * 0.7 + u_noiseSeed))
