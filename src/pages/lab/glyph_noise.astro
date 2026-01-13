@@ -28,10 +28,10 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
               <optgroup label="Built-in">
                 <option value="default">Default</option>
                 <option value="terminal">Terminal</option>
-                <option value="matrix">Matrix Rain</option>
                 <option value="retro">Retro CRT</option>
                 <option value="cosmic">Cosmic</option>
                 <option value="fog">Fog</option>
+                <option value="red">Red</option>
               </optgroup>
               <optgroup label="Custom" id="customPresetsGroup"> </optgroup>
             </select>
@@ -165,10 +165,6 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
         </div>
       </div>
     </div>
-
-    <div class="info">
-      Drifting glyph noise — press <kbd>Space</kbd> to pause, <kbd>F</kbd> for fullscreen
-    </div>
   </div>
 </BreadcrumbLayout>
 
@@ -263,12 +259,12 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       threshold5: 0.65,
     },
     terminal: {
-      cellSize: 10,
+      cellSize: 12,
       waveAmplitude: 0.2,
       waveSpeed: 0.4,
       noiseIntensity: 0.025,
-      vignetteIntensity: 0.7,
-      vignetteRadius: 0.9,
+      vignetteIntensity: 0.65,
+      vignetteRadius: 0.5,
       brightnessAdjust: -0.15,
       contrastAdjust: 1.5,
       timeSpeed: 0.8,
@@ -280,52 +276,34 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       threshold4: 0.38,
       threshold5: 0.48,
     },
-    matrix: {
-      cellSize: 8,
-      waveAmplitude: 0.1,
-      waveSpeed: 0.8,
-      noiseIntensity: 0.015,
-      vignetteIntensity: 0.5,
-      vignetteRadius: 1.0,
-      brightnessAdjust: -0.2,
-      contrastAdjust: 1.6,
-      timeSpeed: 1.8,
-      hue: 120,
-      saturation: 1.0,
-      threshold1: 0.05,
-      threshold2: 0.12,
-      threshold3: 0.2,
-      threshold4: 0.3,
-      threshold5: 0.42,
-    },
     retro: {
       cellSize: 16,
-      waveAmplitude: 0.45,
-      waveSpeed: 0.3,
+      waveAmplitude: 0.15,
+      waveSpeed: 0.6,
       noiseIntensity: 0.035,
       vignetteIntensity: 0.8,
       vignetteRadius: 0.6,
       brightnessAdjust: -0.05,
-      contrastAdjust: 1.7,
-      timeSpeed: 0.6,
+      contrastAdjust: 1.5,
+      timeSpeed: 0.7,
       hue: 35,
       saturation: 0.85,
-      threshold1: 0.12,
-      threshold2: 0.24,
-      threshold3: 0.36,
-      threshold4: 0.48,
-      threshold5: 0.6,
+      threshold1: 0.15,
+      threshold2: 0.3,
+      threshold3: 0.5,
+      threshold4: 0.7,
+      threshold5: 1.0,
     },
     cosmic: {
-      cellSize: 14,
-      waveAmplitude: 0.55,
-      waveSpeed: 0.25,
+      cellSize: 6,
+      waveAmplitude: 0.5,
+      waveSpeed: 0.5,
       noiseIntensity: 0.02,
       vignetteIntensity: 0.4,
-      vignetteRadius: 1.2,
+      vignetteRadius: 0.8,
       brightnessAdjust: 0.0,
-      contrastAdjust: 1.2,
-      timeSpeed: 0.4,
+      contrastAdjust: 1,
+      timeSpeed: 1.0,
       hue: 270,
       saturation: 0.7,
       threshold1: 0.08,
@@ -335,15 +313,15 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       threshold5: 0.58,
     },
     fog: {
-      cellSize: 20,
+      cellSize: 8,
       waveAmplitude: 0.7,
-      waveSpeed: 0.2,
-      noiseIntensity: 0.01,
-      vignetteIntensity: 0.3,
-      vignetteRadius: 1.3,
-      brightnessAdjust: 0.1,
-      contrastAdjust: 0.9,
-      timeSpeed: 0.3,
+      waveSpeed: 0.5,
+      noiseIntensity: 0.05,
+      vignetteIntensity: 0.8,
+      vignetteRadius: 0.75,
+      brightnessAdjust: 0.2,
+      contrastAdjust: 1,
+      timeSpeed: 0.5,
       hue: 200,
       saturation: 0.3,
       threshold1: 0.15,
@@ -351,6 +329,24 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       threshold3: 0.4,
       threshold4: 0.52,
       threshold5: 0.65,
+    },
+    red: {
+      cellSize: 9.477363992838812,
+      waveAmplitude: 0.19866627466604492,
+      waveSpeed: 0.6728127000674906,
+      noiseIntensity: 0.08127384570359468,
+      vignetteIntensity: 0.9012567147515466,
+      vignetteRadius: 0.6647325291352247,
+      brightnessAdjust: -0.0859122219113787,
+      contrastAdjust: 0.6656278165227767,
+      timeSpeed: 1.1643690924738626,
+      hue: 352.8274855467056,
+      saturation: 0.8534068514321124,
+      threshold1: 0.1679224645262462,
+      threshold2: 0.4497505323208811,
+      threshold3: 0.6843052202787598,
+      threshold4: 0.658074487889079,
+      threshold5: 0.7430026789072516,
     },
   }
 
@@ -1163,7 +1159,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     background: rgba(0, 0, 0, 0.85);
     border: 1px solid var(--theme-border);
     border-radius: 8px;
-    padding: 0.75rem;
+    padding: 1rem;
     max-width: 320px;
     max-height: calc(100% - 4rem);
     overflow-y: auto;
@@ -1172,20 +1168,20 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
 
   .collapse-btn {
     position: absolute;
-    top: 0.75rem;
-    right: 0.75rem;
-    background: rgba(255, 255, 255, 0.1);
+    top: 1rem;
+    right: 1rem;
+    background: var(--theme-bg);
     border: 1px solid var(--theme-border);
     border-radius: 4px;
-    width: 1.5rem;
-    height: 1.5rem;
+    width: 2rem;
+    height: 2rem;
     padding: 0;
     cursor: pointer;
     transition: all 0.2s ease;
     z-index: 10;
 
     &:hover {
-      background: rgba(255, 255, 255, 0.2);
+      background: var(--theme-border);
     }
   }
 
@@ -1208,12 +1204,12 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   }
 
   .controls.collapsed {
-    padding: 0.5rem;
     background: transparent;
     border-color: transparent;
 
     .collapse-btn {
       position: static;
+      float: right;
     }
 
     .controls-content {
@@ -1224,17 +1220,21 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   .controls-header {
     display: flex;
     gap: 0.5rem;
-    margin-bottom: 0.75rem;
+    margin-bottom: 1rem;
   }
 
   .control-section {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+
+    & + .control-section {
+      margin-top: 1rem;
+    }
   }
 
   .section-title {
-    font-size: 0.75rem;
+    font-size: 1rem;
     font-weight: 600;
     color: var(--theme-text-subtle);
     text-transform: uppercase;
@@ -1390,25 +1390,6 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     padding: 0.25rem 0.5rem;
     font-family: var(--font-mono);
     font-size: 0.75rem;
-  }
-
-  .info {
-    position: absolute;
-    bottom: 1rem;
-    left: 50%;
-    transform: translateX(-50%);
-    color: var(--theme-text-dim);
-    font-size: 0.75rem;
-    text-align: center;
-    pointer-events: none;
-  }
-
-  kbd {
-    background: var(--theme-border);
-    border-radius: 3px;
-    padding: 0.1em 0.4em;
-    font-family: var(--font-mono);
-    font-size: 0.9em;
   }
 
   @media (max-width: 640px) {
