@@ -15,9 +15,12 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
         <div class="controls-header">
           <button id="btnPause" class="icon-btn" aria-label="Pause">
             <svg class="icon-pause" viewBox="0 0 24 24" fill="currentColor">
-              <rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>
+              <rect x="6" y="4" width="4" height="16"></rect>
+              <rect x="14" y="4" width="4" height="16"></rect>
             </svg>
-            <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor" style="display:none"><polygon points="5,3 19,12 5,21"></polygon></svg>
+            <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor" style="display:none">
+              <polygon points="5,3 19,12 5,21"></polygon>
+            </svg>
           </button>
           <button id="btnFullscreen">Fullscreen</button>
         </div>
@@ -33,16 +36,17 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
                 <option value="fog">Fog</option>
                 <option value="red">Red</option>
               </optgroup>
-              <optgroup label="Custom" id="customPresetsGroup"> </optgroup>
+              <optgroup label="Custom" id="customPresetsGroup"></optgroup>
             </select>
             <button id="btnRandomize" class="icon-btn" aria-label="Randomize">
-              <svg viewBox="0 0 24 24" fill="currentColor"
-                ><rect x="2" y="2" width="20" height="20" rx="3" fill="none" stroke="currentColor" stroke-width="2"></rect><circle cx="8" cy="8" r="1.5"
-                ></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="16" cy="16" r="1.5"></circle><circle cx="16" cy="8" r="1.5"></circle><circle
-                  cx="8"
-                  cy="16"
-                  r="1.5"></circle></svg
-              >
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <rect x="2" y="2" width="20" height="20" rx="3" fill="none" stroke="currentColor" stroke-width="2"></rect>
+                <circle cx="8" cy="8" r="1.5"></circle>
+                <circle cx="12" cy="12" r="1.5"></circle>
+                <circle cx="16" cy="16" r="1.5"></circle>
+                <circle cx="16" cy="8" r="1.5"></circle>
+                <circle cx="8" cy="16" r="1.5"></circle>
+              </svg>
             </button>
           </div>
           <div class="preset-row preset-actions">
@@ -84,13 +88,14 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
             <div class="seed-controls">
               <input type="text" id="noiseSeed" placeholder="random" value="" />
               <button id="btnRandomizeSeed" class="icon-btn" aria-label="Randomize seed">
-                <svg viewBox="0 0 24 24" fill="currentColor"
-                  ><rect x="2" y="2" width="20" height="20" rx="3" fill="none" stroke="currentColor" stroke-width="2"></rect><circle cx="8" cy="8" r="1.5"
-                  ></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="16" cy="16" r="1.5"></circle><circle cx="16" cy="8" r="1.5"></circle><circle
-                    cx="8"
-                    cy="16"
-                    r="1.5"></circle></svg
-                >
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="2" y="2" width="20" height="20" rx="3" fill="none" stroke="currentColor" stroke-width="2"></rect>
+                  <circle cx="8" cy="8" r="1.5"> </circle>
+                  <circle cx="12" cy="12" r="1.5"></circle>
+                  <circle cx="16" cy="16" r="1.5"></circle>
+                  <circle cx="16" cy="8" r="1.5"></circle>
+                  <circle cx="8" cy="16" r="1.5"></circle>
+                </svg>
               </button>
             </div>
           </label>
@@ -637,7 +642,6 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     }
   `
 
-  // Compile shader
   function compileShader(type: number, source: string): WebGLShader {
     const shader = gl!.createShader(type)
     if (!shader) throw new Error('Failed to create shader')
@@ -654,7 +658,6 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     return shader
   }
 
-  // Create program
   function createProgram(vertSource: string, fragSource: string): WebGLProgram {
     const vertShader = compileShader(gl!.VERTEX_SHADER, vertSource)
     const fragShader = compileShader(gl!.FRAGMENT_SHADER, fragSource)
@@ -674,7 +677,6 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     return program
   }
 
-  // Create programs
   const noiseProgram = createProgram(vertexShaderSource, noiseFragmentShaderSource)
   const glyphProgram = createProgram(vertexShaderSource, glyphFragmentShaderSource)
 
@@ -945,7 +947,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     seedInput.value = state.noiseSeed
 
     // Clear preset selection since we're now randomized
-    presetSelect.value = ''
+    presetSelect.value = 'Random'
   }
 
   btnRandomize.addEventListener('click', randomize)
