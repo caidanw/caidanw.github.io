@@ -349,7 +349,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   }
 
   let isPaused = false
-  let pausedByVisibility = false
+  let autoPaused = false
   let animationFrameId: number | null = null
   let time = 0
 
@@ -1463,20 +1463,22 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     }
   })
 
-  // Pause when tab loses visibility to save resources
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      if (!isPaused) {
-        pausedByVisibility = true
-        setPaused(true)
-      }
-    } else {
-      if (pausedByVisibility) {
-        pausedByVisibility = false
-        setPaused(false)
-      }
+  // Pause when tab loses visibility or window loses focus to save resources
+  function checkAutoPause() {
+    const shouldPause = document.hidden || !document.hasFocus()
+
+    if (shouldPause && !isPaused) {
+      autoPaused = true
+      setPaused(true)
+    } else if (!shouldPause && autoPaused) {
+      autoPaused = false
+      setPaused(false)
     }
-  })
+  }
+
+  document.addEventListener('visibilitychange', checkAutoPause)
+  window.addEventListener('blur', checkAutoPause)
+  window.addEventListener('focus', checkAutoPause)
 </script>
 
 <style>
