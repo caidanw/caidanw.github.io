@@ -22,6 +22,25 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
               <polygon points="5,3 19,12 5,21"></polygon>
             </svg>
           </button>
+          <button id="btnExportPNG" class="icon-btn" aria-label="Export PNG">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </button>
+          <button id="btnRecordGif" class="icon-btn" aria-label="Record GIF">
+            <svg class="icon-record" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="12" r="8"></circle>
+            </svg>
+            <svg class="icon-stop" viewBox="0 0 24 24" fill="currentColor" style="display:none">
+              <rect x="6" y="6" width="12" height="12"></rect>
+            </svg>
+          </button>
+          <span id="recordingIndicator" class="recording-indicator" style="display:none">
+            <span class="recording-dot"></span>
+            <span id="recordingTime">0s</span>
+          </span>
           <button id="btnFullscreen">Fullscreen</button>
         </div>
         <div class="control-section">
@@ -51,8 +70,8 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
           </div>
           <div class="preset-row preset-actions">
             <button id="btnSavePreset">Save</button>
-            <button id="btnCopy">Copy</button>
-            <button id="btnPaste">Paste</button>
+            <button id="btnCopyLink">Copy Link</button>
+            <button id="btnImport">Import</button>
           </div>
         </div>
 
@@ -181,6 +200,10 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   const collapseBtn = document.getElementById('collapseBtn') as HTMLButtonElement
   const btnPause = document.getElementById('btnPause') as HTMLButtonElement
   const btnFullscreen = document.getElementById('btnFullscreen') as HTMLButtonElement
+  const btnExportPNG = document.getElementById('btnExportPNG') as HTMLButtonElement
+  const btnRecordGif = document.getElementById('btnRecordGif') as HTMLButtonElement
+  const recordingIndicator = document.getElementById('recordingIndicator') as HTMLSpanElement
+  const recordingTime = document.getElementById('recordingTime') as HTMLSpanElement
 
   // ============================================
   // State
@@ -235,6 +258,82 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       hash = hash & hash // Convert to 32-bit integer
     }
     return Math.abs(hash) % 10000
+  }
+
+  // ============================================
+  // URL Params for Sharing
+  // ============================================
+  const STATE_PARAM_MAP: Record<keyof State, string> = {
+    cellSize: 'cs',
+    waveAmplitude: 'wa',
+    waveSpeed: 'ws',
+    noiseIntensity: 'ni',
+    vignetteIntensity: 'vi',
+    vignetteRadius: 'vr',
+    brightnessAdjust: 'ba',
+    contrastAdjust: 'ca',
+    timeSpeed: 'ts',
+    hue: 'h',
+    saturation: 'sa',
+    threshold1: 't1',
+    threshold2: 't2',
+    threshold3: 't3',
+    threshold4: 't4',
+    threshold5: 't5',
+    noiseSeed: 'sd',
+  }
+
+  const PARAM_STATE_MAP = Object.fromEntries(
+    Object.entries(STATE_PARAM_MAP).map(([k, v]) => [v, k])
+  ) as Record<string, keyof State>
+
+  function stateToURLParams(): URLSearchParams {
+    const params = new URLSearchParams()
+    for (const [key, shortKey] of Object.entries(STATE_PARAM_MAP)) {
+      const value = state[key as keyof State]
+      if (key === 'noiseSeed') {
+        params.set(shortKey, String(value))
+      } else {
+        // Round to 3 decimal places, strip trailing zeros
+        params.set(shortKey, Number(value).toFixed(3).replace(/\.?0+$/, ''))
+      }
+    }
+    return params
+  }
+
+  function loadStateFromURLParams(url?: string): boolean {
+    const targetURL = url ? new URL(url) : new URL(window.location.href)
+    const params = targetURL.searchParams
+
+    // Check if any state params exist
+    const hasParams = Object.values(STATE_PARAM_MAP).some((key) => params.has(key))
+    if (!hasParams) return false
+
+    for (const [shortKey, fullKey] of Object.entries(PARAM_STATE_MAP)) {
+      const value = params.get(shortKey)
+      if (value === null) continue
+
+      if (fullKey === 'noiseSeed') {
+        state.noiseSeed = value.slice(0, 6)
+      } else {
+        const numValue = parseFloat(value)
+        if (!isNaN(numValue)) {
+          ;(state as any)[fullKey] = numValue
+        }
+      }
+    }
+    return true
+  }
+
+  function updateURLWithState() {
+    const params = stateToURLParams()
+    const newURL = `${window.location.pathname}?${params.toString()}`
+    window.history.replaceState({}, '', newURL)
+  }
+
+  function getShareableURL(): string {
+    const params = stateToURLParams()
+    return `${window.location.origin}${window.location.pathname}?${params.toString()}`
   }
 
   let isPaused = false
@@ -357,7 +456,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   // ============================================
   // WebGL Setup
   // ============================================
-  const gl = canvas.getContext('webgl2')
+  const gl = canvas.getContext('webgl2', { preserveDrawingBuffer: true })
   if (!gl) {
     throw new Error('WebGL 2.0 not supported')
   }
@@ -845,6 +944,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       const value = parseFloat(input.value)
       state[id] = value as never
       updateSliderValue(id, value, decimals)
+      updateURLWithState()
     })
   }
 
@@ -872,10 +972,12 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   seedInput.value = state.noiseSeed
   seedInput.addEventListener('input', () => {
     state.noiseSeed = seedInput.value
+    updateURLWithState()
   })
   btnRandomizeSeed.addEventListener('click', () => {
     state.noiseSeed = Math.random().toString(36).substring(2, 8)
     seedInput.value = state.noiseSeed
+    updateURLWithState()
   })
 
   // Apply preset
@@ -897,6 +999,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
         updateSliderValue(key, value as number, decimals)
       }
     })
+    updateURLWithState()
   }
 
   // Preset select
@@ -947,7 +1050,8 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     seedInput.value = state.noiseSeed
 
     // Clear preset selection since we're now randomized
-    presetSelect.value = 'Random'
+    presetSelect.value = ''
+    updateURLWithState()
   }
 
   btnRandomize.addEventListener('click', randomize)
@@ -958,8 +1062,8 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   const STORAGE_KEY = 'glyphNoise_customPresets'
   const customPresetsGroup = document.getElementById('customPresetsGroup') as HTMLOptGroupElement
   const btnSavePreset = document.getElementById('btnSavePreset') as HTMLButtonElement
-  const btnCopy = document.getElementById('btnCopy') as HTMLButtonElement
-  const btnPaste = document.getElementById('btnPaste') as HTMLButtonElement
+  const btnCopyLink = document.getElementById('btnCopyLink') as HTMLButtonElement
+  const btnImport = document.getElementById('btnImport') as HTMLButtonElement
 
   let customPresets: Record<string, Partial<State>> = {}
 
@@ -1011,62 +1115,51 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     presetSelect.value = `custom:${trimmedName}`
   }
 
-  async function copyPresets() {
-    if (Object.keys(customPresets).length === 0) {
-      alert('No custom presets to copy')
-      return
-    }
-
-    const exportData = {
-      version: 1,
-      presets: customPresets,
-    }
-
+  async function copyLink() {
     try {
-      await navigator.clipboard.writeText(JSON.stringify(exportData, null, 2))
+      const url = getShareableURL()
+      await navigator.clipboard.writeText(url)
       // Brief visual feedback
-      const originalText = btnCopy.textContent
-      btnCopy.textContent = 'Copied!'
+      const originalText = btnCopyLink.textContent
+      btnCopyLink.textContent = 'Copied!'
       setTimeout(() => {
-        btnCopy.textContent = originalText
+        btnCopyLink.textContent = originalText
       }, 1500)
     } catch (err) {
-      alert('Failed to copy to clipboard')
+      alert('Failed to copy link to clipboard')
       console.error(err)
     }
   }
 
-  async function pastePresets() {
+  function importFromURL() {
+    const input = prompt('Enter URL to import settings from:')
+    if (!input || input.trim() === '') return
+
     try {
-      const text = await navigator.clipboard.readText()
-      const data = JSON.parse(text)
-
-      if (!data.presets || typeof data.presets !== 'object') {
-        alert('Invalid preset format in clipboard')
-        return
+      const url = new URL(input.trim())
+      const loaded = loadStateFromURLParams(input.trim())
+      if (loaded) {
+        syncUIFromState()
+        presetSelect.value = '' // Clear preset selection
+        // Brief visual feedback
+        const originalText = btnImport.textContent
+        btnImport.textContent = 'Imported!'
+        setTimeout(() => {
+          btnImport.textContent = originalText
+        }, 1500)
+      } else {
+        alert('No valid settings found in that URL')
       }
-
-      // Merge with existing custom presets
-      Object.assign(customPresets, data.presets)
-      saveCustomPresets()
-      refreshCustomPresetsUI()
-
-      // Brief visual feedback
-      const originalText = btnPaste.textContent
-      btnPaste.textContent = 'Pasted!'
-      setTimeout(() => {
-        btnPaste.textContent = originalText
-      }, 1500)
     } catch (err) {
-      alert('Failed to paste from clipboard. Make sure you have valid preset data copied.')
+      alert('Invalid URL format')
       console.error(err)
     }
   }
 
   // Event listeners for preset management
   btnSavePreset.addEventListener('click', savePreset)
-  btnCopy.addEventListener('click', copyPresets)
-  btnPaste.addEventListener('click', pastePresets)
+  btnCopyLink.addEventListener('click', copyLink)
+  btnImport.addEventListener('click', importFromURL)
 
   // Update preset select handler to support custom presets
   presetSelect.removeEventListener('change', () => {})
@@ -1085,11 +1178,36 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   // Load custom presets on startup
   loadCustomPresets()
 
-  // Apply random preset on page load
-  const presetNames = Object.keys(presets)
-  const randomPreset = presetNames[Math.floor(Math.random() * presetNames.length)]
-  applyPreset(randomPreset)
-  presetSelect.value = randomPreset
+  // Sync all UI inputs from current state
+  function syncUIFromState() {
+    Object.keys(state).forEach((key) => {
+      const k = key as keyof State
+      const value = state[k]
+      const input = document.getElementById(key) as HTMLInputElement
+      if (input) {
+        input.value = String(value)
+        if (key === 'noiseSeed') {
+          seedInput.value = state.noiseSeed
+        } else {
+          const decimals =
+            key === 'cellSize' || key === 'hue' ? 0 : key.includes('Amplitude') || (key.includes('Intensity') && key !== 'vignetteIntensity') ? 3 : 2
+          updateSliderValue(key, value as number, decimals)
+        }
+      }
+    })
+  }
+
+  // Check for URL params on page load, otherwise apply random preset
+  const loadedFromURL = loadStateFromURLParams()
+  if (loadedFromURL) {
+    syncUIFromState()
+    presetSelect.value = '' // No preset selected when loaded from URL
+  } else {
+    const presetNames = Object.keys(presets)
+    const randomPreset = presetNames[Math.floor(Math.random() * presetNames.length)]
+    applyPreset(randomPreset)
+    presetSelect.value = randomPreset
+  }
 
   // Toggle controls
   collapseBtn.addEventListener('click', () => {
@@ -1119,6 +1237,138 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       document.getElementById('app')?.requestFullscreen()
     }
   })
+
+  // ============================================
+  // Export PNG
+  // ============================================
+  function exportPNG() {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        alert('Failed to export image')
+        return
+      }
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.download = `ascii-clouds-${Date.now()}.png`
+      link.href = url
+      link.click()
+      URL.revokeObjectURL(url)
+    }, 'image/png')
+  }
+
+  btnExportPNG.addEventListener('click', exportPNG)
+
+  // ============================================
+  // GIF Recording
+  // ============================================
+  let isRecording = false
+  let gifInstance: any = null
+  let recordingStartTime = 0
+  let recordingInterval: number | null = null
+  let gifLoaded = false
+
+  // Load gif.js dynamically
+  function loadGifJS(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (gifLoaded) {
+        resolve()
+        return
+      }
+      const script = document.createElement('script')
+      script.src = 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.min.js'
+      script.onload = () => {
+        gifLoaded = true
+        resolve()
+      }
+      script.onerror = reject
+      document.head.appendChild(script)
+    })
+  }
+
+  function updateRecordingUI() {
+    const recordIcon = btnRecordGif.querySelector('.icon-record') as SVGElement
+    const stopIcon = btnRecordGif.querySelector('.icon-stop') as SVGElement
+    recordIcon.style.display = isRecording ? 'none' : 'block'
+    stopIcon.style.display = isRecording ? 'block' : 'none'
+    recordingIndicator.style.display = isRecording ? 'inline-flex' : 'none'
+    btnRecordGif.setAttribute('aria-label', isRecording ? 'Stop recording' : 'Record GIF')
+  }
+
+  async function startRecording() {
+    try {
+      await loadGifJS()
+    } catch (err) {
+      alert('Failed to load GIF library')
+      console.error(err)
+      return
+    }
+
+    isRecording = true
+    recordingStartTime = Date.now()
+    updateRecordingUI()
+
+    // @ts-ignore - gif.js loaded via CDN
+    gifInstance = new GIF({
+      workers: 2,
+      quality: 10,
+      width: canvas.width,
+      height: canvas.height,
+      workerScript: 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js',
+    })
+
+    // Capture frames at ~15 FPS
+    recordingInterval = window.setInterval(() => {
+      if (!isRecording || !gifInstance) return
+
+      const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000)
+      recordingTime.textContent = `${elapsed}s`
+
+      // Capture frame
+      gifInstance.addFrame(canvas, { delay: 67, copy: true })
+
+      // Auto-stop at 30 seconds
+      if (elapsed >= 30) {
+        stopRecording()
+      }
+    }, 67) // ~15 FPS
+  }
+
+  function stopRecording() {
+    if (!isRecording || !gifInstance) return
+
+    isRecording = false
+    if (recordingInterval) {
+      clearInterval(recordingInterval)
+      recordingInterval = null
+    }
+
+    recordingTime.textContent = 'Processing...'
+
+    gifInstance.on('finished', (blob: Blob) => {
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.download = `ascii-clouds-${Date.now()}.gif`
+      link.href = url
+      link.click()
+      URL.revokeObjectURL(url)
+
+      updateRecordingUI()
+      recordingTime.textContent = '0s'
+      gifInstance = null
+    })
+
+    gifInstance.render()
+  }
+
+  function toggleRecording() {
+    if (isRecording) {
+      stopRecording()
+    } else {
+      startRecording()
+    }
+  }
+
+  btnRecordGif.addEventListener('click', toggleRecording)
 
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
@@ -1395,6 +1645,41 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     padding: 0.25rem 0.5rem;
     font-family: var(--font-mono);
     font-size: 0.75rem;
+  }
+
+  .recording-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: #ff4444;
+    font-size: 0.75rem;
+    font-family: var(--font-mono);
+  }
+
+  .recording-dot {
+    width: 8px;
+    height: 8px;
+    background: #ff4444;
+    border-radius: 50%;
+    animation: pulse 1s infinite;
+  }
+
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.4;
+    }
+  }
+
+  .icon-record circle {
+    fill: #ff4444;
+  }
+
+  .icon-stop rect {
+    fill: #ff4444;
   }
 
   @media (max-width: 640px) {
