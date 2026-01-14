@@ -1544,14 +1544,14 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     transition:
       background 0.15s,
       border-color 0.15s;
-  }
 
-  button:hover {
-    background: var(--theme-border);
-  }
+    &:hover {
+      background: var(--theme-border);
+    }
 
-  button:active {
-    background: var(--theme-accent);
+    &:active {
+      background: var(--theme-accent);
+    }
   }
 
   .icon-btn {
@@ -1561,22 +1561,22 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     padding: 0.4rem;
     min-width: 2rem;
     min-height: 2rem;
-  }
 
-  .icon-btn svg {
-    min-width: 1rem;
-    min-height: 1rem;
+    svg {
+      min-width: 1rem;
+      min-height: 1rem;
+    }
   }
 
   .icon-btn-sm {
     min-width: 1.5rem;
     min-height: 1.5rem;
     padding: 0.25rem;
-  }
 
-  .icon-btn-sm svg {
-    min-width: 0.75rem;
-    min-height: 0.75rem;
+    svg {
+      min-width: 0.75rem;
+      min-height: 0.75rem;
+    }
   }
 
   .slider {
@@ -1635,6 +1635,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     align-items: center;
     color: var(--theme-text-subtle);
     font-size: 0.75rem;
+    gap: 0.5rem;
   }
 
   .seed-controls {
@@ -1644,7 +1645,6 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   }
 
   .seed-input input {
-    width: 5rem;
     background: var(--theme-bg);
     color: var(--theme-text);
     border: 1px solid var(--theme-border);
