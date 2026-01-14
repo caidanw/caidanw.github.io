@@ -283,9 +283,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     noiseSeed: 'sd',
   }
 
-  const PARAM_STATE_MAP = Object.fromEntries(
-    Object.entries(STATE_PARAM_MAP).map(([k, v]) => [v, k])
-  ) as Record<string, keyof State>
+  const PARAM_STATE_MAP = Object.fromEntries(Object.entries(STATE_PARAM_MAP).map(([k, v]) => [v, k])) as Record<string, keyof State>
 
   function stateToURLParams(): URLSearchParams {
     const params = new URLSearchParams()
@@ -295,7 +293,12 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
         params.set(shortKey, String(value))
       } else {
         // Round to 3 decimal places, strip trailing zeros
-        params.set(shortKey, Number(value).toFixed(3).replace(/\.?0+$/, ''))
+        params.set(
+          shortKey,
+          Number(value)
+            .toFixed(3)
+            .replace(/\.?0+$/, ''),
+        )
       }
     }
     return params
@@ -968,12 +971,16 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
 
   // Setup seed input
   const seedInput = document.getElementById('noiseSeed') as HTMLInputElement
-  const btnRandomizeSeed = document.getElementById('btnRandomizeSeed') as HTMLButtonElement
   seedInput.value = state.noiseSeed
-  seedInput.addEventListener('input', () => {
-    state.noiseSeed = seedInput.value
+  seedInput.addEventListener('input', (e) => {
+    state.noiseSeed = seedInput.value.trim()
     updateURLWithState()
   })
+  seedInput.addEventListener('keydown', (e) => {
+    e.stopPropagation()
+    if (e.key === 'Enter') seedInput.blur()
+  })
+  const btnRandomizeSeed = document.getElementById('btnRandomizeSeed') as HTMLButtonElement
   btnRandomizeSeed.addEventListener('click', () => {
     state.noiseSeed = Math.random().toString(36).substring(2, 8)
     seedInput.value = state.noiseSeed
