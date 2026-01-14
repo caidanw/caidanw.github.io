@@ -23,11 +23,6 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
             </svg>
           </button>
           <button id="btnFullscreen">Fullscreen</button>
-          <button class="collapse-btn collapse-btn-inner" id="collapseBtnInner" aria-label="Toggle controls">
-            <div class="collapse-icon"></div>
-          </button>
-        </div>
-        <div class="controls-header">
           <button id="btnExportPNG" class="icon-btn" aria-label="Export PNG">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -36,6 +31,11 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
             </svg>
             <span>PNG</span>
           </button>
+          <button class="collapse-btn collapse-btn-inner" id="collapseBtnInner" aria-label="Toggle controls">
+            <div class="collapse-icon"></div>
+          </button>
+        </div>
+        <div class="controls-header">
           <button id="btnRecordGif" class="icon-btn" aria-label="Record GIF">
             <svg class="icon-record" viewBox="0 0 24 24" fill="currentColor">
               <circle cx="12" cy="12" r="8"></circle>
@@ -43,7 +43,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
             <svg class="icon-stop" viewBox="0 0 24 24" fill="currentColor" style="display:none">
               <rect x="6" y="6" width="12" height="12"></rect>
             </svg>
-            <span>Record</span>
+            <span>GIF</span>
           </button>
           <span id="recordingIndicator" class="recording-indicator" style="display:none">
             <span class="recording-dot"></span>
@@ -1395,7 +1395,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       if (!isRecording || !gifInstance) return
 
       const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000)
-      recordingTime.textContent = `${elapsed}s`
+      recordingTime.textContent = `Recording/${elapsed}s`
 
       // Capture frame
       gifInstance.addFrame(captureFrame(), { delay: 42, copy: true })
@@ -1420,7 +1420,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
 
     // Show progress percentage
     gifInstance.on('progress', (p: number) => {
-      recordingTime.textContent = `${Math.round(p * 100)}%`
+      recordingTime.textContent = `Processing... ${Math.round(p * 100)}%`
     })
 
     gifInstance.on('finished', (blob: Blob) => {
@@ -1656,7 +1656,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.125rem;
+    gap: 0.25rem;
     padding: 0.4rem;
     min-width: 2rem;
     min-height: 2rem;
