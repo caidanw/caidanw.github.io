@@ -349,6 +349,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   }
 
   let isPaused = false
+  let pausedByVisibility = false
   let animationFrameId: number | null = null
   let time = 0
 
@@ -1243,22 +1244,26 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     btnPause.setAttribute('aria-label', isPaused ? 'Play' : 'Pause')
   }
 
-  btnPause.addEventListener('click', () => {
-    isPaused = !isPaused
+  // Consolidated pause/resume logic
+  function setPaused(paused: boolean) {
+    if (isPaused === paused) return
+    isPaused = paused
     updatePauseIcon()
 
     if (isPaused) {
-      // Stop the render loop
       if (animationFrameId !== null) {
         cancelAnimationFrame(animationFrameId)
         animationFrameId = null
       }
     } else {
-      // Resume the render loop
       lastTime = performance.now()
       animationFrameId = requestAnimationFrame(render)
     }
-  })
+  }
+
+  const togglePaused = () => setPaused(!isPaused)
+
+  btnPause.addEventListener('click', togglePaused)
 
   // Fullscreen button
   btnFullscreen.addEventListener('click', () => {
@@ -1448,23 +1453,27 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   document.addEventListener('keydown', (e) => {
     if (e.code === 'Space') {
       e.preventDefault()
-      isPaused = !isPaused
-      updatePauseIcon()
-
-      if (isPaused) {
-        if (animationFrameId !== null) {
-          cancelAnimationFrame(animationFrameId)
-          animationFrameId = null
-        }
-      } else {
-        lastTime = performance.now()
-        animationFrameId = requestAnimationFrame(render)
-      }
+      togglePaused()
     } else if (e.code === 'KeyF') {
       if (document.fullscreenElement) {
         document.exitFullscreen()
       } else {
         document.getElementById('app')?.requestFullscreen()
+      }
+    }
+  })
+
+  // Pause when tab loses visibility to save resources
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      if (!isPaused) {
+        pausedByVisibility = true
+        setPaused(true)
+      }
+    } else {
+      if (pausedByVisibility) {
+        pausedByVisibility = false
+        setPaused(false)
       }
     }
   })
