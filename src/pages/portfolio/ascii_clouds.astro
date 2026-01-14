@@ -340,6 +340,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   }
 
   let isPaused = false
+  let animationFrameId: number | null = null
   let time = 0
 
   // ============================================
@@ -924,10 +925,10 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
 
     gl!.drawArrays(gl!.TRIANGLE_STRIP, 0, 4)
 
-    requestAnimationFrame(render)
+    animationFrameId = requestAnimationFrame(render)
   }
 
-  requestAnimationFrame(render)
+  animationFrameId = requestAnimationFrame(render)
 
   // ============================================
   // Controls
@@ -1234,6 +1235,18 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   btnPause.addEventListener('click', () => {
     isPaused = !isPaused
     updatePauseIcon()
+
+    if (isPaused) {
+      // Stop the render loop
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId)
+        animationFrameId = null
+      }
+    } else {
+      // Resume the render loop
+      lastTime = performance.now()
+      animationFrameId = requestAnimationFrame(render)
+    }
   })
 
   // Fullscreen button
@@ -1383,6 +1396,16 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       e.preventDefault()
       isPaused = !isPaused
       updatePauseIcon()
+
+      if (isPaused) {
+        if (animationFrameId !== null) {
+          cancelAnimationFrame(animationFrameId)
+          animationFrameId = null
+        }
+      } else {
+        lastTime = performance.now()
+        animationFrameId = requestAnimationFrame(render)
+      }
     } else if (e.code === 'KeyF') {
       if (document.fullscreenElement) {
         document.exitFullscreen()
