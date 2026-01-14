@@ -1346,7 +1346,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       // Use higher bitrate for better quality
       mediaRecorder = new MediaRecorder(stream, {
         mimeType,
-        videoBitsPerSecond: 8_000_000, // 8 Mbps
+        videoBitsPerSecond: 20_000_000, // 20 Mbps
       })
     } catch (e) {
       // Silently fall back to basic WebM
