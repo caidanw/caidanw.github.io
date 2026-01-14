@@ -7,7 +7,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     <canvas id="canvas"></canvas>
 
     <div class="controls" id="controls">
-      <button class="collapse-btn" id="collapseBtn" aria-label="Toggle controls">
+      <button class="collapse-btn collapse-btn-outer" id="collapseBtn" aria-label="Toggle controls">
         <div class="collapse-icon"></div>
       </button>
 
@@ -22,12 +22,19 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
               <polygon points="5,3 19,12 5,21"></polygon>
             </svg>
           </button>
+          <button id="btnFullscreen">Fullscreen</button>
+          <button class="collapse-btn collapse-btn-inner" id="collapseBtnInner" aria-label="Toggle controls">
+            <div class="collapse-icon"></div>
+          </button>
+        </div>
+        <div class="controls-header">
           <button id="btnExportPNG" class="icon-btn" aria-label="Export PNG">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
               <polyline points="7 10 12 15 17 10"></polyline>
               <line x1="12" y1="15" x2="12" y2="3"></line>
             </svg>
+            <span>PNG</span>
           </button>
           <button id="btnRecordGif" class="icon-btn" aria-label="Record GIF">
             <svg class="icon-record" viewBox="0 0 24 24" fill="currentColor">
@@ -36,13 +43,14 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
             <svg class="icon-stop" viewBox="0 0 24 24" fill="currentColor" style="display:none">
               <rect x="6" y="6" width="12" height="12"></rect>
             </svg>
+            <span>Record</span>
           </button>
           <span id="recordingIndicator" class="recording-indicator" style="display:none">
             <span class="recording-dot"></span>
             <span id="recordingTime">0s</span>
           </span>
-          <button id="btnFullscreen">Fullscreen</button>
         </div>
+
         <div class="control-section">
           <div class="section-title">Presets</div>
           <div class="preset-row">
@@ -198,6 +206,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   const canvas = document.getElementById('canvas') as HTMLCanvasElement
   const controls = document.getElementById('controls') as HTMLDivElement
   const collapseBtn = document.getElementById('collapseBtn') as HTMLButtonElement
+  const collapseBtnInner = document.getElementById('collapseBtnInner') as HTMLButtonElement
   const btnPause = document.getElementById('btnPause') as HTMLButtonElement
   const btnFullscreen = document.getElementById('btnFullscreen') as HTMLButtonElement
   const btnExportPNG = document.getElementById('btnExportPNG') as HTMLButtonElement
@@ -1218,9 +1227,11 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   }
 
   // Toggle controls
-  collapseBtn.addEventListener('click', () => {
+  function toggleCollapse() {
     controls.classList.toggle('collapsed')
-  })
+  }
+  collapseBtn.addEventListener('click', toggleCollapse)
+  collapseBtnInner.addEventListener('click', toggleCollapse)
 
   // Pause button
   // Helper to update pause button icons
@@ -1444,16 +1455,13 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     border: 1px solid var(--theme-border);
     border-radius: 8px;
     padding: 1rem;
-    max-width: 320px;
+    min-width: 18rem;
     max-height: calc(100% - 4rem);
     overflow-y: auto;
     z-index: 10;
   }
 
   .collapse-btn {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
     background: var(--theme-bg);
     border: 1px solid var(--theme-border);
     border-radius: 4px;
@@ -1462,11 +1470,20 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     padding: 0;
     cursor: pointer;
     transition: all 0.2s ease;
-    z-index: 10;
 
     &:hover {
       background: var(--theme-border);
     }
+  }
+
+  /* Outer button - only visible when collapsed */
+  .collapse-btn-outer {
+    display: none;
+  }
+
+  /* Inner button - inline in header, pushes to right */
+  .collapse-btn-inner {
+    margin-left: auto;
   }
 
   .collapse-icon {
@@ -1491,8 +1508,8 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     background: transparent;
     border-color: transparent;
 
-    .collapse-btn {
-      position: static;
+    .collapse-btn-outer {
+      display: block;
       float: right;
     }
 
@@ -1505,8 +1522,11 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     display: flex;
     align-items: stretch;
     gap: 0.5rem;
-    margin-bottom: 1rem;
-    max-height: 2rem;
+    margin-bottom: 0.5rem;
+
+    &:last-of-type {
+      margin-bottom: 1rem;
+    }
   }
 
   .control-section {
@@ -1540,7 +1560,6 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     color: var(--theme-text);
     border: 1px solid var(--theme-border);
     border-radius: 4px;
-    padding: 0.4rem 0.6rem;
     font-family: var(--font-sans);
     font-size: 0.75rem;
     cursor: pointer;
@@ -1561,8 +1580,10 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     border: 1px solid var(--theme-border);
     border-radius: 4px;
     padding: 0.4rem 0.8rem;
+    min-height: 2rem;
     font-family: var(--font-sans);
     font-size: 0.75rem;
+    line-height: 1;
     cursor: pointer;
     transition:
       background 0.15s,
@@ -1581,6 +1602,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 0.125rem;
     padding: 0.4rem;
     min-width: 2rem;
     min-height: 2rem;
