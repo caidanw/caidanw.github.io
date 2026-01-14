@@ -1330,17 +1330,16 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     btnRecordGif.setAttribute('aria-label', isRecording ? 'Stop recording' : 'Record GIF')
   }
 
-  // Scale down canvas for GIF if needed (720p max for reasonable file size)
-  const GIF_MAX_WIDTH = 1280
+  // Square GIF output with center crop
+  const GIF_SIZE = 480
   let gifCanvas: HTMLCanvasElement | null = null
   let gifCtx: CanvasRenderingContext2D | null = null
 
   function getGifCanvas(): HTMLCanvasElement {
     if (!gifCanvas) {
       gifCanvas = document.createElement('canvas')
-      const scale = Math.min(1, GIF_MAX_WIDTH / canvas.width)
-      gifCanvas.width = Math.floor(canvas.width * scale)
-      gifCanvas.height = Math.floor(canvas.height * scale)
+      gifCanvas.width = GIF_SIZE
+      gifCanvas.height = GIF_SIZE
       gifCtx = gifCanvas.getContext('2d', { willReadFrequently: true })
     }
     return gifCanvas
@@ -1349,7 +1348,11 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   function captureFrame(): HTMLCanvasElement {
     const gc = getGifCanvas()
     if (gifCtx) {
-      gifCtx.drawImage(canvas, 0, 0, gc.width, gc.height)
+      // Center crop: use smaller dimension as square size
+      const size = Math.min(canvas.width, canvas.height)
+      const sx = (canvas.width - size) / 2
+      const sy = (canvas.height - size) / 2
+      gifCtx.drawImage(canvas, sx, sy, size, size, 0, 0, GIF_SIZE, GIF_SIZE)
     }
     return gc
   }
