@@ -1395,13 +1395,14 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       if (!isRecording || !gifInstance) return
 
       const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000)
-      recordingTime.textContent = `Recording [${elapsed}s]`
+      const remaining = 10 - elapsed
+      recordingTime.textContent = `Recording [${remaining}s]`
 
       // Capture frame
       gifInstance.addFrame(captureFrame(), { delay: 42, copy: true })
 
       // Auto-stop at 10 seconds
-      if (elapsed >= 10) {
+      if (remaining <= 0) {
         stopRecording()
       }
     }, 42) // ~24 FPS
