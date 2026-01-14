@@ -36,14 +36,14 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
           </button>
         </div>
         <div class="controls-header">
-          <button id="btnRecordGif" class="icon-btn" aria-label="Record GIF">
+          <button id="btnRecord" class="icon-btn" aria-label="Record video">
             <svg class="icon-record" viewBox="0 0 24 24" fill="currentColor">
               <circle cx="12" cy="12" r="8"></circle>
             </svg>
             <svg class="icon-stop" viewBox="0 0 24 24" fill="currentColor" style="display:none">
               <rect x="6" y="6" width="12" height="12"></rect>
             </svg>
-            <span>GIF</span>
+            <span>REC</span>
           </button>
           <span id="recordingIndicator" class="recording-indicator" style="display:none">
             <span class="recording-dot"></span>
@@ -210,7 +210,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   const btnPause = document.getElementById('btnPause') as HTMLButtonElement
   const btnFullscreen = document.getElementById('btnFullscreen') as HTMLButtonElement
   const btnExportPNG = document.getElementById('btnExportPNG') as HTMLButtonElement
-  const btnRecordGif = document.getElementById('btnRecordGif') as HTMLButtonElement
+  const btnRecord = document.getElementById('btnRecord') as HTMLButtonElement
   const recordingIndicator = document.getElementById('recordingIndicator') as HTMLSpanElement
   const recordingTime = document.getElementById('recordingTime') as HTMLSpanElement
 
@@ -1295,155 +1295,151 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   btnExportPNG.addEventListener('click', exportPNG)
 
   // ============================================
-  // GIF Recording
+  // Video Recording (using MediaRecorder for performance)
   // ============================================
   let isRecording = false
-  let gifInstance: any = null
   let recordingStartTime = 0
-  let recordingInterval: number | null = null
-  let gifLoaded = false
-
-  // Load gif.js dynamically
-  function loadGifJS(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      if (gifLoaded) {
-        resolve()
-        return
-      }
-      const script = document.createElement('script')
-      script.src = '/vendored/gif.js'
-      script.onload = () => {
-        gifLoaded = true
-        resolve()
-      }
-      script.onerror = reject
-      document.head.appendChild(script)
-    })
-  }
+  let recordingTimerInterval: number | null = null
+  let mediaRecorder: MediaRecorder | null = null
+  let recordedChunks: Blob[] = []
 
   function updateRecordingUI() {
-    const recordIcon = btnRecordGif.querySelector('.icon-record') as SVGElement
-    const stopIcon = btnRecordGif.querySelector('.icon-stop') as SVGElement
+    const recordIcon = btnRecord.querySelector('.icon-record') as SVGElement
+    const stopIcon = btnRecord.querySelector('.icon-stop') as SVGElement
     recordIcon.style.display = isRecording ? 'none' : 'block'
     stopIcon.style.display = isRecording ? 'block' : 'none'
     recordingIndicator.style.display = isRecording ? 'inline-flex' : 'none'
-    btnRecordGif.setAttribute('aria-label', isRecording ? 'Stop recording' : 'Record GIF')
+    btnRecord.setAttribute('aria-label', isRecording ? 'Stop recording' : 'Record')
   }
 
-  // Square GIF output with center crop
-  const GIF_SIZE = 480
-  let gifCanvas: HTMLCanvasElement | null = null
-  let gifCtx: CanvasRenderingContext2D | null = null
+  // Track which format works (persists across recordings)
+  let preferredFormat: { mime: string; ext: string } | null = null
 
-  function getGifCanvas(): HTMLCanvasElement {
-    if (!gifCanvas) {
-      gifCanvas = document.createElement('canvas')
-      gifCanvas.width = GIF_SIZE
-      gifCanvas.height = GIF_SIZE
-      gifCtx = gifCanvas.getContext('2d', { willReadFrequently: true })
+  function getRecordingFormat(): { mime: string; ext: string } {
+    if (preferredFormat) return preferredFormat
+
+    // VP9 is the most reliable for canvas recording in Chrome
+    // Note: H.264 often reports as "supported" but fails to initialize encoder
+    const formats = [
+      { mime: 'video/webm;codecs=vp9', ext: 'webm' },
+      { mime: 'video/webm;codecs=vp8', ext: 'webm' },
+      { mime: 'video/webm', ext: 'webm' },
+    ]
+
+    for (const fmt of formats) {
+      if (MediaRecorder.isTypeSupported(fmt.mime)) {
+        return fmt
+      }
     }
-    return gifCanvas
+    return formats[formats.length - 1]
   }
 
-  function captureFrame(): HTMLCanvasElement {
-    const gc = getGifCanvas()
-    if (gifCtx) {
-      // Center crop: use smaller dimension as square size
-      const size = Math.min(canvas.width, canvas.height)
-      const sx = (canvas.width - size) / 2
-      const sy = (canvas.height - size) / 2
-      gifCtx.drawImage(canvas, sx, sy, size, size, 0, 0, GIF_SIZE, GIF_SIZE)
-    }
-    return gc
-  }
+  function startRecording() {
+    // Get stream from canvas (no fps limit - let it match the animation)
+    const stream = canvas.captureStream()
 
-  async function startRecording() {
+    const format = getRecordingFormat()
+    let mimeType = format.mime
+    let fileExt = format.ext
+
     try {
-      await loadGifJS()
-    } catch (err) {
-      alert('Failed to load GIF library')
-      console.error(err)
-      return
+      // Use higher bitrate for better quality
+      mediaRecorder = new MediaRecorder(stream, {
+        mimeType,
+        videoBitsPerSecond: 8_000_000, // 8 Mbps
+      })
+    } catch (e) {
+      // Silently fall back to basic WebM
+      mimeType = 'video/webm'
+      fileExt = 'webm'
+      mediaRecorder = new MediaRecorder(stream)
+    }
+    recordedChunks = []
+
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) {
+        recordedChunks.push(e.data)
+      }
     }
 
-    // Reset gif canvas for new recording
-    gifCanvas = null
-    gifCtx = null
-    const gc = getGifCanvas()
+    mediaRecorder.onstop = () => {
+      setTimeout(() => {
+        if (recordedChunks.length === 0) {
+          // Silently fall back to simpler format and retry
+          if (mimeType !== 'video/webm') {
+            preferredFormat = { mime: 'video/webm', ext: 'webm' }
+            // Auto-retry with fallback format
+            updateRecordingUI()
+            btnRecord.disabled = false
+            recordingTime.textContent = '0s'
+            startRecording()
+            return
+          }
+          // Basic WebM also failed - nothing else to try
+          updateRecordingUI()
+          btnRecord.disabled = false
+          recordingTime.textContent = '0s'
+          return
+        }
 
+        // Remember this format worked
+        preferredFormat = { mime: mimeType, ext: fileExt }
+
+        const blob = new Blob(recordedChunks, { type: mimeType })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.download = `ascii-clouds-${Date.now()}.${fileExt}`
+        link.href = url
+        link.click()
+        URL.revokeObjectURL(url)
+
+        updateRecordingUI()
+        btnRecord.disabled = false
+        recordingTime.textContent = '0s'
+      }, 100)
+    }
+
+    mediaRecorder.onerror = () => {
+      // Silently fall back to simpler format and retry
+      if (mimeType !== 'video/webm') {
+        preferredFormat = { mime: 'video/webm', ext: 'webm' }
+        stopRecording()
+        startRecording()
+        return
+      }
+      // Basic WebM also failed - give up
+      stopRecording()
+    }
+
+    mediaRecorder.start()
     isRecording = true
     recordingStartTime = Date.now()
     updateRecordingUI()
 
-    // @ts-ignore - gif.js loaded via CDN
-    gifInstance = new GIF({
-      workers: 2,
-      quality: 10,
-      width: gc.width,
-      height: gc.height,
-      workerScript: '/vendored/gif.worker.js',
-    })
-
-    // Add error handler
-    gifInstance.on('abort', () => {
-      console.error('GIF rendering aborted')
-      alert('GIF recording failed')
-      updateRecordingUI()
-      recordingTime.textContent = '0s'
-      gifInstance = null
-    })
-
-    // Capture frames at ~24 FPS
-    recordingInterval = window.setInterval(() => {
-      if (!isRecording || !gifInstance) return
-
+    // Update timer display
+    recordingTimerInterval = window.setInterval(() => {
       const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000)
       const remaining = 10 - elapsed
       recordingTime.textContent = `Recording [${remaining}s]`
-
-      // Capture frame
-      gifInstance.addFrame(captureFrame(), { delay: 42, copy: true })
 
       // Auto-stop at 10 seconds
       if (remaining <= 0) {
         stopRecording()
       }
-    }, 42) // ~24 FPS
+    }, 100)
   }
 
   function stopRecording() {
-    if (!isRecording || !gifInstance) return
+    if (!isRecording || !mediaRecorder) return
 
     isRecording = false
-    if (recordingInterval) {
-      clearInterval(recordingInterval)
-      recordingInterval = null
+    if (recordingTimerInterval) {
+      clearInterval(recordingTimerInterval)
+      recordingTimerInterval = null
     }
 
-    btnRecordGif.disabled = true
-    recordingTime.textContent = 'Processing...'
-
-    // Show progress percentage
-    gifInstance.on('progress', (p: number) => {
-      recordingTime.textContent = `Processing [${Math.round(p * 100)}%]`
-    })
-
-    gifInstance.on('finished', (blob: Blob) => {
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.download = `ascii-clouds-${Date.now()}.gif`
-      link.href = url
-      link.click()
-      URL.revokeObjectURL(url)
-
-      updateRecordingUI()
-      btnRecordGif.disabled = false
-      recordingTime.textContent = '0s'
-
-      gifInstance = null
-    })
-
-    gifInstance.render()
+    mediaRecorder.stop()
+    mediaRecorder = null
   }
 
   function toggleRecording() {
@@ -1454,7 +1450,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     }
   }
 
-  btnRecordGif.addEventListener('click', toggleRecording)
+  btnRecord.addEventListener('click', toggleRecording)
 
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
