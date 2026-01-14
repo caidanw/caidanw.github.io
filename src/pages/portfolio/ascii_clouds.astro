@@ -1658,6 +1658,11 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     &:active {
       background: var(--theme-accent);
     }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
   }
 
   .icon-btn {
