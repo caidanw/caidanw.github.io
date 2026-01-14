@@ -1482,6 +1482,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   document.addEventListener('visibilitychange', checkAutoPause)
   window.addEventListener('blur', checkAutoPause)
   window.addEventListener('focus', checkAutoPause)
+  checkAutoPause() // Check initial state (e.g., if page reloads while in background)
 </script>
 
 <style>
