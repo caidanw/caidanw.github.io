@@ -1395,7 +1395,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       if (!isRecording || !gifInstance) return
 
       const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000)
-      recordingTime.textContent = `Recording/${elapsed}s`
+      recordingTime.textContent = `Recording [${elapsed}s]`
 
       // Capture frame
       gifInstance.addFrame(captureFrame(), { delay: 42, copy: true })
@@ -1416,11 +1416,12 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       recordingInterval = null
     }
 
+    btnRecordGif.disabled = true
     recordingTime.textContent = 'Processing...'
 
     // Show progress percentage
     gifInstance.on('progress', (p: number) => {
-      recordingTime.textContent = `Processing... ${Math.round(p * 100)}%`
+      recordingTime.textContent = `Processing [${Math.round(p * 100)}%]`
     })
 
     gifInstance.on('finished', (blob: Blob) => {
@@ -1432,7 +1433,9 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       URL.revokeObjectURL(url)
 
       updateRecordingUI()
+      btnRecordGif.disabled = false
       recordingTime.textContent = '0s'
+
       gifInstance = null
     })
 
