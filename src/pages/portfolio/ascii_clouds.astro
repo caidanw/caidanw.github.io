@@ -1306,7 +1306,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
         return
       }
       const script = document.createElement('script')
-      script.src = 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.min.js'
+      script.src = '/vendored/gif.js'
       script.onload = () => {
         gifLoaded = true
         resolve()
@@ -1325,6 +1325,30 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     btnRecordGif.setAttribute('aria-label', isRecording ? 'Stop recording' : 'Record GIF')
   }
 
+  // Scale down canvas for GIF if needed (720p max for reasonable file size)
+  const GIF_MAX_WIDTH = 1280
+  let gifCanvas: HTMLCanvasElement | null = null
+  let gifCtx: CanvasRenderingContext2D | null = null
+
+  function getGifCanvas(): HTMLCanvasElement {
+    if (!gifCanvas) {
+      gifCanvas = document.createElement('canvas')
+      const scale = Math.min(1, GIF_MAX_WIDTH / canvas.width)
+      gifCanvas.width = Math.floor(canvas.width * scale)
+      gifCanvas.height = Math.floor(canvas.height * scale)
+      gifCtx = gifCanvas.getContext('2d', { willReadFrequently: true })
+    }
+    return gifCanvas
+  }
+
+  function captureFrame(): HTMLCanvasElement {
+    const gc = getGifCanvas()
+    if (gifCtx) {
+      gifCtx.drawImage(canvas, 0, 0, gc.width, gc.height)
+    }
+    return gc
+  }
+
   async function startRecording() {
     try {
       await loadGifJS()
@@ -1334,6 +1358,11 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       return
     }
 
+    // Reset gif canvas for new recording
+    gifCanvas = null
+    gifCtx = null
+    const gc = getGifCanvas()
+
     isRecording = true
     recordingStartTime = Date.now()
     updateRecordingUI()
@@ -1342,12 +1371,21 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     gifInstance = new GIF({
       workers: 2,
       quality: 10,
-      width: canvas.width,
-      height: canvas.height,
-      workerScript: 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js',
+      width: gc.width,
+      height: gc.height,
+      workerScript: '/vendored/gif.worker.js',
     })
 
-    // Capture frames at ~15 FPS
+    // Add error handler
+    gifInstance.on('abort', () => {
+      console.error('GIF rendering aborted')
+      alert('GIF recording failed')
+      updateRecordingUI()
+      recordingTime.textContent = '0s'
+      gifInstance = null
+    })
+
+    // Capture frames at ~24 FPS
     recordingInterval = window.setInterval(() => {
       if (!isRecording || !gifInstance) return
 
@@ -1355,13 +1393,13 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       recordingTime.textContent = `${elapsed}s`
 
       // Capture frame
-      gifInstance.addFrame(canvas, { delay: 67, copy: true })
+      gifInstance.addFrame(captureFrame(), { delay: 42, copy: true })
 
-      // Auto-stop at 30 seconds
-      if (elapsed >= 30) {
+      // Auto-stop at 10 seconds
+      if (elapsed >= 10) {
         stopRecording()
       }
-    }, 67) // ~15 FPS
+    }, 42) // ~24 FPS
   }
 
   function stopRecording() {
@@ -1374,6 +1412,11 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     }
 
     recordingTime.textContent = 'Processing...'
+
+    // Show progress percentage
+    gifInstance.on('progress', (p: number) => {
+      recordingTime.textContent = `${Math.round(p * 100)}%`
+    })
 
     gifInstance.on('finished', (blob: Blob) => {
       const url = URL.createObjectURL(blob)
