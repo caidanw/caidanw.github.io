@@ -7,7 +7,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     <canvas id="canvas"></canvas>
 
     <div class="controls" id="controls">
-      <button class="collapse-btn" id="collapseBtn" aria-label="Toggle controls">
+      <button class="collapse-btn collapse-btn-outer" id="collapseBtn" aria-label="Toggle controls">
         <div class="collapse-icon"></div>
       </button>
 
@@ -23,7 +23,34 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
             </svg>
           </button>
           <button id="btnFullscreen">Fullscreen</button>
+          <button id="btnExportPNG" class="icon-btn" aria-label="Export PNG">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>PNG</span>
+          </button>
+          <button class="collapse-btn collapse-btn-inner" id="collapseBtnInner" aria-label="Toggle controls">
+            <div class="collapse-icon"></div>
+          </button>
         </div>
+        <div class="controls-header">
+          <button id="btnRecord" class="icon-btn" aria-label="Record video">
+            <svg class="icon-record" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="12" r="8"></circle>
+            </svg>
+            <svg class="icon-stop" viewBox="0 0 24 24" fill="currentColor" style="display:none">
+              <rect x="6" y="6" width="12" height="12"></rect>
+            </svg>
+            <span>REC</span>
+          </button>
+          <span id="recordingIndicator" class="recording-indicator" style="display:none">
+            <span class="recording-dot"></span>
+            <span id="recordingTime">0s</span>
+          </span>
+        </div>
+
         <div class="control-section">
           <div class="section-title">Presets</div>
           <div class="preset-row">
@@ -51,8 +78,8 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
           </div>
           <div class="preset-row preset-actions">
             <button id="btnSavePreset">Save</button>
-            <button id="btnCopy">Copy</button>
-            <button id="btnPaste">Paste</button>
+            <button id="btnCopyLink">Copy Link</button>
+            <button id="btnImport">Import</button>
           </div>
         </div>
 
@@ -179,8 +206,13 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   const canvas = document.getElementById('canvas') as HTMLCanvasElement
   const controls = document.getElementById('controls') as HTMLDivElement
   const collapseBtn = document.getElementById('collapseBtn') as HTMLButtonElement
+  const collapseBtnInner = document.getElementById('collapseBtnInner') as HTMLButtonElement
   const btnPause = document.getElementById('btnPause') as HTMLButtonElement
   const btnFullscreen = document.getElementById('btnFullscreen') as HTMLButtonElement
+  const btnExportPNG = document.getElementById('btnExportPNG') as HTMLButtonElement
+  const btnRecord = document.getElementById('btnRecord') as HTMLButtonElement
+  const recordingIndicator = document.getElementById('recordingIndicator') as HTMLSpanElement
+  const recordingTime = document.getElementById('recordingTime') as HTMLSpanElement
 
   // ============================================
   // State
@@ -237,7 +269,88 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     return Math.abs(hash) % 10000
   }
 
+  // ============================================
+  // URL Params for Sharing
+  // ============================================
+  const STATE_PARAM_MAP: Record<keyof State, string> = {
+    cellSize: 'cs',
+    waveAmplitude: 'wa',
+    waveSpeed: 'ws',
+    noiseIntensity: 'ni',
+    vignetteIntensity: 'vi',
+    vignetteRadius: 'vr',
+    brightnessAdjust: 'ba',
+    contrastAdjust: 'ca',
+    timeSpeed: 'ts',
+    hue: 'h',
+    saturation: 'sa',
+    threshold1: 't1',
+    threshold2: 't2',
+    threshold3: 't3',
+    threshold4: 't4',
+    threshold5: 't5',
+    noiseSeed: 'sd',
+  }
+
+  const PARAM_STATE_MAP = Object.fromEntries(Object.entries(STATE_PARAM_MAP).map(([k, v]) => [v, k])) as Record<string, keyof State>
+
+  function stateToURLParams(): URLSearchParams {
+    const params = new URLSearchParams()
+    for (const [key, shortKey] of Object.entries(STATE_PARAM_MAP)) {
+      const value = state[key as keyof State]
+      if (key === 'noiseSeed') {
+        params.set(shortKey, String(value))
+      } else {
+        // Round to 3 decimal places, strip trailing zeros
+        params.set(
+          shortKey,
+          Number(value)
+            .toFixed(3)
+            .replace(/\.?0+$/, ''),
+        )
+      }
+    }
+    return params
+  }
+
+  function loadStateFromURLParams(url?: string): boolean {
+    const targetURL = url ? new URL(url) : new URL(window.location.href)
+    const params = targetURL.searchParams
+
+    // Check if any state params exist
+    const hasParams = Object.values(STATE_PARAM_MAP).some((key) => params.has(key))
+    if (!hasParams) return false
+
+    for (const [shortKey, fullKey] of Object.entries(PARAM_STATE_MAP)) {
+      const value = params.get(shortKey)
+      if (value === null) continue
+
+      if (fullKey === 'noiseSeed') {
+        state.noiseSeed = value.slice(0, 6)
+      } else {
+        const numValue = parseFloat(value)
+        if (!isNaN(numValue)) {
+          ;(state as any)[fullKey] = numValue
+        }
+      }
+    }
+    return true
+  }
+
+  function updateURLWithState() {
+    const params = stateToURLParams()
+    const newURL = `${window.location.pathname}?${params.toString()}`
+    window.history.replaceState({}, '', newURL)
+  }
+
+  function getShareableURL(): string {
+    const params = stateToURLParams()
+    return `${window.location.origin}${window.location.pathname}?${params.toString()}`
+  }
+
   let isPaused = false
+  let autoPaused = false
+  let animationFrameId: number | null = null
   let time = 0
 
   // ============================================
@@ -357,7 +470,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   // ============================================
   // WebGL Setup
   // ============================================
-  const gl = canvas.getContext('webgl2')
+  const gl = canvas.getContext('webgl2', { preserveDrawingBuffer: true })
   if (!gl) {
     throw new Error('WebGL 2.0 not supported')
   }
@@ -822,10 +935,10 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
 
     gl!.drawArrays(gl!.TRIANGLE_STRIP, 0, 4)
 
-    requestAnimationFrame(render)
+    animationFrameId = requestAnimationFrame(render)
   }
 
-  requestAnimationFrame(render)
+  animationFrameId = requestAnimationFrame(render)
 
   // ============================================
   // Controls
@@ -845,6 +958,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       const value = parseFloat(input.value)
       state[id] = value as never
       updateSliderValue(id, value, decimals)
+      updateURLWithState()
     })
   }
 
@@ -868,14 +982,20 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
 
   // Setup seed input
   const seedInput = document.getElementById('noiseSeed') as HTMLInputElement
-  const btnRandomizeSeed = document.getElementById('btnRandomizeSeed') as HTMLButtonElement
   seedInput.value = state.noiseSeed
-  seedInput.addEventListener('input', () => {
-    state.noiseSeed = seedInput.value
+  seedInput.addEventListener('input', (e) => {
+    state.noiseSeed = seedInput.value.trim()
+    updateURLWithState()
   })
+  seedInput.addEventListener('keydown', (e) => {
+    e.stopPropagation()
+    if (e.key === 'Enter') seedInput.blur()
+  })
+  const btnRandomizeSeed = document.getElementById('btnRandomizeSeed') as HTMLButtonElement
   btnRandomizeSeed.addEventListener('click', () => {
     state.noiseSeed = Math.random().toString(36).substring(2, 8)
     seedInput.value = state.noiseSeed
+    updateURLWithState()
   })
 
   // Apply preset
@@ -897,6 +1017,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
         updateSliderValue(key, value as number, decimals)
       }
     })
+    updateURLWithState()
   }
 
   // Preset select
@@ -947,7 +1068,8 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     seedInput.value = state.noiseSeed
 
     // Clear preset selection since we're now randomized
-    presetSelect.value = 'Random'
+    presetSelect.value = ''
+    updateURLWithState()
   }
 
   btnRandomize.addEventListener('click', randomize)
@@ -958,8 +1080,8 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   const STORAGE_KEY = 'glyphNoise_customPresets'
   const customPresetsGroup = document.getElementById('customPresetsGroup') as HTMLOptGroupElement
   const btnSavePreset = document.getElementById('btnSavePreset') as HTMLButtonElement
-  const btnCopy = document.getElementById('btnCopy') as HTMLButtonElement
-  const btnPaste = document.getElementById('btnPaste') as HTMLButtonElement
+  const btnCopyLink = document.getElementById('btnCopyLink') as HTMLButtonElement
+  const btnImport = document.getElementById('btnImport') as HTMLButtonElement
 
   let customPresets: Record<string, Partial<State>> = {}
 
@@ -1011,62 +1133,51 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     presetSelect.value = `custom:${trimmedName}`
   }
 
-  async function copyPresets() {
-    if (Object.keys(customPresets).length === 0) {
-      alert('No custom presets to copy')
-      return
-    }
-
-    const exportData = {
-      version: 1,
-      presets: customPresets,
-    }
-
+  async function copyLink() {
     try {
-      await navigator.clipboard.writeText(JSON.stringify(exportData, null, 2))
+      const url = getShareableURL()
+      await navigator.clipboard.writeText(url)
       // Brief visual feedback
-      const originalText = btnCopy.textContent
-      btnCopy.textContent = 'Copied!'
+      const originalText = btnCopyLink.textContent
+      btnCopyLink.textContent = 'Copied!'
       setTimeout(() => {
-        btnCopy.textContent = originalText
+        btnCopyLink.textContent = originalText
       }, 1500)
     } catch (err) {
-      alert('Failed to copy to clipboard')
+      alert('Failed to copy link to clipboard')
       console.error(err)
     }
   }
 
-  async function pastePresets() {
+  function importFromURL() {
+    const input = prompt('Enter URL to import settings from:')
+    if (!input || input.trim() === '') return
+
     try {
-      const text = await navigator.clipboard.readText()
-      const data = JSON.parse(text)
-
-      if (!data.presets || typeof data.presets !== 'object') {
-        alert('Invalid preset format in clipboard')
-        return
+      const url = new URL(input.trim())
+      const loaded = loadStateFromURLParams(input.trim())
+      if (loaded) {
+        syncUIFromState()
+        presetSelect.value = '' // Clear preset selection
+        // Brief visual feedback
+        const originalText = btnImport.textContent
+        btnImport.textContent = 'Imported!'
+        setTimeout(() => {
+          btnImport.textContent = originalText
+        }, 1500)
+      } else {
+        alert('No valid settings found in that URL')
       }
-
-      // Merge with existing custom presets
-      Object.assign(customPresets, data.presets)
-      saveCustomPresets()
-      refreshCustomPresetsUI()
-
-      // Brief visual feedback
-      const originalText = btnPaste.textContent
-      btnPaste.textContent = 'Pasted!'
-      setTimeout(() => {
-        btnPaste.textContent = originalText
-      }, 1500)
     } catch (err) {
-      alert('Failed to paste from clipboard. Make sure you have valid preset data copied.')
+      alert('Invalid URL format')
       console.error(err)
     }
   }
 
   // Event listeners for preset management
   btnSavePreset.addEventListener('click', savePreset)
-  btnCopy.addEventListener('click', copyPresets)
-  btnPaste.addEventListener('click', pastePresets)
+  btnCopyLink.addEventListener('click', copyLink)
+  btnImport.addEventListener('click', importFromURL)
 
   // Update preset select handler to support custom presets
   presetSelect.removeEventListener('change', () => {})
@@ -1085,16 +1196,43 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   // Load custom presets on startup
   loadCustomPresets()
 
-  // Apply random preset on page load
-  const presetNames = Object.keys(presets)
-  const randomPreset = presetNames[Math.floor(Math.random() * presetNames.length)]
-  applyPreset(randomPreset)
-  presetSelect.value = randomPreset
+  // Sync all UI inputs from current state
+  function syncUIFromState() {
+    Object.keys(state).forEach((key) => {
+      const k = key as keyof State
+      const value = state[k]
+      const input = document.getElementById(key) as HTMLInputElement
+      if (input) {
+        input.value = String(value)
+        if (key === 'noiseSeed') {
+          seedInput.value = state.noiseSeed
+        } else {
+          const decimals =
+            key === 'cellSize' || key === 'hue' ? 0 : key.includes('Amplitude') || (key.includes('Intensity') && key !== 'vignetteIntensity') ? 3 : 2
+          updateSliderValue(key, value as number, decimals)
+        }
+      }
+    })
+  }
+
+  // Check for URL params on page load, otherwise apply random preset
+  const loadedFromURL = loadStateFromURLParams()
+  if (loadedFromURL) {
+    syncUIFromState()
+    presetSelect.value = '' // No preset selected when loaded from URL
+  } else {
+    const presetNames = Object.keys(presets)
+    const randomPreset = presetNames[Math.floor(Math.random() * presetNames.length)]
+    applyPreset(randomPreset)
+    presetSelect.value = randomPreset
+  }
 
   // Toggle controls
-  collapseBtn.addEventListener('click', () => {
+  function toggleCollapse() {
     controls.classList.toggle('collapsed')
-  })
+  }
+  collapseBtn.addEventListener('click', toggleCollapse)
+  collapseBtnInner.addEventListener('click', toggleCollapse)
 
   // Pause button
   // Helper to update pause button icons
@@ -1106,10 +1244,26 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     btnPause.setAttribute('aria-label', isPaused ? 'Play' : 'Pause')
   }
 
-  btnPause.addEventListener('click', () => {
-    isPaused = !isPaused
+  // Consolidated pause/resume logic
+  function setPaused(paused: boolean) {
+    if (isPaused === paused) return
+    isPaused = paused
     updatePauseIcon()
-  })
+
+    if (isPaused) {
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId)
+        animationFrameId = null
+      }
+    } else {
+      lastTime = performance.now()
+      animationFrameId = requestAnimationFrame(render)
+    }
+  }
+
+  const togglePaused = () => setPaused(!isPaused)
+
+  btnPause.addEventListener('click', togglePaused)
 
   // Fullscreen button
   btnFullscreen.addEventListener('click', () => {
@@ -1120,12 +1274,189 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     }
   })
 
+  // ============================================
+  // Export PNG
+  // ============================================
+  function exportPNG() {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        alert('Failed to export image')
+        return
+      }
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.download = `ascii-clouds-${Date.now()}.png`
+      link.href = url
+      link.click()
+      URL.revokeObjectURL(url)
+    }, 'image/png')
+  }
+
+  btnExportPNG.addEventListener('click', exportPNG)
+
+  // ============================================
+  // Video Recording (using MediaRecorder for performance)
+  // ============================================
+  let isRecording = false
+  let recordingStartTime = 0
+  let recordingTimerInterval: number | null = null
+  let mediaRecorder: MediaRecorder | null = null
+  let recordedChunks: Blob[] = []
+
+  function updateRecordingUI() {
+    const recordIcon = btnRecord.querySelector('.icon-record') as SVGElement
+    const stopIcon = btnRecord.querySelector('.icon-stop') as SVGElement
+    recordIcon.style.display = isRecording ? 'none' : 'block'
+    stopIcon.style.display = isRecording ? 'block' : 'none'
+    recordingIndicator.style.display = isRecording ? 'inline-flex' : 'none'
+    btnRecord.setAttribute('aria-label', isRecording ? 'Stop recording' : 'Record')
+  }
+
+  // Track which format works (persists across recordings)
+  let preferredFormat: { mime: string; ext: string } | null = null
+
+  function getRecordingFormat(): { mime: string; ext: string } {
+    if (preferredFormat) return preferredFormat
+
+    // VP9 is the most reliable for canvas recording in Chrome
+    // Note: H.264 often reports as "supported" but fails to initialize encoder
+    const formats = [
+      { mime: 'video/webm;codecs=vp9', ext: 'webm' },
+      { mime: 'video/webm;codecs=vp8', ext: 'webm' },
+      { mime: 'video/webm', ext: 'webm' },
+    ]
+
+    for (const fmt of formats) {
+      if (MediaRecorder.isTypeSupported(fmt.mime)) {
+        return fmt
+      }
+    }
+    return formats[formats.length - 1]
+  }
+
+  function startRecording() {
+    // Get stream from canvas (no fps limit - let it match the animation)
+    const stream = canvas.captureStream()
+
+    const format = getRecordingFormat()
+    let mimeType = format.mime
+    let fileExt = format.ext
+
+    try {
+      // Use higher bitrate for better quality
+      mediaRecorder = new MediaRecorder(stream, {
+        mimeType,
+        videoBitsPerSecond: 20_000_000, // 20 Mbps
+      })
+    } catch (e) {
+      // Silently fall back to basic WebM
+      mimeType = 'video/webm'
+      fileExt = 'webm'
+      mediaRecorder = new MediaRecorder(stream)
+    }
+    recordedChunks = []
+
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) {
+        recordedChunks.push(e.data)
+      }
+    }
+
+    mediaRecorder.onstop = () => {
+      setTimeout(() => {
+        if (recordedChunks.length === 0) {
+          // Silently fall back to simpler format and retry
+          if (mimeType !== 'video/webm') {
+            preferredFormat = { mime: 'video/webm', ext: 'webm' }
+            // Auto-retry with fallback format
+            updateRecordingUI()
+            btnRecord.disabled = false
+            recordingTime.textContent = '0s'
+            startRecording()
+            return
+          }
+          // Basic WebM also failed - nothing else to try
+          updateRecordingUI()
+          btnRecord.disabled = false
+          recordingTime.textContent = '0s'
+          return
+        }
+
+        // Remember this format worked
+        preferredFormat = { mime: mimeType, ext: fileExt }
+
+        const blob = new Blob(recordedChunks, { type: mimeType })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.download = `ascii-clouds-${Date.now()}.${fileExt}`
+        link.href = url
+        link.click()
+        URL.revokeObjectURL(url)
+
+        updateRecordingUI()
+        btnRecord.disabled = false
+        recordingTime.textContent = '0s'
+      }, 100)
+    }
+
+    mediaRecorder.onerror = () => {
+      // Silently fall back to simpler format and retry
+      if (mimeType !== 'video/webm') {
+        preferredFormat = { mime: 'video/webm', ext: 'webm' }
+        stopRecording()
+        startRecording()
+        return
+      }
+      // Basic WebM also failed - give up
+      stopRecording()
+    }
+
+    mediaRecorder.start()
+    isRecording = true
+    recordingStartTime = Date.now()
+    updateRecordingUI()
+
+    // Update timer display
+    recordingTimerInterval = window.setInterval(() => {
+      const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000)
+      const remaining = 30 - elapsed
+      recordingTime.textContent = `Recording [${remaining}s]`
+
+      // Auto-stop at 0 seconds
+      if (remaining <= 0) {
+        stopRecording()
+      }
+    }, 100)
+  }
+
+  function stopRecording() {
+    if (!isRecording || !mediaRecorder) return
+
+    isRecording = false
+    if (recordingTimerInterval) {
+      clearInterval(recordingTimerInterval)
+      recordingTimerInterval = null
+    }
+
+    mediaRecorder.stop()
+    mediaRecorder = null
+  }
+
+  function toggleRecording() {
+    if (isRecording) {
+      stopRecording()
+    } else {
+      startRecording()
+    }
+  }
+
+  btnRecord.addEventListener('click', toggleRecording)
+
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
     if (e.code === 'Space') {
       e.preventDefault()
-      isPaused = !isPaused
-      updatePauseIcon()
+      togglePaused()
     } else if (e.code === 'KeyF') {
       if (document.fullscreenElement) {
         document.exitFullscreen()
@@ -1134,6 +1465,24 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       }
     }
   })
+
+  // Pause when tab loses visibility or window loses focus to save resources
+  function checkAutoPause() {
+    const shouldPause = document.hidden || !document.hasFocus()
+
+    if (shouldPause && !isPaused) {
+      autoPaused = true
+      setPaused(true)
+    } else if (!shouldPause && autoPaused) {
+      autoPaused = false
+      setPaused(false)
+    }
+  }
+
+  document.addEventListener('visibilitychange', checkAutoPause)
+  window.addEventListener('blur', checkAutoPause)
+  window.addEventListener('focus', checkAutoPause)
+  checkAutoPause() // Check initial state (e.g., if page reloads while in background)
 </script>
 
 <style>
@@ -1164,16 +1513,13 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     border: 1px solid var(--theme-border);
     border-radius: 8px;
     padding: 1rem;
-    max-width: 320px;
+    min-width: 18rem;
     max-height: calc(100% - 4rem);
     overflow-y: auto;
     z-index: 10;
   }
 
   .collapse-btn {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
     background: var(--theme-bg);
     border: 1px solid var(--theme-border);
     border-radius: 4px;
@@ -1182,11 +1528,20 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     padding: 0;
     cursor: pointer;
     transition: all 0.2s ease;
-    z-index: 10;
 
     &:hover {
       background: var(--theme-border);
     }
+  }
+
+  /* Outer button - only visible when collapsed */
+  .collapse-btn-outer {
+    display: none;
+  }
+
+  /* Inner button - inline in header, pushes to right */
+  .collapse-btn-inner {
+    margin-left: auto;
   }
 
   .collapse-icon {
@@ -1211,8 +1566,8 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     background: transparent;
     border-color: transparent;
 
-    .collapse-btn {
-      position: static;
+    .collapse-btn-outer {
+      display: block;
       float: right;
     }
 
@@ -1225,8 +1580,11 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     display: flex;
     align-items: stretch;
     gap: 0.5rem;
-    margin-bottom: 1rem;
-    max-height: 2rem;
+    margin-bottom: 0.5rem;
+
+    &:last-of-type {
+      margin-bottom: 1rem;
+    }
   }
 
   .control-section {
@@ -1260,7 +1618,6 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     color: var(--theme-text);
     border: 1px solid var(--theme-border);
     border-radius: 4px;
-    padding: 0.4rem 0.6rem;
     font-family: var(--font-sans);
     font-size: 0.75rem;
     cursor: pointer;
@@ -1281,45 +1638,53 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     border: 1px solid var(--theme-border);
     border-radius: 4px;
     padding: 0.4rem 0.8rem;
+    min-height: 2rem;
     font-family: var(--font-sans);
     font-size: 0.75rem;
+    line-height: 1;
     cursor: pointer;
     transition:
       background 0.15s,
       border-color 0.15s;
-  }
 
-  button:hover {
-    background: var(--theme-border);
-  }
+    &:hover {
+      background: var(--theme-border);
+    }
 
-  button:active {
-    background: var(--theme-accent);
+    &:active {
+      background: var(--theme-accent);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
   }
 
   .icon-btn {
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 0.25rem;
     padding: 0.4rem;
     min-width: 2rem;
     min-height: 2rem;
-  }
 
-  .icon-btn svg {
-    min-width: 1rem;
-    min-height: 1rem;
+    svg {
+      min-width: 1rem;
+      min-height: 1rem;
+    }
   }
 
   .icon-btn-sm {
     min-width: 1.5rem;
     min-height: 1.5rem;
     padding: 0.25rem;
-  }
 
-  .icon-btn-sm svg {
-    min-width: 0.75rem;
-    min-height: 0.75rem;
+    svg {
+      min-width: 0.75rem;
+      min-height: 0.75rem;
+    }
   }
 
   .slider {
@@ -1378,6 +1743,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     align-items: center;
     color: var(--theme-text-subtle);
     font-size: 0.75rem;
+    gap: 0.5rem;
   }
 
   .seed-controls {
@@ -1387,7 +1753,6 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   }
 
   .seed-input input {
-    width: 5rem;
     background: var(--theme-bg);
     color: var(--theme-text);
     border: 1px solid var(--theme-border);
@@ -1395,6 +1760,41 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     padding: 0.25rem 0.5rem;
     font-family: var(--font-mono);
     font-size: 0.75rem;
+  }
+
+  .recording-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: #ff4444;
+    font-size: 0.75rem;
+    font-family: var(--font-mono);
+  }
+
+  .recording-dot {
+    width: 8px;
+    height: 8px;
+    background: #ff4444;
+    border-radius: 50%;
+    animation: pulse 1s infinite;
+  }
+
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.4;
+    }
+  }
+
+  .icon-record circle {
+    fill: #ff4444;
+  }
+
+  .icon-stop rect {
+    fill: #ff4444;
   }
 
   @media (max-width: 640px) {
