@@ -1,11 +1,13 @@
 ---
 import Breadcrumbs from '@/components/Breadcrumbs.astro'
+import INTDEV from '@/components/INTDEV.astro'
 import Layout from './Layout.astro'
 ---
 
 <Layout {...Astro.props}>
   <header>
     <Breadcrumbs />
+    <INTDEV />
   </header>
 
   <slot />
@@ -15,5 +17,7 @@ import Layout from './Layout.astro'
   header {
     border-bottom: 1px solid var(--theme-border);
     padding: 0.25rem 0.5rem;
+    display: flex;
+    justify-content: space-between;
   }
 </style>
