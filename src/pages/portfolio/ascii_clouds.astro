@@ -875,21 +875,19 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   }
 
   resize()
-  window.addEventListener('resize', resize)
+  window.addEventListener('resize', () => {
+    resize()
+    // Render one frame if paused so user sees the resize
+    renderIfPaused()
+  })
 
   // ============================================
   // Render Loop
   // ============================================
   let lastTime = 0
 
-  function render(currentTime: number) {
-    const deltaTime = (currentTime - lastTime) / 1000
-    lastTime = currentTime
-
-    if (!isPaused) {
-      time += deltaTime * state.timeSpeed
-    }
-
+  // Renders a single frame without scheduling another
+  function renderFrame() {
     resize()
 
     const width = canvas.width
@@ -934,8 +932,23 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     gl!.uniform1f(glyphUniforms.threshold5, state.threshold5)
 
     gl!.drawArrays(gl!.TRIANGLE_STRIP, 0, 4)
+  }
 
+  function render(currentTime: number) {
+    const deltaTime = (currentTime - lastTime) / 1000
+    lastTime = currentTime
+
+    if (!isPaused) {
+      time += deltaTime * state.timeSpeed
+    }
+
+    renderFrame()
     animationFrameId = requestAnimationFrame(render)
+  }
+
+  // Render one frame if paused (for state changes to be visible)
+  function renderIfPaused() {
+    if (isPaused) renderFrame()
   }
 
   animationFrameId = requestAnimationFrame(render)
@@ -959,6 +972,8 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       state[id] = value as never
       updateSliderValue(id, value, decimals)
       updateURLWithState()
+      // Render one frame if paused so user sees the change
+      renderIfPaused()
     })
   }
 
@@ -986,6 +1001,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   seedInput.addEventListener('input', (e) => {
     state.noiseSeed = seedInput.value.trim()
     updateURLWithState()
+    renderIfPaused()
   })
   seedInput.addEventListener('keydown', (e) => {
     e.stopPropagation()
@@ -996,6 +1012,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     state.noiseSeed = Math.random().toString(36).substring(2, 8)
     seedInput.value = state.noiseSeed
     updateURLWithState()
+    renderIfPaused()
   })
 
   // Apply preset
@@ -1018,6 +1035,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       }
     })
     updateURLWithState()
+    renderIfPaused()
   }
 
   // Preset select
@@ -1070,6 +1088,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     // Clear preset selection since we're now randomized
     presetSelect.value = ''
     updateURLWithState()
+    renderIfPaused()
   }
 
   btnRandomize.addEventListener('click', randomize)
@@ -1159,6 +1178,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       if (loaded) {
         syncUIFromState()
         presetSelect.value = '' // Clear preset selection
+        renderIfPaused()
         // Brief visual feedback
         const originalText = btnImport.textContent
         btnImport.textContent = 'Imported!'
