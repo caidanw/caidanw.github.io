@@ -330,7 +330,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       } else {
         const numValue = parseFloat(value)
         if (!isNaN(numValue)) {
-          ;(state as any)[fullKey] = numValue
+          state[fullKey] = numValue
         }
       }
     }
