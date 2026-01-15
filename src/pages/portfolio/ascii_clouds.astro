@@ -54,7 +54,8 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
         <div class="control-section">
           <div class="section-title">Presets</div>
           <div class="preset-row">
-            <select id="presetSelect" class="preset-select">
+            <select id="presetSelect" class="preset-select" aria-label="Select Preset">
+              <option value="" disabled selected hidden>Random</option>
               <optgroup label="Built-in">
                 <option value="default">Default</option>
                 <option value="terminal">Terminal</option>
@@ -1086,7 +1087,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     seedInput.value = state.noiseSeed
 
     // Clear preset selection since we're now randomized
-    presetSelect.value = ''
+    presetSelect.selectedIndex = 0
     updateURLWithState()
     renderIfPaused()
   }
