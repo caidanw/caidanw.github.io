@@ -3,7 +3,7 @@ layout: src/layouts/BlogPost.astro
 title: 'A Beans Based AI Workflow'
 date: '2026-01-29T17:03:00-08:00'
 description: Experimenting on the frontier of AI using beans
-draft: true
+draft: false
 ---
 
 > Since the title is a bit of click-bait, I should probably specify what I mean by **bean based**.
