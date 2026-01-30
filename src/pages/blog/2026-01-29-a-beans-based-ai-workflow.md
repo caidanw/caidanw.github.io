@@ -20,7 +20,7 @@ Maybe I'm wrong. Maybe I should be running hundreds of agents in parallel, but I
 Both working on separate tasks, and I spent most of my time not in setting up and running agents, but in defining the work that needs to be done.
 Also, the context switching from managing two agents was exhausting.
 
-I'm taking a new approach. Let's flip the entire approach on its head and think about this pragmatically.
+I want to take this in a new direction. Let's flip the entire script on its head and think about this pragmatically.
 I don't think the bottleneck here is a lack of enough agents. The bottleneck is not having clear enough tasks for these agents to work on.
 I can not write instructions fast enough to outpace the work of a single agent. I doubt you can either. Prove me wrong.
 I have yet to see anyone actually write and think fast enough to keep up with the pace of a single agent writing the code.
@@ -28,8 +28,7 @@ Most of my time working with an agent is spent answering questions, rethinking a
 It requires a ton of my attention and focus to handhold these agents.
 
 What if we took a different approach? What if we looked at some examples of how software engineering has been traditionally managed?
-In come PRDs (Product Requirement Documents).
-Made with the explicit intent to get one person's thoughts into another person's actions.
+In come PRDs (Product Requirement Documents), made with the explicit intent to get one person's thoughts into another person's actions.
 Isn't that all we are doing with agents now, defining a document for an agent to follow instructions to implement?
 
 I'm building Daedalus, a from-scratch custom planning agent. Yes, I'm building an agent from scratch. Yes, I don't really know how this will go.
