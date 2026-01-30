@@ -13,8 +13,7 @@ draft: true
 I feel like a mad scientist.
 I spent the last week analyzing agentic coding tools, ideating what I like and dislike about them, and then deciding to build my own.
 
-During my analysis, the main issue I found with most agentic coding tools right now is that they all focus on one thing.
-Running as many agents in parallel as possible.
+During my analysis, the main issue I found with most agentic coding tools right now is that they all focus on one thing: running as many agents in parallel as possible.
 But why? Why run 10, 100, or even a 1000 agents when you are unable to write enough tickets for them to consume.
 
 Maybe I'm wrong. Maybe I should be running hundreds of agents in parallel, but I can't honestly say I've ever run more than 2 at a time.
@@ -45,7 +44,8 @@ I chose the name Daedalus because I feel that it embodies the soul of a engineer
 Yet, there is hubris manifest in his work, which parallels how I feel about AI coding agents. Daedalus doesn't write code, that's not the point.
 Though, he has access to a breadth of expert sub-agents: critics, skeptics, pragmatists, architects, simplifiers, UX researchers, code explorers, and more.
 The goal for Daedalus is to outpace the coding agent, which I've aptly named Talos. The first robot, the bronze automaton that protected the island of Crete.
-You don't talk to Talos, nor do you need to. He finds the next task and starts working.
+You don't talk to Talos, nor do you need to. He finds the next task and starts working. Do note that I've tailored Talos to approach coding using TDD (test driven development),
+which I've found has a bit better of a success rate for autonomous implementation. I borrowed the idea and a few other skills from the [superpowers](https://github.com/obra/superpowers) repo.
 
 However, that's not to say what I've built is prescriptive. You can do it at home, without any of my specialized tools.
 You need two agent instances, opencode/claude/codex, it doesn't matter. One is your coding agent, always in "build" mode.
