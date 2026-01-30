@@ -58,7 +58,7 @@ The beauty is that I can easily read and modify this myself, and I can check it 
 Additionally, beans has a built-in GraphQL API, which is quite handy for the agents to be able to get relational data about these flat files.
 Each bean has a `title`, `status`, `type`, `priority`, and optional `blockedBy` fields. I'm using this to handle complicated, long running, and autonomous PRD implementation.
 My ralph loop starts by querying for beans that are `in-progress` or `todo` then creates the dependency graph using the `blockedBy` field.
-Which allows me to find which bean we need to work on first, pass that bean to the coding agent and let it run.
+This allows me to find which bean we need to work on first, pass that bean to the coding agent and let it run.
 
 Beans are the lifeblood of this workflow. Whether or not you use beans or another tool, it doesn't really matter.
 The only thing you need to make it work is a structured way to define tasks with enough context that an agent can work on it without human intervention.
