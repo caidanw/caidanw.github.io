@@ -42,7 +42,7 @@ I am willing to accept failure. I am willing to be wrong. I hope that this works
 I chose the name Daedalus because I feel that it embodies the soul of an engineer: planning, thinking, criticizing, researching, and questioning.
 Yet, there is hubris manifest in his work, which parallels how I feel about AI coding agents. Daedalus doesn't write code--that's not the point.
 Though, he has access to a breadth of expert sub-agents: critics, skeptics, pragmatists, architects, simplifiers, UX researchers, code explorers, and more.
-The goal for Daedalus is to outpace the coding agent, which I've aptly named Talos. The first robot, the bronze automaton that protected the island of Crete.
+The goal for Daedalus is to outpace the coding agent, which I've aptly named Talos, the bronze automaton that protected the island of Crete.
 You don't talk to Talos, nor do you need to. He finds the next task and starts working. Do note that I've tailored Talos to approach coding using TDD (test driven development),
 which I've found yields a slightly better success rate for autonomous implementation. I borrowed the idea and a few other skills from the [superpowers](https://github.com/obra/superpowers) repo.
 
