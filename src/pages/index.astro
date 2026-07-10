@@ -1,40 +1,77 @@
 ---
-import Hr from '@/components/Hr.astro'
 import BlueskyIcon from '@/assets/icon_bluesky.svg'
 import GithubIcon from '@/assets/icon_github.svg'
 import LinkedInIcon from '@/assets/icon_linkedin.svg'
 import ThreadsIcon from '@/assets/icon_threads.svg'
 import TwitterIcon from '@/assets/icon_twitter.svg'
-import PageNav from '@/components/PageNav.astro'
 import Layout from '@/layouts/Layout.astro'
+
+// What I'm building this month. Edit this one line to keep it current —
+// a stale "Now" is worse than none.
+const NOW = {
+  label: 'July 2026',
+  text: 'Shipping the Terminal Graph public beta.',
+}
 ---
 
 <Layout>
   <div class="container">
     <main>
-      <header>
-        <h1>I'm <strong>Caidan Williams</strong></h1>
-        <p>a self-taught web developer and designer.</p>
-      </header>
-      <nav class="socials" aria-label="Social Media Links">
-        <a href="https://github.com/caidanw" aria-label="GitHub Profile" target="_blank" rel="noopener">
-          <GithubIcon />
-        </a>
-        <a href="https://bsky.app/profile/caidan.dev" aria-label="Bluesky Profile" target="_blank" rel="noopener">
-          <BlueskyIcon />
-        </a>
-        <a href="https://twitter.com/caidanwilliams" aria-label="Twitter Profile" target="_blank" rel="noopener">
-          <TwitterIcon />
-        </a>
-        <a href="https://threads.net/@ancientsunshine" aria-label="Threads Profile" target="_blank" rel="noopener">
-          <ThreadsIcon />
-        </a>
-        <a href="https://linkedin.com/in/caidan-williams" aria-label="LinkedIn Profile" target="_blank" rel="noopener">
-          <LinkedInIcon />
-        </a>
-      </nav>
-      <Hr />
-      <PageNav />
+      <div class="cols">
+        <div class="identity">
+          <h1>I'm <strong>Caidan Williams</strong></h1>
+          <p class="tagline">
+            Partner at Internet Development Studio Company in Seattle. I write Swift, Metal, and too much TypeScript. Building
+            <a href="https://terminalgraph.com" target="_blank" rel="noopener">Terminal Graph</a>: an infinite canvas for your
+            terminals, editors, and agents.
+          </p>
+          <p class="bio">Self-taught, with a long path through Java, Python, and Linux tooling before Swift, Metal, and AppKit.</p>
+        </div>
+
+        <aside class="rail">
+          <div class="rail-group">
+            <h2 class="rail-label">Now</h2>
+            <p class="now-text">{NOW.label} · {NOW.text}</p>
+          </div>
+
+          <div class="rail-group">
+            <h2 class="rail-label">Pages</h2>
+            <nav class="rail-nav" aria-label="Site pages">
+              <a class="list" href="/blog">Blog</a>
+              <a class="list" href="/portfolio">Portfolio</a>
+            </nav>
+          </div>
+
+          <div class="rail-group">
+            <h2 class="rail-label">Elsewhere</h2>
+            <nav class="socials" aria-label="Social Media Links">
+              <a href="https://github.com/caidanw" aria-label="GitHub Profile" target="_blank" rel="noopener">
+                <GithubIcon />
+              </a>
+              <a href="https://bsky.app/profile/caidan.dev" aria-label="Bluesky Profile" target="_blank" rel="noopener">
+                <BlueskyIcon />
+              </a>
+              <a href="https://twitter.com/caidanwilliams" aria-label="Twitter Profile" target="_blank" rel="noopener">
+                <TwitterIcon />
+              </a>
+              <a href="https://threads.net/@ancientsunshine" aria-label="Threads Profile" target="_blank" rel="noopener">
+                <ThreadsIcon />
+              </a>
+              <a href="https://linkedin.com/in/caidan-williams" aria-label="LinkedIn Profile" target="_blank" rel="noopener">
+                <LinkedInIcon />
+              </a>
+              <a href="https://internet.dev" aria-label="Internet Development Studio Company" target="_blank" rel="noopener" class="intdev">
+                <svg viewBox="0 0 218 104" fill="currentColor" aria-hidden="true">
+                  <path
+                    d="m0 104 17.8841115-25.9808562h59.6300974c6.3930371 0 12.3762642-3.145051 16.0044493-8.4177974l12.1358418-17.6341643h-69.848028l17.8841115-25.9808562h61.7228605c5.081645 0 9.840906-2.5051015 12.725969-6.6948565l6.322003-9.1890186c4.349451-6.32291993 11.534788-10.1024508 19.206432-10.1024508h64.143473l-17.884112 25.9808562h-59.548135c-6.393037 0-12.376264 3.145051-16.004449 8.4177974l-12.108522 17.5958767h69.831636l-17.884111 25.9808563h-61.706469c-5.0816447 0-9.8409057 2.5051015-12.7259686 6.6948564l-6.3438599 9.2218365c-4.3494509 6.3229195-11.5347875 10.1024505-19.206432 10.1024505h-64.2308985z"
+                  ></path>
+                </svg>
+                <span>INTDEV</span>
+              </a>
+            </nav>
+          </div>
+        </aside>
+      </div>
     </main>
   </div>
 </Layout>
@@ -49,32 +86,91 @@ import Layout from '@/layouts/Layout.astro'
   }
 
   main {
-    max-width: fit-content;
+    width: 100%;
+    max-width: 54rem;
+    padding: 2rem 1.5rem;
   }
 
-  header {
-    margin-bottom: 1.5rem;
+  .cols {
+    display: flex;
+    align-items: start;
+    gap: 3rem;
+  }
+
+  .identity {
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   h1 {
     font-weight: normal;
     font-size: 2rem;
-    + p {
-      font-size: 1.25rem;
-      line-height: 1;
-    }
+  }
+
+  .tagline {
+    margin-top: 0.85rem;
+    font-size: 1.15rem;
+    line-height: 1.5;
+    text-wrap: pretty;
+  }
+
+  .tagline a {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-color: var(--theme-accent);
+  }
+
+  .bio {
+    margin-top: 0.85rem;
+    color: var(--theme-text-dim);
+    line-height: 1.5;
+    text-wrap: pretty;
+  }
+
+  .rail {
+    flex: 0 0 13rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.6rem;
+    border-left: 1px solid var(--theme-border);
+    padding-left: 1.9rem;
+  }
+
+  .rail-label {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    font-weight: normal;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--theme-text-dim);
+    margin-bottom: 0.6rem;
+  }
+
+  .now-text {
+    font-size: 0.9rem;
+    line-height: 1.45;
+    color: var(--theme-text-subtle);
+  }
+
+  .rail-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
   }
 
   .socials {
     display: flex;
-    gap: 2rem;
-    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1.1rem;
 
     a {
+      display: inline-flex;
+      align-items: center;
+
       svg {
-        width: 1.5rem;
-        height: 1.5rem;
-        min-width: 1rem;
+        width: 1.35rem;
+        height: 1.35rem;
         fill: var(--theme-text);
         transition: fill 0.2s ease;
       }
@@ -82,6 +178,38 @@ import Layout from '@/layouts/Layout.astro'
       &:hover svg {
         fill: var(--theme-accent);
       }
+    }
+
+    a.intdev {
+      gap: 0.4rem;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.04em;
+    }
+
+    a.intdev svg {
+      width: auto;
+      height: 0.95rem;
+    }
+  }
+
+  /* Fixed px, not rem: the root font-size is a vw-based clamp(), which makes
+     rem-based media queries resolve unpredictably. */
+  @media (max-width: 768px) {
+    .cols {
+      flex-direction: column;
+      /* Stacked: stretch children to full width so the rail (and its
+         full-bleed divider) spans the container regardless of content width. */
+      align-items: stretch;
+      gap: 1.9rem;
+    }
+
+    .rail {
+      flex-basis: auto;
+      border-left: 0;
+      border-top: 1px solid var(--theme-border);
+      padding-left: 0;
+      padding-top: 1.6rem;
     }
   }
 </style>
