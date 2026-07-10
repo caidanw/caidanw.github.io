@@ -27,13 +27,43 @@ const projects = [
 ]
 ---
 
-<BreadcrumbLayout title="Portfolio - Caidan Williams" description="Selected projects and experiments">
+<BreadcrumbLayout title="Portfolio - Caidan Williams" description="Terminal Graph and a few canvas experiments">
   <main>
     <ListHeader>
       <h1>Portfolio</h1>
-      <p class="subtitle">A showcase of selected projects and experiments I've worked on.</p>
+      <p class="subtitle">What I'm building, and a few things I built to learn.</p>
     </ListHeader>
 
+    <section class="flagship">
+      <a
+        class="flagship-media"
+        href="https://terminalgraph.com"
+        target="_blank"
+        rel="noopener"
+        aria-label="Terminal Graph — open terminalgraph.com"
+      >
+        <img
+          src="/terminal-graph-hero.svg"
+          width="1348"
+          height="628"
+          loading="lazy"
+          decoding="async"
+          alt="A Terminal Graph canvas: a Trigger node wired into a Run node executing git diff --staged, feeding a Template that pipes the staged diff into a Claude Code terminal — four connected nodes on one infinite canvas."
+        />
+      </a>
+      <div class="flagship-body">
+        <h2 class="flagship-title">Terminal Graph</h2>
+        <p class="flagship-desc">
+          A spatial development environment for macOS. Terminals, browsers, editors, and notes on one infinite canvas,
+          connected by dataflow. Instead of a dozen scattered windows, you see the whole shape of what you're working on.
+        </p>
+        <p class="flagship-tech"><span>Tech:</span> Swift · Metal · AppKit · libghostty</p>
+        <p class="flagship-status">Free public beta · Native macOS · No account required</p>
+        <a class="flagship-link list" href="https://terminalgraph.com" target="_blank" rel="noopener">terminalgraph.com</a>
+      </div>
+    </section>
+
+    <h2 class="section-label">Experiments</h2>
     <div class="projects-grid">
       {
         projects.map((project) => (
@@ -58,6 +88,81 @@ const projects = [
 </BreadcrumbLayout>
 
 <style>
+  /* Terminal Graph — the flagship. The one place the page spends boldness. */
+  .flagship {
+    margin-bottom: 2.5rem;
+    border: 1px solid var(--theme-border);
+    border-radius: 10px;
+    overflow: hidden;
+    background:
+      radial-gradient(var(--theme-border) 1px, transparent 1px) 0 0 / 18px 18px,
+      var(--theme-bg);
+  }
+
+  .flagship-media {
+    display: block;
+    background: var(--color-blacker);
+    border-bottom: 1px solid var(--theme-border);
+  }
+
+  .flagship-media img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .flagship-body {
+    padding: 1.25rem 1.5rem 1.5rem;
+  }
+
+  .flagship-title {
+    font-family: var(--font-mono);
+    font-size: 1.4rem;
+    font-weight: bold;
+    letter-spacing: 0.03em;
+    margin-bottom: 0.5rem;
+  }
+
+  .flagship-desc {
+    color: var(--theme-text-subtle);
+    line-height: 1.5;
+    text-wrap: pretty;
+    margin-bottom: 0.75rem;
+  }
+
+  .flagship-tech {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--theme-text-dim);
+    margin-bottom: 0.25rem;
+  }
+
+  .flagship-tech span {
+    color: var(--theme-text-subtle);
+  }
+
+  .flagship-status {
+    font-size: 0.8rem;
+    color: var(--theme-text-dim);
+    margin-bottom: 1rem;
+  }
+
+  .flagship-link {
+    font-weight: bold;
+  }
+
+  .section-label {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: normal;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--theme-text-dim);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--theme-border);
+  }
+
   .projects-grid {
     display: flex;
     flex-direction: column;

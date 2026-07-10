@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1348 628" width="1348" height="628" font-family="'JetBrains Mono', monospace">
+<style>
+  .node-body { fill: #111111; stroke: #2a2a2a; stroke-width: 1; }
+  .node-titlebar { fill: #1a1a1a; }
+  .node-title { fill: #e0e0e0; font-size: 14px; font-weight: 500; }
+  .node-body-text { fill: #888888; font-size: 13px; }
+  .trigger-btn { fill: #161616; stroke: #2a2a2a; stroke-width: 1; }
+  .trigger-btn-text { fill: #9a9a9a; font-size: 13px; letter-spacing: 1.5px; }
+  .port-label { font-size: 12px; }
+  .conn {
+    fill: none; stroke-width: 2.5; stroke-linecap: butt;
+    stroke-opacity: 0.85; stroke-dasharray: 8 6;
+    animation: flow 1.2s linear infinite;
+  }
+  @keyframes flow { to { stroke-dashoffset: -14; } }
+</style>
+<path class="conn" d="M324,130 C374,130 354,225.33333333333331 404,225.33333333333331" stroke="#FFB74D"/>
+<path class="conn" d="M324,389.6 C374,389.6 354,334.66666666666663 404,334.66666666666663" stroke="#81C784"/>
+<path class="conn" d="M744,280 C794,280 774,421.3333333333333 824,421.3333333333333" stroke="#FFB74D"/>
+<g class="node">
+<rect x="24" y="24" width="300" height="180" class="node-body"/>
+<rect x="24" y="24" width="300" height="32" class="node-titlebar"/>
+<text x="174" y="45" text-anchor="middle" class="node-title">Trigger</text>
+<rect x="38" y="72" width="272" height="30" class="trigger-btn"/>
+<text x="174" y="92" text-anchor="middle" class="trigger-btn-text">TRIGGER</text>
+<circle cx="324" cy="130" r="4.5" fill="#FFB74D"/>
+<text x="314" y="134" text-anchor="end" class="port-label" fill="#FFB74D">trigger</text>
+</g>
+<g class="node">
+<rect x="24" y="304" width="300" height="300" class="node-body"/>
+<rect x="24" y="304" width="300" height="32" class="node-titlebar"/>
+<text x="174" y="325" text-anchor="middle" class="node-title">Run</text>
+<clipPath id="clip-3E3F4918-7472-4053-8709-09569148AEED"><rect x="24" y="336" width="300" height="268"/></clipPath>
+<g clip-path="url(#clip-3E3F4918-7472-4053-8709-09569148AEED)">
+<text x="38" y="360" class="node-body-text">git diff --staged</text>
+</g>
+<circle cx="24" cy="470" r="4.5" fill="#FFB74D"/>
+<text x="34" y="474" text-anchor="start" class="port-label" fill="#FFB74D">input</text>
+<circle cx="324" cy="389.6" r="4.5" fill="#81C784"/>
+<text x="314" y="393.6" text-anchor="end" class="port-label" fill="#81C784">latest</text>
+<circle cx="324" cy="443.2" r="4.5" fill="#FFB74D"/>
+<text x="314" y="447.2" text-anchor="end" class="port-label" fill="#FFB74D">output</text>
+<circle cx="324" cy="496.8" r="4.5" fill="#FFB74D"/>
+<text x="314" y="500.8" text-anchor="end" class="port-label" fill="#FFB74D">error</text>
+<circle cx="324" cy="550.4" r="4.5" fill="#FFB74D"/>
+<text x="314" y="554.4" text-anchor="end" class="port-label" fill="#FFB74D">exit</text>
+</g>
+<g class="node">
+<rect x="404" y="84" width="340" height="360" class="node-body"/>
+<rect x="404" y="84" width="340" height="32" class="node-titlebar"/>
+<text x="574" y="105" text-anchor="middle" class="node-title">Template</text>
+<clipPath id="clip-234BEC0C-A667-44A3-BB97-A609D21D2C48"><rect x="404" y="116" width="340" height="328"/></clipPath>
+<g clip-path="url(#clip-234BEC0C-A667-44A3-BB97-A609D21D2C48)">
+<text x="418" y="140" class="node-body-text">Write a conventional commit message for </text>
+<text x="418" y="159" class="node-body-text">these staged changes:</text>
+<text x="418" y="178" class="node-body-text"></text>
+<text x="418" y="197" class="node-body-text">{{diff}}</text>
+</g>
+<circle cx="404" cy="225.33333333333331" r="4.5" fill="#FFB74D"/>
+<text x="414" y="229.33333333333331" text-anchor="start" class="port-label" fill="#FFB74D">trigger</text>
+<circle cx="404" cy="334.66666666666663" r="4.5" fill="#81C784"/>
+<text x="414" y="338.66666666666663" text-anchor="start" class="port-label" fill="#81C784">diff</text>
+<circle cx="744" cy="280" r="4.5" fill="#FFB74D"/>
+<text x="734" y="284" text-anchor="end" class="port-label" fill="#FFB74D">output</text>
+</g>
+<g class="node">
+<rect x="824" y="24" width="500" height="580" class="node-body"/>
+<rect x="824" y="24" width="500" height="32" class="node-titlebar"/>
+<text x="1074" y="45" text-anchor="middle" class="node-title">✳ Claude Code</text>
+<clipPath id="clip-2F012EF4-2BA9-46BF-8DC5-3EC64390ED15"><rect x="824" y="56" width="500" height="548"/></clipPath>
+<g clip-path="url(#clip-2F012EF4-2BA9-46BF-8DC5-3EC64390ED15)">
+<text x="838" y="80" class="node-body-text">$ claude</text>
+</g>
+<circle cx="824" cy="238.66666666666666" r="4.5" fill="#4FC3F7"/>
+<text x="834" y="242.66666666666666" text-anchor="start" class="port-label" fill="#4FC3F7">stdin</text>
+<circle cx="824" cy="421.3333333333333" r="4.5" fill="#FFB74D"/>
+<text x="834" y="425.3333333333333" text-anchor="start" class="port-label" fill="#FFB74D">text</text>
+<circle cx="1324" cy="165.6" r="4.5" fill="#4FC3F7"/>
+<text x="1314" y="169.6" text-anchor="end" class="port-label" fill="#4FC3F7">stdout</text>
+<circle cx="1324" cy="275.2" r="4.5" fill="#4FC3F7"/>
+<text x="1314" y="279.2" text-anchor="end" class="port-label" fill="#4FC3F7">stderr</text>
+<circle cx="1324" cy="384.79999999999995" r="4.5" fill="#FFB74D"/>
+<text x="1314" y="388.79999999999995" text-anchor="end" class="port-label" fill="#FFB74D">exit</text>
+<circle cx="1324" cy="494.4" r="4.5" fill="#81C784"/>
+<text x="1314" y="498.4" text-anchor="end" class="port-label" fill="#81C784">cwd</text>
+</g>
+</svg>
