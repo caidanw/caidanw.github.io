@@ -18,7 +18,8 @@ interface Post {
 const isPublished = (post: Post) => import.meta.env.DEV || !post.frontmatter.draft
 const byDateDescending = (a: Post, b: Post) => compareDesc(a.frontmatter.date, b.frontmatter.date)
 
-const posts = Object.values(import.meta.glob<Post>('./*.md', { eager: true }))
+// Draft posts are `_`-prefixed so Astro does not emit them as routes.
+const posts = Object.values(import.meta.glob<Post>(['./*.md', '!./_*.md'], { eager: true }))
   .filter(isPublished)
   .sort(byDateDescending)
 
