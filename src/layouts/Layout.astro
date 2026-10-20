@@ -10,6 +10,7 @@ interface Props {
   image?: ImageMetadata
   imageAlt?: string
   favicon?: ImageMetadata
+  noindex?: boolean
 }
 
 const {
@@ -18,11 +19,12 @@ const {
   image = ogImage,
   imageAlt = 'Terminal Graph: a spatial development environment for macOS',
   favicon,
+  noindex = false,
 } = Astro.props
 
-const siteUrl = 'https://caidan.dev'
+const pageUrl = new URL(Astro.url.pathname, Astro.site).href
 const twitterHandle = '@caidanwilliams'
-const imageUrl = new URL(image.src, siteUrl).href + '?v=' + Date.now()
+const imageUrl = new URL(image.src, Astro.site).href + '?v=' + Date.now()
 ---
 
 <!doctype html>
@@ -31,10 +33,12 @@ const imageUrl = new URL(image.src, siteUrl).href + '?v=' + Date.now()
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
+    <link rel="canonical" href={pageUrl} />
+    {noindex && <meta name="robots" content="noindex" />}
 
     <!-- Open Graph / Social Media Meta Tags -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content={siteUrl} />
+    <meta property="og:url" content={pageUrl} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:image" content={imageUrl} />
@@ -44,7 +48,7 @@ const imageUrl = new URL(image.src, siteUrl).href + '?v=' + Date.now()
 
     <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:url" content={siteUrl} />
+    <meta name="twitter:url" content={pageUrl} />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={imageUrl} />
