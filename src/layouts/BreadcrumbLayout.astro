@@ -14,11 +14,19 @@ import Layout from './Layout.astro'
 </Layout>
 
 <style>
+  :global(:root) {
+    /* Full-viewport pages size themselves to 100dvh minus this header: 0.25rem padding on each
+       side, one 0.75rem line at line-height 1.5, and the 1px bottom border. */
+    --breadcrumb-header-height: calc(0.5rem + 0.75rem * 1.5 + 1px);
+  }
+
   header {
     border-bottom: 1px solid var(--theme-border);
     padding: 0.25rem 0.5rem;
     display: flex;
     justify-content: space-between;
     align-items: start;
+    /* Explicit (matches the font's normal) so --breadcrumb-header-height holds even before web fonts load */
+    line-height: 1.5;
   }
 </style>
