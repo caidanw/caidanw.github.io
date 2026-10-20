@@ -3,6 +3,7 @@ import '../styles/reset.css'
 import '../styles/global.css'
 import ogImage from '../assets/terminal-graph-og.png'
 import type { ImageMetadata } from 'astro'
+import { SITE_DESCRIPTION, SITE_TITLE } from '../consts'
 
 interface Props {
   title?: string
@@ -14,8 +15,8 @@ interface Props {
 }
 
 const {
-  title = 'Caidan Williams',
-  description = 'Partner at Internet Development Studio Company in Seattle. I write Swift, Metal, and too much TypeScript. Building Terminal Graph: an infinite canvas for your terminals, editors, and agents.',
+  title = SITE_TITLE,
+  description = SITE_DESCRIPTION,
   image = ogImage,
   imageAlt = 'Terminal Graph: a spatial development environment for macOS',
   favicon,
@@ -56,6 +57,7 @@ const imageUrl = new URL(image.src, Astro.site).href + '?v=' + Date.now()
     <meta name="twitter:site" content={twitterHandle} />
     <meta name="twitter:creator" content={twitterHandle} />
 
+    <link rel="alternate" type="application/rss+xml" title={SITE_TITLE} href={new URL('rss.xml', Astro.site)} />
     <link rel="icon" href={favicon?.src ?? '/favicon.ico'} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
