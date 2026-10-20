@@ -1255,6 +1255,11 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   collapseBtn.addEventListener('click', toggleCollapse)
   collapseBtnInner.addEventListener('click', toggleCollapse)
 
+  // On narrow screens the open panel covers most of the canvas, so start collapsed
+  if (window.matchMedia('(max-width: 768px)').matches) {
+    controls.classList.add('collapsed')
+  }
+
   // Pause button
   // Helper to update pause button icons
   function updatePauseIcon() {
