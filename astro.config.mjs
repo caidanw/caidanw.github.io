@@ -7,6 +7,7 @@ const selectedTheme = 'vitesse-dark'
 // https://astro.build/config
 export default defineConfig({
   site: 'https://caidan.dev',
+  trailingSlash: 'always',
   markdown: {
     shikiConfig: {
       theme: selectedTheme,
