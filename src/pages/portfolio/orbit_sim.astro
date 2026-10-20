@@ -57,10 +57,12 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
 
         <div class="instructions">
           <p><strong>Controls:</strong></p>
-          <p>• Click & drag to add bodies</p>
-          <p>• Drag existing bodies to move</p>
-          <p>• Scroll on body to change mass</p>
-          <p>• Right-click to delete</p>
+          <p class="fine-pointer-only">• Click & drag to add bodies</p>
+          <p class="coarse-pointer-only">• Drag to add bodies</p>
+          <p class="fine-pointer-only">• Drag existing bodies to move</p>
+          <p class="coarse-pointer-only">• Drag a body to move it</p>
+          <p class="fine-pointer-only">• Scroll on body to change mass</p>
+          <p class="fine-pointer-only">• Right-click to delete</p>
         </div>
       </div>
     </div>
@@ -82,6 +84,8 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     height: 100%;
     background: #000;
     cursor: crosshair;
+    /* Pointer events drive dragging; stop touch from scrolling/zooming the page instead. */
+    touch-action: none;
   }
 
   .controls-panel {
@@ -179,6 +183,21 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     line-height: 1.4;
   }
 
+  /* Touch screens can't scroll or right-click on a body, so show only the drag instructions. */
+  .coarse-pointer-only {
+    display: none;
+  }
+
+  @media (pointer: coarse) {
+    .fine-pointer-only {
+      display: none;
+    }
+
+    .coarse-pointer-only {
+      display: block;
+    }
+  }
+
   .instructions strong {
     color: white;
     font-size: 0.875rem;
@@ -259,10 +278,10 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   const controlsPanel = document.getElementById('controlsPanel') as HTMLDivElement
   const collapseBtn = document.getElementById('collapseBtn') as HTMLButtonElement
 
-  // Set canvas size to window size
+  // Match the canvas buffer to its CSS size so pointer coordinates map 1:1 onto drawn bodies
   function resizeCanvas() {
-    canvas.width = window.innerWidth
-    canvas.height = window.innerHeight
+    canvas.width = canvas.clientWidth
+    canvas.height = canvas.clientHeight
   }
 
   resizeCanvas()
@@ -272,6 +291,11 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   collapseBtn.addEventListener('click', () => {
     controlsPanel.classList.toggle('collapsed')
   })
+
+  // On narrow screens the open panel covers the whole canvas, so start collapsed
+  if (window.matchMedia('(max-width: 768px)').matches) {
+    controlsPanel.classList.add('collapsed')
+  }
 
   // Body type definition
   type Body = {
@@ -303,7 +327,8 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   let animationSpeed = speedSlider.valueAsNumber
   let animationId: number
 
-  // Mouse interaction state
+  // Pointer interaction state
+  let lastPointerType = 'mouse'
   let isDragging = false
   let dragStartPos: [number, number] | null = null
   let draggedBody: Body | null = null
@@ -521,7 +546,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       : { r: 255, g: 255, b: 255 }
   }
 
-  // Get mouse position relative to canvas
+  // Get pointer position relative to canvas
   let cachedMousePos: { x: number; y: number } | null = null
   function getMousePos(canvas: HTMLCanvasElement): { x: number; y: number } | null {
     return cachedMousePos
@@ -575,8 +600,11 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     colorIndex = Math.max(2, bodies.length)
   }
 
-  // Mouse event handlers
-  canvas.addEventListener('mousemove', (e) => {
+  // Pointer event handlers (mouse, touch, and pen)
+  canvas.addEventListener('pointermove', (e) => {
+    if (!e.isPrimary) return
+    lastPointerType = e.pointerType
+
     const rect = canvas.getBoundingClientRect()
     cachedMousePos = {
       x: e.clientX - rect.left,
@@ -593,12 +621,17 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     canvas.style.cursor = hoveredBody ? 'pointer' : 'crosshair'
   })
 
-  canvas.addEventListener('mousedown', (e) => {
-    if (e.button !== 0) return // Only left click
+  canvas.addEventListener('pointerdown', (e) => {
+    if (!e.isPrimary) return
+    lastPointerType = e.pointerType
+    if (e.button !== 0) return // Only left click / primary touch
 
     const rect = canvas.getBoundingClientRect()
     const mouseX = e.clientX - rect.left
     const mouseY = e.clientY - rect.top
+    // Touch has no hover moves before a press, so seed the position the velocity arrow is drawn to
+    cachedMousePos = { x: mouseX, y: mouseY }
+    canvas.setPointerCapture(e.pointerId)
 
     const body = getBodyAt(mouseX, mouseY)
 
@@ -623,8 +656,8 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     isDragging = true
   })
 
-  canvas.addEventListener('mouseup', (e) => {
-    if (!isDragging || !dragStartPos) return
+  canvas.addEventListener('pointerup', (e) => {
+    if (!e.isPrimary || !isDragging || !dragStartPos) return
 
     const rect = canvas.getBoundingClientRect()
     const mouseX = e.clientX - rect.left
@@ -651,14 +684,29 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       draggedBody.v[1] = (simY - dragStartPos[1]) * velocityScale
     }
 
+    endDrag(e)
+  })
+
+  // Interrupted gesture (e.g. system takeover of a touch): drop the drag without applying it
+  canvas.addEventListener('pointercancel', (e) => {
+    if (!e.isPrimary) return
+    previewBody = null
+    endDrag(e)
+  })
+
+  function endDrag(e: PointerEvent) {
     isDragging = false
     isDraggingNewBody = false
     dragStartPos = null
     draggedBody = null
-  })
+    // A lifted finger leaves no hover, so don't keep highlighting the last touched body
+    if (e.pointerType === 'touch') hoveredBody = null
+  }
 
   canvas.addEventListener('contextmenu', (e) => {
     e.preventDefault()
+    // Right-click deletes; ignore touch long-press so holding a body to drag it doesn't remove it
+    if (lastPointerType === 'touch') return
     const rect = canvas.getBoundingClientRect()
     const mouseX = e.clientX - rect.left
     const mouseY = e.clientY - rect.top
