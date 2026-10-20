@@ -23,6 +23,11 @@ const { logoOnly = false } = Astro.props
 
     font-family: var(--font-mono);
     font-size: 0.75rem;
+
+    /* Same enlarged, layout-neutral tap target as the breadcrumb links. */
+    padding-block: 0.25rem 0.75rem;
+    margin-block: -0.25rem -0.75rem;
+    z-index: 1;
   }
 
   svg {
