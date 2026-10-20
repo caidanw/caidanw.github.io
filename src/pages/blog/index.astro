@@ -1,7 +1,8 @@
 ---
 import BreadcrumbLayout from '@/layouts/BreadcrumbLayout.astro'
 import ListHeader from '@/components/ListHeader.astro'
-import { format, compareDesc } from 'date-fns'
+import { compareDesc } from 'date-fns'
+import { formatShortPostDate } from '@/lib/date'
 
 interface PostFrontmatter {
   title: string
@@ -22,8 +23,6 @@ const byDateDescending = (a: Post, b: Post) => compareDesc(a.frontmatter.date, b
 const posts = Object.values(import.meta.glob<Post>(['./*.md', '!./_*.md'], { eager: true }))
   .filter(isPublished)
   .sort(byDateDescending)
-
-const formatDate = (date: string) => format(date, 'MMM dd, yyyy')
 ---
 
 <BreadcrumbLayout title="Blog - Caidan Williams" description="Thoughts and writings by Caidan Williams">
@@ -37,7 +36,7 @@ const formatDate = (date: string) => format(date, 'MMM dd, yyyy')
       {
         posts.map((post) => (
           <article class="post">
-            <time datetime={post.frontmatter.date.toString()}>{formatDate(post.frontmatter.date)}</time>
+            <time datetime={post.frontmatter.date.toString()}>{formatShortPostDate(post.frontmatter.date)}</time>
             <a href={post.url} class="post-title list">
               {post.frontmatter.title}
             </a>
