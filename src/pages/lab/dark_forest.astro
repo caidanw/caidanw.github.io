@@ -1,0 +1,138 @@
+---
+import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
+---
+
+<BreadcrumbLayout title="Dark Forest" description="A small firelit clearing with a primitive simulation." noindex>
+  <div id="app">
+    <div class="stage">
+      <canvas id="canvas" aria-label="A pixel-art forest clearing at night: a brazier, a resting knight, shroomfolk, a deer and a rain pool."></canvas>
+    </div>
+
+    <div class="bar">
+      <p class="hint">hover to learn names · click the ground to drop a stick</p>
+      <div class="toggles">
+        <button type="button" data-toggle="rain" aria-pressed="false">
+          <kbd>R</kbd> rain
+        </button>
+        <button type="button" data-toggle="glow" aria-pressed="true">
+          <kbd>G</kbd> glow
+        </button>
+        <button type="button" data-toggle="debug" aria-pressed="false">
+          <kbd>D</kbd> debug
+        </button>
+        <button type="button" data-toggle="paused" aria-pressed="false">
+          <kbd>␣</kbd> pause
+        </button>
+      </div>
+    </div>
+  </div>
+</BreadcrumbLayout>
+
+<style>
+  #app {
+    position: relative;
+    width: 100dvw;
+    height: calc(100dvh - var(--breadcrumb-header-height));
+    overflow: hidden;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .stage {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #canvas {
+    display: block;
+    image-rendering: pixelated;
+    cursor: crosshair;
+    touch-action: manipulation;
+  }
+
+  .bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    padding: 0.5rem 0.75rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--theme-text-dim);
+  }
+
+  .hint {
+    margin: 0;
+  }
+
+  .toggles {
+    display: flex;
+    gap: 0.4rem;
+  }
+
+  button {
+    font: inherit;
+    color: var(--theme-text-subtle);
+    background: transparent;
+    border: 1px solid var(--theme-border);
+    border-radius: 0.25rem;
+    padding: 0.2rem 0.5rem;
+    cursor: pointer;
+  }
+
+  button[aria-pressed='true'] {
+    color: #f08a3c;
+    border-color: color-mix(in srgb, #f08a3c 60%, transparent);
+  }
+
+  kbd {
+    font: inherit;
+    opacity: 0.6;
+  }
+</style>
+
+<script>
+  import { startDarkForest, type DarkForestState } from '../../lib/dark-forest'
+
+  const canvas = document.getElementById('canvas') as HTMLCanvasElement
+  const buttons = document.querySelectorAll<HTMLButtonElement>('[data-toggle]')
+  const params = new URLSearchParams(location.hash.slice(1))
+
+  const sync = (s: DarkForestState) => {
+    for (const b of buttons) b.setAttribute('aria-pressed', String(s[b.dataset.toggle as keyof DarkForestState]))
+  }
+
+  const forest = startDarkForest(canvas, {
+    debug: params.has('debug'),
+    rain: params.has('rain'),
+    onChange: sync,
+  })
+  sync(forest.state())
+
+  const actions: Record<string, () => void> = {
+    rain: forest.toggleRain,
+    glow: forest.toggleGlow,
+    debug: forest.toggleDebug,
+    paused: forest.togglePause,
+  }
+  for (const b of buttons) {
+    b.addEventListener('click', () => {
+      actions[b.dataset.toggle!]()
+      b.blur()
+    })
+  }
+
+  const keys: Record<string, string> = { r: 'rain', g: 'glow', d: 'debug', ' ': 'paused' }
+  addEventListener('keydown', (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return
+    const action = keys[e.key.toLowerCase()]
+    if (!action) return
+    e.preventDefault()
+    actions[action]()
+  })
+</script>
