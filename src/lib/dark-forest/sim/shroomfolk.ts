@@ -237,7 +237,7 @@ export const mushMachine: Def<Mush, MushState> = {
     entering: {
       // step through the open door; the hut's walls hide them as they pass inside
       enter: (m) => (m.tz = PROPS.huts[m.hut!].z + HUT.inside),
-      update: (m, _ctx, dt) => (moveTo(m, 3, dt) ? 'asleep' : undefined),
+      update: (m, _ctx, dt) => (moveTo(m, 3, dt, true) ? 'asleep' : undefined),
     },
     asleep: {
       update: (m, ctx, dt) => {
@@ -352,7 +352,7 @@ export const mushMachine: Def<Mush, MushState> = {
         m.z = PROPS.huts[m.hut!].z + HUT.inside
         m.tz = PROPS.huts[m.hut!].z + HUT.front + 1
       },
-      update: (m, _ctx, dt) => (moveTo(m, 3, dt) ? 'idle' : undefined),
+      update: (m, _ctx, dt) => (moveTo(m, 3, dt, true) ? 'idle' : undefined),
       exit: (m) => (m.hut = null),
     },
   },

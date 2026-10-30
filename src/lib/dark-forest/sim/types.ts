@@ -26,6 +26,9 @@ export interface Walker extends Point {
   tx: number
   tz: number
   flip: boolean
+  /** Waypoints toward (tx, tz) and the target they were found for (see nav.ts). */
+  path?: [number, number][]
+  pathKey?: string
 }
 
 // ---------- entities (each owns an fsm) ----------

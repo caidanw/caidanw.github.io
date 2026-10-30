@@ -10,6 +10,7 @@ import { H, HORIZON, PROPS, W, type Point } from '../world'
 import { rand } from '../util'
 import { send, tick, type Fsm, type MachineDef } from './fsm'
 import { stepAmbient } from './ambient'
+import { nav } from './nav'
 import { fireMachine, createFire } from './fire'
 import { createCrow, createFrog, crowMachine, frogMachine } from './critters'
 import { createDeer, deerMachine } from './deer'
@@ -94,6 +95,13 @@ export function createWorld(): World {
 export function step(w: World, dt: number, isOpenWater: (sx: number, sy: number) => boolean) {
   const ctx = ctxFor(w)
   w.t += dt
+  // keep the walking grid current: the pool's level (paths are re-found when it moves) and the seated knight
+  if (Math.abs(nav.level - w.poolLevel) > 0.03) {
+    nav.level = w.poolLevel
+    nav.version++
+  }
+  const seated = w.knight.fsm.state === 'resting' || w.knight.fsm.state === 'nodding'
+  nav.knight = seated ? { x: w.knight.x, z: w.knight.z } : null
   if (w.cursor) ctx.emit('cursor', w.cursor)
 
   for (const [def, e] of agents(w)) tick(def, e, ctx, dt)

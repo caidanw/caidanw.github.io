@@ -117,7 +117,7 @@ export interface Point {
 }
 
 export const POOL = { x: 12, z: 31, rx: 30, rz: 12 }
-const poolMetric = (x: number, z: number) => {
+export const poolMetric = (x: number, z: number): number => {
   const a = (x - POOL.x) / POOL.rx
   const b = (z - POOL.z) / POOL.rz
   return a * a + b * b - (vnoise(x * 0.15, z * 0.15) - 0.5) * 0.35
@@ -193,7 +193,7 @@ export const GROVE_SPOTS: [number, number][] = (() => {
 })()
 
 /** Hut geometry in world units: the door sits left of centre; shroomfolk step from the front point to the inside point. */
-export const HUT = { doorDx: -1.9, front: 3.5, inside: -3, capacity: 2 }
+export const HUT = { doorDx: -1.9, front: 6.5, inside: -3, capacity: 2 }
 
 const avoid: (Point & { pad: number })[] = [
   ...PROPS.huts.map((p) => ({ ...p, pad: 8 })),

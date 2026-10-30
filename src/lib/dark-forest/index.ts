@@ -15,7 +15,7 @@ export interface DarkForestOptions {
   speed?: number
   /** Light objects with generated normal maps (default on). */
   normals?: boolean
-  /** Seconds of vigil before the knight goes to rest in the grove (default 40 minutes). */
+  /** Seconds of vigil before the knight goes to rest in the grove (default: a random 4 to 8 minutes). */
   vigil?: number
   /** What stands planted in the fire. */
   relic?: Relic
@@ -42,6 +42,8 @@ export interface DarkForest {
   state(): DarkForestState
   /** The live world, for debugging and tests. */
   inspect(): World
+  /** What the pointer is over right now: [name, lore], or null. */
+  hovering(): [string, string] | null
   destroy(): void
 }
 
@@ -144,6 +146,7 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
     },
     state,
     inspect: () => world,
+    hovering: () => renderer.hovered,
     destroy() {
       cancelAnimationFrame(raf)
       ro.disconnect()

@@ -12,6 +12,7 @@
  *   resting -> rising -> walking -> kneeling -> gone
  */
 import { KNIGHT_GRAVE, PROPS } from '../world'
+import { rand } from '../util'
 import { fsm } from './fsm'
 import { isRaining, moveTo, tell } from './helpers'
 import type { Def, Knight, KnightState, World } from './types'
@@ -25,7 +26,7 @@ export const createKnight = (): Knight => ({
   fsm: fsm<KnightState>('resting'),
   headDown: false,
   vigil: 0,
-  vigilLength: 40 * 60,
+  vigilLength: rand(4, 8) * 60, // most visitors watch for a few minutes; the end of his story should be there to find
   route: [],
   sword: 'planted',
   step: 0,

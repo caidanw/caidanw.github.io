@@ -21,7 +21,6 @@ import {
   N,
   PADS,
   PROPS,
-  POOL,
   REEDS,
   SHROOMS,
   STONE_RING,
@@ -40,23 +39,30 @@ import {
   CROW,
   DEER,
   DEER_PAL,
+  DEER_PARTS,
   FROG,
   FROG_PAL,
+  FROG_PARTS,
   GLOWCAP,
   GLOWCAP_PAL,
+  GLOWCAP_PARTS,
+  KEEPER_TRIM,
   KNIGHT,
   KNIGHT_KNEEL,
   KNIGHT_NOD,
   KNIGHT_PAL,
+  KNIGHT_PARTS,
   KNIGHT_SHINE,
   KNIGHT_STAND,
   MUSH,
+  MUSH_KEEPER,
   MUSH_PAL,
   MUSH_PAL_ELDER,
+  MUSH_PARTS,
   type Palette,
   type Rows,
 } from './sprites'
-import { lightness, reliefNormals, spriteNormals } from './normals'
+import { lightness, partNormals, reliefNormals, spriteNormals, type Part } from './normals'
 import { WEIGHT, micro, shape, type Normal } from './materials'
 import { gatherLight, groundGrain, prepareLights, type Caster, type Light } from './lights'
 import { WALKING, doorOpen, hutOccupancy, isElder, isMoving, isRaining, lightRadius, perchPos, type Mush, type World } from './sim'
@@ -129,6 +135,8 @@ function makeBuf() {
     mw: f(),
     // specular strength (metal gleams)
     sp: f(),
+    // which hoverable thing this pixel belongs to (0 = nothing)
+    hv: new Int32Array(N),
     // planar reflection (what the pool mirrors at this pixel)
     rr: f(),
     rg: f(),
@@ -253,6 +261,9 @@ const STICK_POSES: [number, number][][] = [
   ],
 ]
 
+/** States in which shroomfolk sit down once they've arrived. */
+const SITTING: string[] = ['visit', 'keep', 'farewell', 'tend']
+
 /** Hut pixel geometry, relative to the hut's base (k = columns from centre, r = rows up). */
 const HUT_PX = { stemH: 16, capY: 20, inside: -3.5, chimney: [9.5, 31] as const }
 const isDoor = (k: number, r: number) => (k >= -4 && k <= -1 && r <= 7) || (r === 8 && (k === -3 || k === -2))
@@ -362,6 +373,14 @@ const RELICS: Record<Relic, { rows: Rows; pal: Palette; name: string; sub: strin
   },
 }
 
+/** Stable ids for hover tags, by key ('knight', 'hut0', 'mush42'...). */
+const TAGS = new Map<string, number>()
+function tagId(key: string): number {
+  let id = TAGS.get(key)
+  if (!id) TAGS.set(key, (id = TAGS.size + 1))
+  return id
+}
+
 const STARS = Array.from({ length: 120 }, (_, i) => {
   const r = rngFrom(i * 77 + 5)
   return { x: (r() * W) | 0, y: (r() * (HORIZON - 6)) | 0, b: 0.3 + r() * 0.7, ph: r() * 6 }
@@ -392,16 +411,6 @@ export interface RenderOptions {
   normals: boolean
 }
 
-interface Hit {
-  x0: number
-  y0: number
-  x1: number
-  y1: number
-  depth: number
-  name: string
-  sub: string
-}
-
 export class Renderer {
   private ctx: CanvasRenderingContext2D
   private scale = 4
@@ -430,9 +439,14 @@ export class Renderer {
   private bakedLevel = -1
   /** Region id stamped on static pixels while building (0 = none). */
   private region = 0
-  private hits: Hit[] = []
+  /** Hover tag stamped on everything drawn while it's set (see tagged()). */
+  private tag = 0
+  /** What each hover tag is called this frame: [name, line of lore]. */
+  private labels = new Map<number, [string, string]>()
   /** Pointer position in framebuffer pixels, or null when it's off the canvas. */
   pointer: { x: number; y: number } | null = null
+  /** What the pointer is over, as of the last frame (for tests and debugging). */
+  hovered: [string, string] | null = null
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -511,6 +525,7 @@ export class Renderer {
     B.mh[i] = mh
     B.mw[i] = mw
     B.sp[i] = spec
+    B.hv[i] = this.tag
     if (noRefl) return true
     // mirror the pixel about its base line into the pool
     const ry = Math.round(2 * baseY - py)
@@ -542,6 +557,7 @@ export class Renderer {
     if (px < 0 || px >= W || py < 0 || py >= H) return
     const i = py * W + px
     if (depth !== undefined && depth < this.fb.dep[i]) return
+    if (this.tag) this.fb.hv[i] = this.tag
     fx.r[i] = c[0]
     fx.g[i] = c[1]
     fx.b[i] = c[2]
@@ -568,7 +584,16 @@ export class Renderer {
     wz: number,
     pal: Palette,
     flip: boolean,
-    opts: { lift?: number; dep?: number; glowChar?: string; hover?: [string, string]; sinkTo?: number; shine?: Record<string, number> } = {},
+    opts: {
+      lift?: number
+      dep?: number
+      glowChar?: string
+      /** Hover key and label: these pixels name this thing. */
+      hover?: { key: string; name: string; sub: string }
+      sinkTo?: number
+      shine?: Record<string, number>
+      parts?: Part[]
+    } = {},
   ) {
     const [bx, by] = project(wx, 0, wz)
     const dep = opts.dep ?? wz + 0.5
@@ -579,7 +604,12 @@ export class Renderer {
     const at = (r: number, c: number) => rows[r][flip ? w - 1 - c : c]
     const filled = (r: number, c: number) => r >= 0 && r < h && c >= 0 && c < w && at(r, c) !== '.'
     const clip = opts.sinkTo ?? Infinity // rows below this screen line are under the soil
-    const nm = spriteNormals(rows, (ch) => pal[ch])
+    const nm = opts.parts ? partNormals(rows, opts.parts) : spriteNormals(rows, (ch) => pal[ch])
+    const prevTag = this.tag
+    if (opts.hover) {
+      this.say(opts.hover.key, opts.hover.name, opts.hover.sub)
+      this.tag = tagId(opts.hover.key)
+    }
     for (let r = -1; r <= h; r++) {
       for (let c = -1; c <= w; c++) {
         if (filled(r, c) || (r === h && lift === 0)) continue
@@ -602,13 +632,22 @@ export class Renderer {
         if (this.put(B, px, py, pal[ch], wx, wz, h - r + lift, by, dep, false, nrm, 0, 0, opts.shine?.[ch] ?? 0) && ch === opts.glowChar) glow.push([px, py])
       }
     }
-    if (opts.hover) this.hit(bx - (w >> 1) - 1, by - h - lift, bx - (w >> 1) + w, by + 1, dep, ...opts.hover)
+    this.tag = prevTag
     return { bx, by, h, glow, dep }
   }
 
-  /** Register a hover box (screen space, base pixels). The nearest box under the pointer wins. */
-  private hit(x0: number, y0: number, x1: number, y1: number, depth: number, name: string, sub: string) {
-    this.hits.push({ x0, y0, x1, y1, depth, name, sub })
+  /** Name a hoverable thing for this frame. */
+  private say(key: string, name: string, sub: string) {
+    this.labels.set(tagId(key), [name, sub])
+  }
+
+  /** Draw with every pixel stamped as belonging to `key`, so hovering exactly those pixels names it. */
+  private tagged<T>(key: string, fn: () => T): T {
+    const prev = this.tag
+    this.tag = tagId(key)
+    const out = fn()
+    this.tag = prev
+    return out
   }
 
   // ---------------------------------------------------------------- static layer
@@ -1035,13 +1074,13 @@ export class Renderer {
     // everything that stands up, back to front
     const statics: { z: number; draw: () => void }[] = [
       ...TREES.map((t) => ({ z: t.z, draw: () => this.drawTree(B, t) })),
-      ...PROPS.huts.map((h) => ({ z: h.z, draw: () => this.drawHut(B, h) })),
-      ...PROPS.graves.map((g, i) => ({ z: g.z, draw: () => this.drawGrave(B, g, i) })),
-      { z: PROPS.lantern.z, draw: () => this.drawLanternPost(B, PROPS.lantern) },
-      { z: PROPS.trigon.z, draw: () => this.drawTrigon(B, PROPS.trigon) },
-      { z: PROPS.pack.z, draw: () => this.drawPack(B, PROPS.pack) },
-      { z: -13, draw: () => this.drawHearthstones(B) },
-      { z: 0, draw: () => this.drawStoneRing(B) },
+      ...PROPS.huts.map((h, i) => ({ z: h.z, draw: () => this.tagged(`hut${i}`, () => this.drawHut(B, h)) })),
+      ...PROPS.graves.map((g, i) => ({ z: g.z, draw: () => this.tagged('grove', () => this.drawGrave(B, g, i)) })),
+      { z: PROPS.lantern.z, draw: () => this.tagged('lantern', () => this.drawLanternPost(B, PROPS.lantern)) },
+      { z: PROPS.trigon.z, draw: () => this.tagged('trigon', () => this.drawTrigon(B, PROPS.trigon)) },
+      { z: PROPS.pack.z, draw: () => this.tagged('pack', () => this.drawPack(B, PROPS.pack)) },
+      { z: -13, draw: () => this.tagged('hearth', () => this.drawHearthstones(B)) },
+      { z: 0, draw: () => this.tagged('fire', () => this.drawStoneRing(B)) },
     ]
     for (const s of statics.sort((a, b) => a.z - b.z)) s.draw()
     // small things without normals of their own
@@ -1185,12 +1224,14 @@ export class Renderer {
   private drawKnight(B: Buf, w: World) {
     const k = w.knight
     const st = k.fsm.state
-    if (k.sword === 'planted') this.drawSword(B, PROPS.sword)
+    if (k.sword === 'planted') {
+      this.tagged('sword', () => this.drawSword(B, PROPS.sword))
+      this.say('sword', 'his sword', 'he has not drawn it in a long time')
+    }
     if (k.sword === 'laid') {
       // his grave, beside his companions': a cairn, his sword planted, his helm on the hilt
-      this.drawGrave(B, { ...KNIGHT_GRAVE, helm: true }, 1)
-      const [gx, gy] = project(KNIGHT_GRAVE.x, 0, KNIGHT_GRAVE.z)
-      this.hit(gx - 4, gy - 18, gx + 4, gy + 2, KNIGHT_GRAVE.z, 'the last knight', 'he rests with them now')
+      this.tagged('knightgrave', () => this.drawGrave(B, { ...KNIGHT_GRAVE, helm: true }, 1))
+      this.say('knightgrave', 'the last knight', 'he rests with them now')
     }
     if (st === 'gone') return
     const sub: Record<string, string> = {
@@ -1200,16 +1241,20 @@ export class Renderer {
       walking: 'walking to the quiet grove',
       kneeling: 'laying down his sword',
     }
-    const hover: [string, string] = ['the last knight', sub[st]]
-    const shine = KNIGHT_SHINE
-    if (st === 'resting' || st === 'nodding') {
-      this.sprite(B, st === 'nodding' && k.headDown ? KNIGHT_NOD : KNIGHT, k.x, k.z, KNIGHT_PAL, false, { hover, shine })
-    } else if (st === 'kneeling') {
-      this.sprite(B, KNIGHT_KNEEL, k.x, k.z, KNIGHT_PAL, false, { hover, shine })
-    } else {
-      const frame = st === 'walking' ? KNIGHT_STAND[((k.step * 3) % 2) | 0] : KNIGHT_STAND[0]
-      this.sprite(B, frame, k.x, k.z, KNIGHT_PAL, k.flip, { hover, shine })
-    }
+    const opts = { hover: { key: 'knight', name: 'the last knight', sub: sub[st] }, shine: KNIGHT_SHINE, parts: KNIGHT_PARTS }
+    if (st === 'resting' || st === 'nodding') this.sprite(B, st === 'nodding' && k.headDown ? KNIGHT_NOD : KNIGHT, k.x, k.z, KNIGHT_PAL, false, opts)
+    else if (st === 'kneeling') this.sprite(B, KNIGHT_KNEEL, k.x, k.z, KNIGHT_PAL, false, opts)
+    else this.sprite(B, st === 'walking' ? KNIGHT_STAND[((k.step * 3) % 2) | 0] : KNIGHT_STAND[0], k.x, k.z, KNIGHT_PAL, k.flip, opts)
+  }
+
+  /** Which frame a shroomfolk shows: walking, standing, or sitting (with the occasional blink). */
+  private mushFrame(m: Mush, w: World, keeper: boolean): Rows {
+    const set = keeper ? MUSH_KEEPER : MUSH
+    const st = m.fsm.state
+    const moving = WALKING.includes(st) && isMoving(m)
+    if (moving) return set.walk[((w.t * (isElder(m) ? 5 : 7)) % 2) | 0]
+    if (SITTING.includes(st)) return (w.t * 0.8 + m.id * 7) % 3.5 < 0.15 ? set.sitBlink : set.sit
+    return set.walk[0]
   }
 
   private drawDynamic(w: World) {
@@ -1217,54 +1262,95 @@ export class Renderer {
     const B = this.fb
     copyBuf(B, this.st)
     for (const k in this.fx) this.fx[k as keyof typeof this.fx].fill(0)
-    this.hits = []
+    this.labels.clear()
+    this.tag = 0
     this.region = 0
 
-    // ---- objects first (they fill the depth buffer that emissives test against)
-    const [fireX, fireY] = this.drawCampfire(B, w)
-    const [, groundY] = project(0, 0, 0)
-    this.drawWoodpile(B, w.pile)
-    this.drawKnight(B, w)
-    for (const s of w.sticks) this.drawStick(B, s.x, s.z, 0, s.angle, s.y)
-    PROPS.huts.forEach((hut, i) => this.drawHutDoor(B, hut, doorOpen(w, i)))
-    PROPS.graves.forEach((g, i) => {
-      const [gx, gy] = project(g.x + 3, 0, g.z + 1)
-      this.put(B, gx, gy, C.candle, g.x + 3, g.z + 1, 1, gy, g.z + 2)
-      if (w.candles[i].wax > 0.4) this.put(B, gx, gy - 1, C.candle, g.x + 3, g.z + 1, 2, gy, g.z + 2)
+    // names for the static props (their pixels were tagged when the static layer was built)
+    PROPS.huts.forEach((_, i) => {
+      const sleepers = w.mush.filter((m) => m.fsm.state === 'asleep' && m.hut === i).map((m) => m.name)
+      const sub = sleepers.length ? `${sleepers.join(' and ')} asleep inside` : doorOpen(w, i) ? 'someone is stepping through the door' : 'empty for now'
+      this.say(`hut${i}`, 'shroomfolk hollow', sub)
     })
+    this.say('lantern', 'the road out', 'someone keeps the lantern lit')
+    this.say('trigon', 'the trigon stone', w.rune > 0.1 ? 'it hums in the rain' : 'cold and quiet')
+    this.say('pack', 'his pack', w.knight.fsm.state === 'gone' ? 'left by the fire; nobody has moved it' : 'everything he still owns')
+    this.say('hearth', 'the hearthstones', w.fire.heat > 0.55 ? 'the spiral glows when the fire is high' : 'older than the village')
+    {
+      const companions = w.knight.fsm.state === 'gone' ? 'the knight and his companions' : "the knight's companions"
+      const village = w.memorials.length ? `, and ${w.memorials.length} of the village` : ''
+      const candles = w.candles.some((c) => c.lit) ? '' : ' · the candles are out'
+      this.say('grove', 'the quiet grove', `${companions}${village}${candles}`)
+    }
+    this.say('fire', 'the campfire', w.fire.fsm.state === 'roaring' ? 'roaring' : w.fire.fsm.state === 'steady' ? 'burning steady' : 'burning low')
+    this.say('woodpile', 'woodpile', `${w.pile} log${w.pile === 1 ? '' : 's'}, stacked by small hands`)
+    this.say('pool', 'rain pool', w.poolLevel > 1.08 ? 'swollen with rain' : 'still and dark')
+    this.say('foxfire', 'foxfire', 'a fungus that glows on rotting wood')
+    this.say('relic', RELICS[this.relic].name, RELICS[this.relic].sub)
+
+    // ---- objects first (they fill the depth buffer that emissives test against)
+    const [fireX, fireY] = this.tagged('fire', () => this.drawCampfire(B, w))
+    const [, groundY] = project(0, 0, 0)
+    this.tagged('woodpile', () => this.drawWoodpile(B, w.pile))
+    this.drawKnight(B, w)
+    w.sticks.forEach((s, i) => {
+      this.say(`stick${i}`, 'a stick', s.landed ? (s.claimed ? 'someone is coming for it' : 'waiting to be fetched') : 'falling')
+      this.tagged(`stick${i}`, () => this.drawStick(B, s.x, s.z, 0, s.angle, s.y))
+    })
+    PROPS.huts.forEach((hut, i) => this.tagged(`hut${i}`, () => this.drawHutDoor(B, hut, doorOpen(w, i))))
+    this.tagged('grove', () =>
+      PROPS.graves.forEach((g, i) => {
+        const [gx, gy] = project(g.x + 3, 0, g.z + 1)
+        this.put(B, gx, gy, C.candle, g.x + 3, g.z + 1, 1, gy, g.z + 2)
+        if (w.candles[i].wax > 0.4) this.put(B, gx, gy - 1, C.candle, g.x + 3, g.z + 1, 2, gy, g.z + 2)
+      }),
+    )
 
     // glowcaps: where shroomfolk returned to the soil
     const glowcaps = w.memorials.map((m) => ({
-      ...this.sprite(B, GLOWCAP, m.x, m.z, GLOWCAP_PAL, false, { glowChar: 'c', hover: ['a glowcap', `${m.name} rests here`] }),
+      ...this.sprite(B, GLOWCAP, m.x, m.z, GLOWCAP_PAL, false, {
+        glowChar: 'c',
+        parts: GLOWCAP_PARTS,
+        hover: { key: `glowcap${m.spot}`, name: 'a glowcap', sub: `${m.name} rests here` },
+      }),
       ph: m.ph,
+      key: `glowcap${m.spot}`,
     }))
 
     // shroomfolk (asleep ones are inside their hut)
-    const caps: { glow: [number, number][]; by: number; dep: number; elder: boolean }[] = []
-    const lanterns: { x: number; y: number; dep: number }[] = []
+    const caps: { glow: [number, number][]; by: number; dep: number; elder: boolean; key: string }[] = []
+    const lanterns: { x: number; y: number; dep: number; key: string }[] = []
+    let keeperEmber: { x: number; y: number; dep: number; key: string } | null = null
     for (const m of w.mush) {
       const st = m.fsm.state
       if (st === 'asleep') continue
+      const key = `mush${m.id}`
+      const [name, sub] = this.mushHover(m, w)
+      const hover = { key, name, sub }
       if (st === 'sprouting') {
-        this.sprite(B, m.size < 0.5 ? MUSH.baby : MUSH.mid, m.x, m.z, MUSH_PAL, m.flip, { hover: this.mushHover(m, w) })
+        this.sprite(B, m.size < 0.5 ? MUSH.baby : MUSH.mid, m.x, m.z, MUSH_PAL, m.flip, { hover, parts: MUSH_PARTS })
         continue
       }
+      const keeper = w.keeperId === m.id
       const moving = WALKING.includes(st) && isMoving(m)
       const hop = isRaining(w) && moving && Math.sin(t * 12 + m.id * 10) > 0.6 ? 1 : 0
       const elder = isElder(m)
       const [, by] = project(m.x, 0, m.z)
       const sink = st === 'wilting' ? Math.round(m.sink * 9) : 0
-      const sp = this.sprite(B, MUSH.walk[moving ? ((t * (elder ? 5 : 7)) % 2) | 0 : 0], m.x, m.z, elder ? MUSH_PAL_ELDER : MUSH_PAL, m.flip, {
+      const pal = keeper ? { ...(elder ? MUSH_PAL_ELDER : MUSH_PAL), ...KEEPER_TRIM } : elder ? MUSH_PAL_ELDER : MUSH_PAL
+      const sp = this.sprite(B, this.mushFrame(m, w, keeper), m.x, m.z, pal, m.flip, {
         glowChar: 'w',
         lift: hop - sink,
         sinkTo: sink ? by : undefined,
-        hover: this.mushHover(m, w),
+        hover,
+        parts: MUSH_PARTS,
+        shine: keeper ? { h: 1 } : undefined,
       })
-      caps.push({ ...sp, elder })
-      // the keeper wears a little circlet of the knight's steel
-      if (w.keeperId === m.id) for (let k = -1; k <= 1; k++) this.put(B, sp.bx + k, sp.by - sp.h + 1 - hop + sink, C.helm, m.x, m.z, sp.h, sp.by, sp.dep + 0.02)
-      if (m.carrying) this.drawStick(B, m.x, m.z, sp.h + 1 + hop)
-      if (st === 'departing') lanterns.push({ x: sp.bx + (m.flip ? -4 : 4), y: sp.by - 4, dep: sp.dep + 0.02 })
+      caps.push({ ...sp, elder, key })
+      if (m.carrying) this.tagged(key, () => this.drawStick(B, m.x, m.z, sp.h + 1 + hop))
+      if (st === 'departing') lanterns.push({ x: sp.bx + (m.flip ? -4 : 4), y: sp.by - 4, dep: sp.dep + 0.02, key })
+      // the keeper carries an ember from the fire, so you can always find them, even in the dark
+      if (keeper) keeperEmber = { x: sp.bx + (m.flip ? -4 : 4), y: sp.by - 3, dep: sp.dep + 0.02, key }
     }
 
     // deer
@@ -1272,7 +1358,7 @@ export class Renderer {
     const ds = D.fsm.state
     const drows = ds === 'drink' ? DEER.drink : ds === 'graze' ? DEER.walk[0] : DEER.walk[((D.step * 5) % 2) | 0]
     const deerSub = ds === 'flee' ? 'startled' : ds === 'drink' ? 'drinking' : D.thirst > 1 ? 'thirsty' : 'grazing'
-    this.sprite(B, drows, D.x, D.z, DEER_PAL, D.flip, { hover: ['a deer', deerSub] })
+    this.sprite(B, drows, D.x, D.z, DEER_PAL, D.flip, { hover: { key: 'deer', name: 'a deer', sub: deerSub }, parts: DEER_PARTS })
 
     // frog, mid-hop or sitting on its pad
     const F = w.frog
@@ -1283,155 +1369,151 @@ export class Renderer {
     const frogX = ax + (bx2 - ax) * k
     const frogZ = az + (bz2 - az) * k
     const arc = hopping ? Math.round(Math.sin(k * Math.PI) * 4) : 0
-    const frog = this.sprite(B, FROG[hopping ? 1 : 0], frogX, frogZ, FROG_PAL, bx2 < ax, { lift: arc + 1, dep: frogZ + 1, hover: ['the frog', 'unimpressed'] })
+    const frog = this.sprite(B, FROG[hopping ? 1 : 0], frogX, frogZ, FROG_PAL, bx2 < ax, {
+      lift: arc + 1,
+      dep: frogZ + 1,
+      hover: { key: 'frog', name: 'the frog', sub: 'unimpressed' },
+      parts: FROG_PARTS,
+    })
 
     // crow on the trigon stone (in flight it's drawn with the emissives, over the sky)
     const K = w.crow
     if (K.fsm.state === 'perch') {
       const [px, py] = perchPos()
       const lookLeft = t % 6 < 3
-      CROW[0].forEach((row, r) =>
-        [...row].forEach((ch, c) => {
-          if (ch !== '.') this.put(B, px + (lookLeft ? 3 - c : c) - 2, py - 3 + r, C.crow, PROPS.trigon.x, PROPS.trigon.z, 40, py, PROPS.trigon.z + 1)
-        }),
+      this.say('crow', 'a crow', 'it watches the fire too')
+      this.tagged('crow', () =>
+        CROW[0].forEach((row, r) =>
+          [...row].forEach((ch, c) => {
+            if (ch !== '.') this.put(B, px + (lookLeft ? 3 - c : c) - 2, py - 3 + r, C.crow, PROPS.trigon.x, PROPS.trigon.z, 40, py, PROPS.trigon.z + 1)
+          }),
+        ),
       )
-      this.hit(px - 3, py - 4, px + 2, py, PROPS.trigon.z + 1, 'a crow', 'it watches the fire too')
     }
 
     // ---- emissives, depth-tested against everything above
     const R = lightRadius(w)
     const heat = w.fire.heat
-    for (const cap of caps) for (const [gx, gy] of cap.glow) this.putFx(gx, gy, GLOW.cap, cap.elder ? 0.45 : 0.85, cap.by, cap.dep + 0.01)
-    for (const l of lanterns) {
-      this.putFx(l.x, l.y, GLOW.lantern[0], 0.95, undefined, l.dep)
-      this.putFx(l.x, l.y + 1, GLOW.lantern[1], 0.8, undefined, l.dep)
+    for (const cap of caps)
+      this.tagged(cap.key, () => {
+        for (const [gx, gy] of cap.glow) this.putFx(gx, gy, GLOW.cap, cap.elder ? 0.45 : 0.85, cap.by, cap.dep + 0.01)
+      })
+    for (const l of lanterns)
+      this.tagged(l.key, () => {
+        this.putFx(l.x, l.y, GLOW.lantern[0], 0.95, undefined, l.dep)
+        this.putFx(l.x, l.y + 1, GLOW.lantern[1], 0.8, undefined, l.dep)
+      })
+    if (keeperEmber) {
+      const e: { x: number; y: number; dep: number; key: string } = keeperEmber
+      const pulse = 0.75 + 0.25 * Math.sin(t * 3)
+      this.tagged(e.key, () => {
+        this.putFx(e.x, e.y, GLOW.ember, pulse, undefined, e.dep)
+        this.putFx(e.x, e.y - 1, FLAME[2], 0.6 * pulse, undefined, e.dep, 0.6)
+      })
     }
-    if (F.croak > 0) this.putFx(frog.bx + 1, frog.by - 1, GLOW.croak, 0.8, undefined, frog.dep + 0.01)
+    if (F.croak > 0) this.tagged('frog', () => this.putFx(frog.bx + 1, frog.by - 1, GLOW.croak, 0.8, undefined, frog.dep + 0.01))
     if (K.fsm.state === 'flying' || K.fsm.state === 'returning') {
-      CROW[1 + (((t * 8) % 2) | 0)].forEach((row, r) =>
-        [...row].forEach((ch, c) => {
-          if (ch !== '.') this.putFx(K.x + c - 2, K.y + r - 1, C.crow, 1, undefined, undefined, 0)
-        }),
+      this.say('crow', 'a crow', 'off somewhere drier')
+      this.tagged('crow', () =>
+        CROW[1 + (((t * 8) % 2) | 0)].forEach((row, r) =>
+          [...row].forEach((ch, c) => {
+            if (ch !== '.') this.putFx(K.x + c - 2, K.y + r - 1, C.crow, 1, undefined, undefined, 0)
+          }),
+        ),
       )
-      this.hit(K.x - 3, K.y - 2, K.x + 2, K.y + 2, 100, 'a crow', 'off somewhere drier')
     }
-    PROPS.huts.forEach((hut, i) => {
-      const [hx, hy] = project(hut.x, 0, hut.z)
-      const asleep = hutOccupancy(w, i)
-      const open = doorOpen(w, i)
-      if (asleep || open)
-        for (const [dk, dr] of DOOR_PX) this.putFx(hx + dk, hy - dr, GLOW.inside, asleep ? 0.45 : 0.25, undefined, hut.z + HUT_PX.inside + 0.1, 0.3)
-      if (asleep) for (const [dk, dr] of WINDOW_PX) this.putFx(hx + dk, hy - dr, GLOW.window, 0.95, undefined, hut.z + 0.05)
-      const sleepers = w.mush.filter((m) => m.fsm.state === 'asleep' && m.hut === i).map((m) => m.name)
-      const sub = sleepers.length ? `${sleepers.join(' and ')} asleep inside` : open ? 'someone is stepping through the door' : 'empty for now'
-      this.hit(hx - 16, hy - HUT_PX.capY - 8, hx + 16, hy + 1, hut.z, 'shroomfolk hollow', sub)
-    })
-    {
+    PROPS.huts.forEach((hut, i) =>
+      this.tagged(`hut${i}`, () => {
+        const [hx, hy] = project(hut.x, 0, hut.z)
+        const asleep = hutOccupancy(w, i)
+        if (asleep || doorOpen(w, i))
+          for (const [dk, dr] of DOOR_PX) this.putFx(hx + dk, hy - dr, GLOW.inside, asleep ? 0.45 : 0.25, undefined, hut.z + HUT_PX.inside + 0.1, 0.3)
+        if (asleep) for (const [dk, dr] of WINDOW_PX) this.putFx(hx + dk, hy - dr, GLOW.window, 0.95, undefined, hut.z + 0.05)
+      }),
+    )
+    this.tagged('lantern', () => {
       const p = PROPS.lantern
       const [lx, ly] = project(p.x, 0, p.z)
       const fl = 0.75 + 0.25 * vnoise(t * 6, 7)
       GLOW.lantern.forEach((c, i) => this.putFx(lx + 5, ly - 16 - i, c, fl * (i === 2 ? 0.8 : 1), ly, p.z + 0.05))
-      this.hit(lx - 6, ly - 22, lx + 7, ly + 1, p.z, 'the road out', 'someone keeps the lantern lit')
-    }
-    {
-      const p = PROPS.trigon
-      const [bx, by, sc] = project(p.x, 0, p.z)
-      const hgt = Math.round(40 * sc)
-      const wid = Math.round(7 * sc)
-      if (w.rune > 0.02) {
-        const hy = by - Math.round(hgt * 0.6)
+    })
+    if (w.rune > 0.02)
+      this.tagged('trigon', () => {
+        const p = PROPS.trigon
+        const [bx, by, sc] = project(p.x, 0, p.z)
+        const hy = by - Math.round(Math.round(40 * sc) * 0.6)
         const pulse = w.rune * (0.7 + 0.3 * Math.sin(t * 2))
         // light sits in the cut, radiates faintly from the face inside it, and haloes the lip around it
         for (const [dx, dy] of TRIGON_INSIDE) this.putFx(bx + dx, hy + dy, GLOW.rune, 0.22 * pulse, undefined, p.z + 0.2, 0.4)
         for (const [dx, dy] of TRIGON_LIP) this.putFx(bx + dx, hy + dy, GLOW.rune, 0.18 * pulse, undefined, p.z + 0.2, 0.6)
         for (const [dx, dy] of trigonPx) this.putFx(bx + dx, hy + dy, GLOW.rune, pulse, undefined, p.z + 0.2)
-      }
-      this.hit(bx - wid, by - hgt, bx + wid, by + 1, p.z, 'the trigon stone', w.rune > 0.1 ? 'it hums in the rain' : 'cold and quiet')
-    }
-    {
-      let x0 = Infinity
-      let y0 = Infinity
-      let x1 = -Infinity
-      let y1 = -Infinity
+      })
+    this.tagged('grove', () =>
       PROPS.graves.forEach((g, i) => {
         const [gx, gy] = project(g.x + 3, 0, g.z + 1)
         const c = w.candles[i]
         if (c.lit) this.putFx(gx, gy - (c.wax > 0.4 ? 2 : 1), GLOW.candle, (0.7 + 0.3 * vnoise(t * 7 + g.x, 2)) * (0.6 + 0.4 * c.wax), gy, g.z + 2.05)
-        const [bx, by] = project(g.x, 0, g.z)
-        x0 = Math.min(x0, bx - 4)
-        x1 = Math.max(x1, gx + 1)
-        y0 = Math.min(y0, by - 17)
-        y1 = Math.max(y1, by + 2)
-      })
-      const companions = w.knight.fsm.state === 'gone' ? 'the knight and his companions' : "the knight's companions"
-      const village = w.memorials.length ? `, and ${w.memorials.length} of the village` : ''
-      const candles = w.candles.some((c) => c.lit) ? '' : ' · the candles are out'
-      this.hit(x0, y0, x1, y1, PROPS.graves[0].z, 'the quiet grove', `${companions}${village}${candles}`)
-    }
+      }),
+    )
     // the carved spiral on the middle hearthstone warms with the fire
-    {
+    this.tagged('hearth', () => {
       const hs = HEARTHSTONES.find((h) => h.carved)!
       const [bx, by, s] = project(hs.x, 0, hs.z)
       const cy = by - Math.round(Math.round(hs.h * s * 0.75) * 0.55)
       const warm = clamp((heat - 0.35) * 1.6)
       if (warm > 0.02)
         for (const [dx, dy] of SPIRAL_PX) this.putFx(bx + dx, cy + dy, GLOW.carving, warm * (0.6 + 0.2 * Math.sin(t * 1.5)), undefined, hs.z + 0.1)
-      let x0 = Infinity
-      let x1 = -Infinity
-      let y0 = Infinity
-      for (const h of HEARTHSTONES) {
-        const [hx, hy, hs2] = project(h.x, 0, h.z)
-        x0 = Math.min(x0, hx - h.w - 1)
-        x1 = Math.max(x1, hx + h.w + 1)
-        y0 = Math.min(y0, hy - Math.round(h.h * hs2 * 0.75))
-      }
-      this.hit(x0, y0, x1, by + 1, hs.z, 'the hearthstones', warm > 0.3 ? 'the spiral glows when the fire is high' : 'older than the village')
-    }
+    })
     // foxfire: faint violet specks on rotten wood (ambient, just pretty)
-    for (const s of SHROOMS) {
-      const [sx, sy] = project(s.x, 0, s.z)
-      const a = 0.4 + 0.25 * Math.sin(t * 0.8 + s.ph)
-      this.putFx(sx, sy, GLOW.foxfire, a, sy, s.z + 0.05, 0.6)
-      this.putFx(sx + 1, sy, GLOW.foxfireD, a * 0.7, sy, s.z + 0.05, 0.6)
-      this.hit(sx - 2, sy - 2, sx + 3, sy + 1, s.z, 'foxfire', 'a fungus that glows on rotting wood')
-    }
+    this.tagged('foxfire', () => {
+      for (const s of SHROOMS) {
+        const [sx, sy] = project(s.x, 0, s.z)
+        const a = 0.4 + 0.25 * Math.sin(t * 0.8 + s.ph)
+        this.putFx(sx, sy, GLOW.foxfire, a, sy, s.z + 0.05, 0.6)
+        this.putFx(sx + 1, sy, GLOW.foxfireD, a * 0.7, sy, s.z + 0.05, 0.6)
+      }
+    })
     // glowcap caps (the mushrooms themselves are drawn with the objects)
-    for (const g of glowcaps) {
-      const pulse = 0.75 + 0.25 * Math.sin(t * 0.6 + g.ph)
-      for (const [gx, gy] of g.glow) this.putFx(gx, gy, GLOW.memorial, pulse, g.by, g.dep + 0.01)
-    }
-    for (const e of EYES) {
+    for (const g of glowcaps)
+      this.tagged(g.key, () => {
+        const pulse = 0.75 + 0.25 * Math.sin(t * 0.6 + g.ph)
+        for (const [gx, gy] of g.glow) this.putFx(gx, gy, GLOW.memorial, pulse, g.by, g.dep + 0.01)
+      })
+    EYES.forEach((e, i) => {
       const d = Math.hypot(e.x, e.z)
-      if (d < R * 1.05) continue // they keep to the dark
+      if (d < R * 1.05 || (t * 0.7 + e.ph) % 4 < 0.12) return // they keep to the dark, and blink
       const [sx, sy] = project(e.x, e.y, e.z)
-      if ((t * 0.7 + e.ph) % 4 >= 0.12) {
-        const a = 0.8 * clamp((d - R * 1.05) / 15)
+      const a = 0.8 * clamp((d - R * 1.05) / 15)
+      this.say(`eyes${i}`, 'something in the trees', 'watching the fire')
+      this.tagged(`eyes${i}`, () => {
         this.putFx(sx, sy, GLOW.eye, a, undefined, e.z)
         this.putFx(sx + 2, sy, GLOW.eye, a, undefined, e.z)
-      }
-      this.hit(sx - 3, sy - 3, sx + 5, sy + 3, e.z, 'something in the trees', 'watching the fire')
-    }
+        this.putFx(sx + 1, sy, GLOW.eye, 0.01, undefined, e.z, 0) // invisible bridge, so the gap between them hovers too
+      })
+    })
 
     // the flame: its size follows the fire's heat, so a fresh log swells it gradually
-    const coals = Math.round(3 + 3 * Math.min(1, heat))
-    for (let kk = -coals; kk <= coals; kk++) this.putFx(fireX + kk, fireY + 1, FLAME[hash(kk, (t * 8) | 0) < 0.5 ? 1 : 2], 1, groundY, 0.2, 0.3)
     const fh = 4 + 20 * heat
-    const half0 = 2.5 + 4.5 * heat
-    for (let y = Math.floor(fireY - fh - 2); y <= fireY; y++) {
-      const dy = (fireY - y) / fh
-      if (dy > 1 || dy < 0) continue
-      const sway = Math.sin(t * 3 + dy * 4) * dy * 2.5
-      const half = half0 * Math.pow(1 - dy, 0.7) + 0.5
-      for (let x = fireX - 10; x <= fireX + 10; x++) {
-        const n = vnoise(x * 0.42, y * 0.38 + t * 7)
-        const v = (1 - Math.abs(x - fireX - sway) / half) * (1 - dy * 0.6) + (n - 0.5) * 0.9 - dy * 0.35
-        if (v < 0.12) continue
-        this.putFx(x, y, FLAME[v > 0.8 ? 3 : v > 0.52 ? 2 : v > 0.3 ? 1 : 0], 1, groundY, 0.2, 0.22)
+    this.tagged('fire', () => {
+      const coals = Math.round(3 + 3 * Math.min(1, heat))
+      for (let kk = -coals; kk <= coals; kk++) this.putFx(fireX + kk, fireY + 1, FLAME[hash(kk, (t * 8) | 0) < 0.5 ? 1 : 2], 1, groundY, 0.2, 0.3)
+      const half0 = 2.5 + 4.5 * heat
+      for (let y = Math.floor(fireY - fh - 2); y <= fireY; y++) {
+        const dy = (fireY - y) / fh
+        if (dy > 1 || dy < 0) continue
+        const sway = Math.sin(t * 3 + dy * 4) * dy * 2.5
+        const half = half0 * Math.pow(1 - dy, 0.7) + 0.5
+        for (let x = fireX - 10; x <= fireX + 10; x++) {
+          const n = vnoise(x * 0.42, y * 0.38 + t * 7)
+          const v = (1 - Math.abs(x - fireX - sway) / half) * (1 - dy * 0.6) + (n - 0.5) * 0.9 - dy * 0.35
+          if (v < 0.12) continue
+          this.putFx(x, y, FLAME[v > 0.8 ? 3 : v > 0.52 ? 2 : v > 0.3 ? 1 : 0], 1, groundY, 0.2, 0.22)
+        }
       }
-    }
+    })
     // The relic stands in the flames. Like the bonfire's sword it is a dark silhouette where the
     // flame is behind it, lit warm by the fire where it rises above, and its metal glows with heat.
-    {
+    this.tagged('relic', () => {
       const art = RELICS[this.relic]
       const h = art.rows.length
       const wd = art.rows[0].length
@@ -1448,8 +1530,7 @@ export class Renderer {
           this.putFx(px, py, col, 1, groundY, 0.31, ch === 'g' ? 0.5 * warm : 0) // the bone/wood itself doesn't glow
         }),
       )
-      this.hit(fireX - (wd >> 1) - 1, groundY - h - 1, fireX + (wd >> 1) + 1, groundY - 4, 0.35, art.name, art.sub)
-    }
+    })
     // smoke when the fire is low or it's raining (steam)
     const smoky = clamp((0.5 - heat) * 1.4) + (isRaining(w) ? 0.35 : 0)
     if (smoky > 0.02) {
@@ -1464,16 +1545,6 @@ export class Renderer {
       const life = 1 - e.age / e.life
       this.putFx(fireX + e.ox, groundY - e.oy, [1, (120 + life * 100) / 255, 60 / 255], life, groundY, 0.2, 0.6)
     }
-    this.hit(
-      fireX - 10,
-      fireY - fh,
-      fireX + 10,
-      groundY + 3,
-      0.1,
-      'the campfire',
-      w.fire.fsm.state === 'roaring' ? 'roaring' : w.fire.fsm.state === 'steady' ? 'burning steady' : 'burning low',
-    )
-
     for (const z of w.zs) {
       const hut = PROPS.huts[z.hut]
       const [hx, hy] = project(hut.x, 0, hut.z)
@@ -1494,13 +1565,15 @@ export class Renderer {
       }
     }
     // a stick you just dropped carries a soft highlight, so you can see where it went
-    for (const s of w.sticks) {
-      if (s.glint <= 0.02) continue
+    w.sticks.forEach((s, i) => {
+      if (s.glint <= 0.02) return
       const [bx, by] = project(s.x, s.y, s.z)
       const a = ((s.angle % Math.PI) + Math.PI) % Math.PI
-      for (const [dx, dy] of STICK_POSES[Math.round(a / (Math.PI / 4)) % 4])
-        this.putFx(bx + dx, by + dy, GLOW.glint, 0.55 * s.glint, undefined, s.z + 0.65, 0.25)
-    }
+      this.tagged(`stick${i}`, () => {
+        for (const [dx, dy] of STICK_POSES[Math.round(a / (Math.PI / 4)) % 4])
+          this.putFx(bx + dx, by + dy, GLOW.glint, 0.55 * s.glint, undefined, s.z + 0.65, 0.25)
+      })
+    })
     // falling sticks cast a small shadow that tightens as they near the ground; landings kick up dust
     for (const s of w.sticks) {
       if (s.landed) continue
@@ -1523,30 +1596,6 @@ export class Renderer {
       const a = r.age / 0.7
       const hw = (1 + a * 4) | 0
       for (let dx = -hw; dx <= hw; dx++) this.putFx(r.x + dx, r.y, GLOW.ripple, 0.55 * (1 - a), undefined, undefined, 0.2)
-    }
-
-    // ---- hover boxes for the remaining static props
-    if (w.knight.sword === 'planted') {
-      const p = PROPS.sword
-      const [bx, by] = project(p.x, 0, p.z)
-      this.hit(bx - 2, by - 18, bx + 5, by + 1, p.z, 'his sword', 'he has not drawn it in a long time')
-    }
-    {
-      const p = PROPS.pack
-      const [bx, by] = project(p.x, 0, p.z)
-      const gone = w.knight.fsm.state === 'gone'
-      this.hit(bx - 4, by - 5, bx + 4, by + 1, p.z, 'his pack', gone ? 'left by the fire; nobody has moved it' : 'everything he still owns')
-    }
-    {
-      const p = PROPS.woodpile
-      const [bx, by] = project(p.x, 0, p.z)
-      this.hit(bx - 9, by - 7, bx + 9, by + 1, p.z, 'woodpile', `${w.pile} log${w.pile === 1 ? '' : 's'}, stacked by small hands`)
-    }
-    {
-      const lvl = w.poolLevel
-      const [x0, y0] = project(POOL.x - POOL.rx * lvl, 0, POOL.z - POOL.rz * lvl)
-      const [x1, y1] = project(POOL.x + POOL.rx * lvl, 0, POOL.z + POOL.rz * lvl)
-      this.hit(x0, y0, x1, y1, -1000, 'rain pool', lvl > 1.08 ? 'swollen with rain' : 'still and dark')
     }
   }
 
@@ -1614,6 +1663,8 @@ export class Renderer {
     for (const m of w.mush) {
       if (m.size < 0.5 || m.fsm.state === 'asleep') continue
       out.push({ x: m.x, y: 6, z: m.z, radius: 8, color: [0.08, 0.3, 0.28], wobble: 0, tail: 0, shadows: false, seed: m.id })
+      if (m.id === w.keeperId)
+        out.push({ x: m.x + (m.flip ? -3 : 3), y: 4, z: m.z, radius: 10, color: [0.75, 0.38, 0.12], wobble: 0.5, tail: 0, shadows: false, seed: m.id })
       if (m.fsm.state === 'departing')
         out.push({ x: m.x + (m.flip ? -3 : 3), y: 5, z: m.z, radius: 15, color: warm(0.8), wobble: 0.6, tail: 0.03, shadows: false, seed: m.id })
     }
@@ -1804,29 +1855,64 @@ export class Renderer {
     ctx.restore()
   }
 
-  /** Name whatever is under the pointer: the nearest hover box that contains it. */
+  /**
+   * Name whatever is under the pointer. Every drawn pixel knows what it belongs to, so this is
+   * exact: the glowcap behind the grave answers for its own pixels. A pixel or two of slack
+   * makes small things easy to catch.
+   */
   private drawHover() {
     const p = this.pointer
+    this.hovered = null
     if (!p) return
-    let best: Hit | null = null
-    for (const h of this.hits) {
-      if (p.x < h.x0 - 1 || p.x > h.x1 + 1 || p.y < h.y0 - 1 || p.y > h.y1 + 1) continue
-      const area = (h.x1 - h.x0) * (h.y1 - h.y0)
-      if (!best || h.depth > best.depth || (h.depth === best.depth && area < (best.x1 - best.x0) * (best.y1 - best.y0))) best = h
+    const B = this.fb
+    const px = Math.floor(p.x)
+    const py = Math.floor(p.y)
+    let id = 0
+    for (let ring = 0; ring <= 2 && !id; ring++) {
+      for (let dy = -ring; dy <= ring && !id; dy++) {
+        for (let dx = -ring; dx <= ring && !id; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) continue
+          const x = px + dx
+          const y = py + dy
+          if (x < 0 || x >= W || y < 0 || y >= H) continue
+          const t = B.hv[y * W + x]
+          if (t && this.labels.has(t)) id = t
+        }
+      }
     }
-    if (!best) return
+    const inside = px >= 0 && px < W && py >= 0 && py < H
+    if (!id && inside && B.pool[py * W + px] && !B.obj[py * W + px]) id = tagId('pool')
+    const label = this.labels.get(id)
+    if (!label) return
+    this.hovered = label
+    // place the name under the thing's own pixels
+    let x0 = W
+    let x1 = 0
+    let y0 = H
+    let y1 = 0
+    const pool = id === tagId('pool')
+    for (let i = 0; i < N; i++) {
+      if (pool ? !(B.pool[i] && !B.obj[i]) : B.hv[i] !== id) continue
+      const x = i % W
+      const y = (i / W) | 0
+      if (x < x0) x0 = x
+      if (x > x1) x1 = x
+      if (y < y0) y0 = y
+      if (y > y1) y1 = y
+    }
+    if (x1 < x0) return
     const { ctx, scale: S } = this
-    const x = Math.max(24, Math.min(W - 24, (best.x0 + best.x1) / 2)) * S
-    const below = best.y1 + 6.5 < H - 6
-    const y = (below ? best.y1 + 6.5 : best.y0 - 7) * S
+    const x = Math.max(24, Math.min(W - 24, (x0 + x1) / 2)) * S
+    const below = y1 + 6.5 < H - 6
+    const y = (below ? y1 + 6.5 : y0 - 7) * S
     ctx.save()
     ctx.textAlign = 'center'
     ctx.font = `${3.25 * S}px ${FONT}`
     ctx.fillStyle = 'rgba(233,227,212,0.95)'
-    ctx.fillText(best.name, x, y)
+    ctx.fillText(label[0], x, y)
     ctx.font = `${2.75 * S}px ${FONT}`
     ctx.fillStyle = 'rgba(154,151,140,0.95)'
-    ctx.fillText(best.sub, x, y + 4 * S)
+    ctx.fillText(label[1], x, y + 4 * S)
     ctx.restore()
   }
 

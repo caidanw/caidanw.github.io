@@ -1,6 +1,7 @@
 import { rand } from '../util'
 import { GROVE_SPOTS, PROPS, inPool, nearProp, project } from '../world'
 import type { Fsm } from './fsm'
+import { findPath, nav, walkable } from './nav'
 import type { MushState, Stick, Walker, World } from './types'
 
 export const isRaining = (w: World): boolean => w.weather.fsm.state === 'raining'
@@ -44,8 +45,35 @@ export const WALKING: MushState[] = ['arriving', 'wander', 'fetch', 'haul', 'fee
 /** Is someone stepping through this hut's door right now? */
 export const doorOpen = (w: World, hut: number): boolean => w.mush.some((m) => m.hut === hut && (m.fsm.state === 'entering' || m.fsm.state === 'exiting'))
 
-/** Step toward (tx, tz); returns true on arrival. */
-export function moveTo(e: Walker, speed: number, dt: number): boolean {
+/**
+ * Walk toward (tx, tz), around obstacles; returns true on arrival. A path is found whenever the
+ * target changes (nav.ts). `direct` walks a straight line instead, for stepping through doorways.
+ */
+export function moveTo(e: Walker, speed: number, dt: number, direct = false): boolean {
+  if (!direct) {
+    const key = `${e.tx.toFixed(1)},${e.tz.toFixed(1)},${nav.version}`
+    if (e.pathKey !== key || !e.path) {
+      e.path = findPath(e.x, e.z, e.tx, e.tz)
+      e.pathKey = key
+    }
+    while (e.path.length && Math.hypot(e.path[0][0] - e.x, e.path[0][1] - e.z) < 0.6) e.path.shift()
+    if (!e.path.length) {
+      // arrived (or as close as the obstacles allow): settle here
+      e.tx = e.x
+      e.tz = e.z
+      e.pathKey = `${e.tx.toFixed(1)},${e.tz.toFixed(1)},${nav.version}`
+      return true
+    }
+    const [wx, wz] = e.path[0]
+    const dx = wx - e.x
+    const dz = wz - e.z
+    const d = Math.hypot(dx, dz)
+    const k = Math.min(d, speed * dt) / d
+    e.x += dx * k
+    e.z += dz * k
+    if (Math.abs(dx) > 0.1) e.flip = dx < 0
+    return false
+  }
   const dx = e.tx - e.x
   const dz = e.tz - e.z
   const d = Math.hypot(dx, dz)
@@ -64,7 +92,7 @@ export function freeSpotNear(w: World, r0: number, r1: number): [number, number]
     const r = rand(r0, r1)
     const x = Math.cos(a) * r
     const z = Math.sin(a) * r * 0.85
-    if (inPool(x, z, w.poolLevel * 1.35) || nearProp(x, z, 9)) continue
+    if (inPool(x, z, w.poolLevel * 1.35) || nearProp(x, z, 9) || !walkable(x, z)) continue
     if (Math.hypot(x - PROPS.knight.x, z - PROPS.knight.z) < 8 || Math.hypot(x - PROPS.woodpile.x, z - PROPS.woodpile.z) < 6) continue
     return [x, z]
   }
@@ -91,7 +119,7 @@ export function stickSpot(w: World): Stick {
     const r = rand(40, 66)
     const x = Math.cos(a) * r
     const z = Math.sin(a) * r * 0.8
-    if (!inPool(x, z, w.poolLevel * 1.3) && z > -48 && Math.abs(x) < 120 && !nearProp(x, z, 10)) return restingStick(x, z)
+    if (!inPool(x, z, w.poolLevel * 1.3) && z > -48 && Math.abs(x) < 120 && !nearProp(x, z, 10) && walkable(x, z)) return restingStick(x, z)
   }
   return restingStick(-50, 10)
 }

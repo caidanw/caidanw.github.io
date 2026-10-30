@@ -14,6 +14,7 @@
  *
  * Output normals are screen space: x right, y up, z toward the viewer.
  */
+import { shape, type Normal } from './materials'
 
 export interface ReliefSettings {
   shapeRadius: number
@@ -202,5 +203,101 @@ export function spriteNormals(rows: readonly string[], colorOf: (ch: string) => 
   const out = { w, h, nx: new Float32Array(w * h), ny: new Float32Array(w * h), nz: new Float32Array(w * h) }
   reliefNormals(w, h, region, light, out.nx, out.ny, out.nz, { ...RELIEF_DEFAULTS, shapeRadius: 3, detailStrength: 4 })
   spriteCache.set(rows, out)
+  return out
+}
+
+/**
+ * Creature normals from parts, not from the silhouette. Each part is a group of
+ * palette chars with a primitive shape (a mushroom cap, a cylinder, a dome);
+ * every connected patch of a part gets that shape across its own bounds. The
+ * cap is the same pixels in every walk frame, so its lighting holds steady
+ * while the legs move (the relief generator re-derived it per frame, and it
+ * shimmered).
+ */
+export type PartKind = 'cap' | 'under' | 'cylinder' | 'dome' | 'flat'
+export interface Part {
+  chars: string
+  kind: PartKind
+}
+const partCache = new WeakMap<readonly string[], SpriteNormals>()
+
+export function partNormals(rows: readonly string[], parts: Part[]): SpriteNormals {
+  const hit = partCache.get(rows)
+  if (hit) return hit
+  const pad = 2
+  const rw = rows[0].length
+  const rh = rows.length
+  const w = rw + pad * 2
+  const h = rh + pad * 2
+  const out = { w, h, nx: new Float32Array(w * h), ny: new Float32Array(w * h), nz: new Float32Array(w * h) }
+  const done = new Uint8Array(rw * rh)
+  const write = (r: number, c: number, n: Normal) => {
+    const i = (r + pad) * w + c + pad
+    out.nx[i] = n[0]
+    out.ny[i] = n[1]
+    out.nz[i] = n[2]
+  }
+  const groups = [...parts, { chars: '', kind: 'dome' as PartKind }] // the last catches anything unassigned
+  for (const part of groups) {
+    const inPart = (r: number, c: number) => {
+      if (r < 0 || r >= rh || c < 0 || c >= rw) return false
+      const ch = rows[r][c]
+      if (ch === '.' || done[r * rw + c]) return false
+      return part.chars ? part.chars.includes(ch) : true
+    }
+    for (let r0 = 0; r0 < rh; r0++) {
+      for (let c0 = 0; c0 < rw; c0++) {
+        if (!inPart(r0, c0)) continue
+        // flood one connected patch of this part
+        const patch: [number, number][] = []
+        const stack: [number, number][] = [[r0, c0]]
+        done[r0 * rw + c0] = 1
+        while (stack.length) {
+          const [r, c] = stack.pop()!
+          patch.push([r, c])
+          for (const [dr, dc] of [
+            [1, 0],
+            [-1, 0],
+            [0, 1],
+            [0, -1],
+          ]) {
+            if (!inPart(r + dr, c + dc)) continue
+            done[(r + dr) * rw + c + dc] = 1
+            stack.push([r + dr, c + dc])
+          }
+        }
+        let x0 = Infinity
+        let x1 = -Infinity
+        let y0 = Infinity
+        let y1 = -Infinity
+        for (const [r, c] of patch) {
+          x0 = Math.min(x0, c)
+          x1 = Math.max(x1, c)
+          y0 = Math.min(y0, r)
+          y1 = Math.max(y1, r)
+        }
+        const cx = (x0 + x1) / 2
+        const cy = (y0 + y1) / 2
+        const hw = Math.max(0.75, (x1 - x0 + 1) / 2)
+        const hh = Math.max(0.75, (y1 - y0 + 1) / 2)
+        for (const [r, c] of patch) {
+          const u = (c - cx) / hw
+          const v = (r - cy) / hh
+          const n =
+            part.kind === 'cap'
+              ? shape.cap(u, v * 0.8 - 0.1)
+              : part.kind === 'under'
+                ? ([u * 0.4, -0.85, 0.35] as Normal)
+                : part.kind === 'cylinder'
+                  ? shape.cylinder(u)
+                  : part.kind === 'flat'
+                    ? shape.flat
+                    : shape.dome(u, v)
+          write(r, c, n)
+        }
+      }
+    }
+  }
+  partCache.set(rows, out)
   return out
 }

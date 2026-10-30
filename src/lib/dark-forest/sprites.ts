@@ -4,6 +4,7 @@
  */
 import { C } from './world'
 import { hex, type Color } from './util'
+import type { Part } from './normals'
 
 export type Rows = readonly string[]
 export type Palette = Record<string, Color>
@@ -119,9 +120,56 @@ export const MUSH = {
     ['..rrr..', '.rrwrr.', 'rwrrrrw', 'rrrrrrr', '.uuuuu.', '..ese..', '..sss..', '..sss..', '..s.s..'],
     ['..rrr..', '.rrwrr.', 'rwrrrrw', 'rrrrrrr', '.uuuuu.', '..ese..', '..sss..', '..sss..', '.s...s.'],
   ] as Rows[],
+  /** Sitting: lower, little feet out in front. */
+  sit: ['..rrr..', '.rrwrr.', 'rwrrrrw', 'rrrrrrr', '.uuuuu.', '..ese..', '.sssss.', 's.....s'] as Rows,
+  sitBlink: ['..rrr..', '.rrwrr.', 'rwrrrrw', 'rrrrrrr', '.uuuuu.', '..sss..', '.sssss.', 's.....s'] as Rows,
   mid: ['.rrr.', 'rwrrr', 'rrrrr', '.ese.', '.sss.', '.s.s.'] as Rows,
   baby: ['.r.', 'rrr', '.s.'] as Rows,
 }
+/**
+ * The keeper wears the knight's cape (a scrap of it, red, draped behind) and a steel crest
+ * on the cap, easy to pick out from the rest of the village.
+ */
+export const MUSH_KEEPER = {
+  walk: [
+    ['...h...', '..rrr..', '.rrwrr.', 'rwrrrrw', 'rrrrrrr', '.uuuuu.', '.kesek.', '.ksssk.', 'kksssk.', '..s.s..'],
+    ['...h...', '..rrr..', '.rrwrr.', 'rwrrrrw', 'rrrrrrr', '.uuuuu.', '.kesek.', '.ksssk.', 'kksssk.', '.s...s.'],
+  ] as Rows[],
+  sit: ['...h...', '..rrr..', '.rrwrr.', 'rwrrrrw', 'rrrrrrr', '.uuuuu.', '.kesek.', 'ksssssk', 's.....s'] as Rows,
+  sitBlink: ['...h...', '..rrr..', '.rrwrr.', 'rwrrrrw', 'rrrrrrr', '.uuuuu.', '.ksssk.', 'ksssssk', 's.....s'] as Rows,
+}
+export const KEEPER_TRIM: Palette = { k: hex('#a32c2c'), h: hex('#dedad2') }
+
+/** Which parts each creature is made of, for their normals (see normals.ts partNormals). */
+export const MUSH_PARTS: Part[] = [
+  { chars: 'rw', kind: 'cap' },
+  { chars: 'u', kind: 'under' },
+  { chars: 'se', kind: 'cylinder' },
+  { chars: 'k', kind: 'cylinder' },
+  { chars: 'h', kind: 'dome' },
+]
+export const KNIGHT_PARTS: Part[] = [
+  { chars: 'hHv', kind: 'dome' },
+  { chars: 'pg', kind: 'dome' },
+  { chars: 'm', kind: 'cylinder' },
+  { chars: 'c', kind: 'cylinder' },
+  { chars: 'lL', kind: 'cylinder' },
+  { chars: 'd', kind: 'cylinder' },
+  { chars: 'b', kind: 'dome' },
+  { chars: 's', kind: 'flat' },
+]
+export const DEER_PARTS: Part[] = [
+  { chars: 'b', kind: 'dome' },
+  { chars: 'hn', kind: 'dome' },
+  { chars: 't', kind: 'flat' },
+  { chars: 'l', kind: 'cylinder' },
+]
+export const FROG_PARTS: Part[] = [{ chars: 'ge', kind: 'dome' }]
+export const GLOWCAP_PARTS: Part[] = [
+  { chars: 'c', kind: 'cap' },
+  { chars: 's', kind: 'cylinder' },
+]
+
 export const MUSH_PAL: Palette = { r: hex('#8f4b3c'), w: hex('#e0b896'), u: hex('#5a3028'), s: hex('#d8ccb4'), e: hex('#1a1410') }
 /** Elders fade: a greyer cap, paler spots. */
 export const MUSH_PAL_ELDER: Palette = { r: hex('#7d655c'), w: hex('#ece2d2'), u: hex('#4a3a34'), s: hex('#c9c2b4'), e: hex('#1a1410') }
