@@ -13,7 +13,7 @@ for (const segment of segments) {
   currentPath += `/${segment}`
   crumbs.push({
     label: segment,
-    href: currentPath,
+    href: `${currentPath}/`,
   })
 }
 ---
@@ -67,6 +67,15 @@ for (const segment of segments) {
 
   .crumb.current {
     color: var(--theme-text-dim);
+  }
+
+  a.crumb {
+    /* Tap target ~2rem tall without changing layout: padding is cancelled by equal negative margin.
+       Top padding matches the header's 0.25rem so the area isn't clipped by the viewport edge, and
+       z-index keeps the part that overlaps content below the header tappable. */
+    padding-block: 0.25rem 0.75rem;
+    margin-block: -0.25rem -0.75rem;
+    z-index: 1;
   }
 
   a.crumb:hover {

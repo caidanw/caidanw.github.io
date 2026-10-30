@@ -1,7 +1,8 @@
 ---
 import BreadcrumbLayout from '@/layouts/BreadcrumbLayout.astro'
 import ListHeader from '@/components/ListHeader.astro'
-import { format, compareDesc } from 'date-fns'
+import { compareDesc } from 'date-fns'
+import { formatShortPostDate } from '@/lib/date'
 
 interface PostFrontmatter {
   title: string
@@ -18,11 +19,10 @@ interface Post {
 const isPublished = (post: Post) => import.meta.env.DEV || !post.frontmatter.draft
 const byDateDescending = (a: Post, b: Post) => compareDesc(a.frontmatter.date, b.frontmatter.date)
 
-const posts = Object.values(import.meta.glob<Post>('./*.md', { eager: true }))
+// Draft posts are `_`-prefixed so Astro does not emit them as routes.
+const posts = Object.values(import.meta.glob<Post>(['./*.md', '!./_*.md'], { eager: true }))
   .filter(isPublished)
   .sort(byDateDescending)
-
-const formatDate = (date: string) => format(date, 'MMM dd, yyyy')
 ---
 
 <BreadcrumbLayout title="Blog - Caidan Williams" description="Thoughts and writings by Caidan Williams">
@@ -36,7 +36,7 @@ const formatDate = (date: string) => format(date, 'MMM dd, yyyy')
       {
         posts.map((post) => (
           <article class="post">
-            <time datetime={post.frontmatter.date.toString()}>{formatDate(post.frontmatter.date)}</time>
+            <time datetime={post.frontmatter.date.toString()}>{formatShortPostDate(post.frontmatter.date)}</time>
             <a href={post.url} class="post-title list">
               {post.frontmatter.title}
             </a>

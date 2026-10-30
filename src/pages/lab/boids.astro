@@ -2,7 +2,7 @@
 import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
 ---
 
-<BreadcrumbLayout title="Boids Ecosystem">
+<BreadcrumbLayout title="Boids Ecosystem" noindex>
   <div id="app">
     <canvas id="canvas"></canvas>
 
@@ -174,7 +174,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   #app {
     position: relative;
     width: 100dvw;
-    height: calc(100dvh - 2.2rem);
+    height: calc(100dvh - var(--breadcrumb-header-height));
     overflow: hidden;
     background: #0a0a0a;
   }

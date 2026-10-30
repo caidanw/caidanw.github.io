@@ -2,7 +2,7 @@
 import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
 ---
 
-<BreadcrumbLayout title="ASCII Clouds">
+<BreadcrumbLayout title="ASCII Clouds - Caidan Williams" description="A dynamic ASCII art cloud generator that creates cloud patterns in real-time">
   <div id="app">
     <canvas id="canvas"></canvas>
 
@@ -1255,6 +1255,11 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   collapseBtn.addEventListener('click', toggleCollapse)
   collapseBtnInner.addEventListener('click', toggleCollapse)
 
+  // On narrow screens the open panel covers most of the canvas, so start collapsed
+  if (window.matchMedia('(max-width: 768px)').matches) {
+    controls.classList.add('collapsed')
+  }
+
   // Pause button
   // Helper to update pause button icons
   function updatePauseIcon() {
@@ -1510,7 +1515,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   #app {
     position: relative;
     width: 100%;
-    height: calc(100dvh - 2rem);
+    height: calc(100dvh - var(--breadcrumb-header-height));
     background: #000;
     overflow: hidden;
   }

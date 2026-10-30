@@ -1,12 +1,12 @@
 ---
-import { format } from 'date-fns'
+import { formatLongPostDate } from '@/lib/date'
 
 interface Props {
   date: string
 }
 
 const { date } = Astro.props
-const formattedDate = format(date, 'MMMM d, yyyy')
+const formattedDate = formatLongPostDate(date)
 ---
 
 <time datetime={date}>{formattedDate}</time>

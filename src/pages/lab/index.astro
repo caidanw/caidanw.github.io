@@ -9,7 +9,7 @@ const labPages = Object.keys(import.meta.glob('./*.astro'))
   .map((path) => path.replace('./', '').split('.')[0])
 ---
 
-<Layout title="the lab">
+<Layout title="the lab" noindex>
   <CautionTape position="top" direction="normal" />
   <CautionTape position="bottom" direction="reverse" />
   <main>
@@ -28,7 +28,7 @@ const labPages = Object.keys(import.meta.glob('./*.astro'))
       {
         labPages.map((page) => (
           <li>
-            <a class="list" href={`/lab/${page}`}>
+            <a class="list" href={`/lab/${page}/`}>
               {page}
             </a>
           </li>

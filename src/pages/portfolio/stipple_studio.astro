@@ -4,7 +4,7 @@ import ssImage from '@/assets/stipple_studio.png'
 ---
 
 <BreadcrumbLayout
-  title="Stipple Studio"
+  title="Stipple Studio - Caidan Williams"
   description="Interactive stippling tool with real-time visualization of the image processing pipeline"
   image={ssImage}
   favicon={ssImage}
@@ -105,7 +105,7 @@ import ssImage from '@/assets/stipple_studio.png'
         <canvas id="quantizedCanvas"></canvas>
         <div class="info-box">
           <strong>Discrete brightness levels</strong>
-          <span class="description">Image divided into <span id="currentLevels">5</span> brightness regions</span>
+          <span class="description">Image divided into <span id="currentLevels">10</span> brightness regions</span>
         </div>
       </div>
 
@@ -235,6 +235,10 @@ import ssImage from '@/assets/stipple_studio.png'
     if (el2) el2.textContent = target.value
     processImage()
   })
+
+  // Sync the caption with the slider's initial (possibly browser-restored) value.
+  const currentLevelsEl = document.getElementById('currentLevels')
+  if (currentLevelsEl) currentLevelsEl.textContent = levelsSlider.value
 
   diffusionSlider.addEventListener('input', (e) => {
     const target = e.target as HTMLInputElement

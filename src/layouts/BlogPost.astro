@@ -15,7 +15,7 @@ interface Props {
 const { frontmatter } = Astro.props
 ---
 
-<BreadcrumbLayout title={frontmatter.title} description={frontmatter.description}>
+<BreadcrumbLayout title={`${frontmatter.title} - Caidan Williams`} description={frontmatter.description}>
   <main>
     <article class="post-content">
       <header class="post-header">

@@ -17,8 +17,10 @@ import Hr from '@components/Hr.astro'
       + p {
         font-size: 1rem;
         color: var(--theme-text-dim);
-        line-height: 1;
-        margin-bottom: 1rem;
+        line-height: 1.35;
+        /* Cancel the extra half-leading so single-line spacing matches the old line-height: 1. */
+        margin-top: -0.175em;
+        margin-bottom: calc(1rem - 0.175em);
       }
     }
   }
