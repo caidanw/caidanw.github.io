@@ -48,15 +48,14 @@ export function stepAmbient(w: World, dt: number, isOpenWater: (sx: number, sy: 
   }
   if (w.shooting && (w.shooting.age += dt) > 0.9) w.shooting = null
 
-  // rain, rippling where it lands on open water
+  // rain falls straight down, rippling where it lands on open water
   if (raining) {
     for (const r of w.drops) {
       r.y += r.v * dt
-      r.x -= r.v * 0.18 * dt
       if (r.y <= r.stop) continue
-      if (r.x >= 0 && r.x < W && isOpenWater(r.x | 0, r.stop | 0)) w.ripples.push({ x: r.x, y: r.stop, age: 0 })
+      if (isOpenWater(r.x | 0, r.stop | 0)) w.ripples.push({ x: r.x, y: r.stop, age: 0 })
       r.y = -5 - Math.random() * 40
-      r.x = Math.random() * (W + 60)
+      r.x = Math.random() * W
       r.stop = rand(HORIZON, H)
     }
   }

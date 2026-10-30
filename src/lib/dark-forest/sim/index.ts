@@ -20,7 +20,7 @@ import type { Ctx, SimEvents, World } from './types'
 import { createWeather, weatherMachine } from './weather'
 
 export * from './types'
-export { hutOccupancy, isMoving, isRaining, lightRadius, perchPos, WALKING } from './helpers'
+export { doorOpen, hutOccupancy, isMoving, isRaining, lightRadius, perchPos, WALKING } from './helpers'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Agent = [MachineDef<any, Ctx, string, SimEvents>, { fsm: Fsm<string> }]
@@ -55,11 +55,11 @@ export function createWorld(): World {
     deer: createDeer(),
     frog: createFrog(),
     crow: createCrow(),
-    mush: [createMush(-26, -10), createMush(20, -14), createMush(-6, 16), createMush(30, 6), createMush(-40, -20)],
+    mush: [createMush(-26, -10, 1, 0), createMush(20, -14, 1, 1), createMush(-6, 16, 1, 0), createMush(30, 6, 1, 1), createMush(-40, -20, 1, 0)],
     sticks: [],
     stickTimer: 3,
     embers: [],
-    drops: Array.from({ length: 180 }, () => ({ x: Math.random() * (W + 60), y: Math.random() * H, v: rand(150, 220), stop: rand(HORIZON, H) })),
+    drops: Array.from({ length: 220 }, () => ({ x: Math.random() * W, y: Math.random() * H, v: rand(170, 240), stop: rand(HORIZON, H) })),
     ripples: [],
     zs: [],
     flies: Array.from({ length: 12 }, (_, i) => ({ seed: i * 13.7, x: 0, y: 0, z: 0, a: 0 })),

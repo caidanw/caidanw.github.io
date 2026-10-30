@@ -110,6 +110,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   const forest = startDarkForest(canvas, {
     debug: params.has('debug'),
     rain: params.has('rain'),
+    speed: Number(params.get('speed')) || 1,
     onChange: sync,
   })
   sync(forest.state())

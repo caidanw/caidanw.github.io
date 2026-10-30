@@ -1,23 +1,23 @@
 /**
- * Shroomfolk. Needs: warmth (stay near the fire) and rest (nap in the hollow).
+ * Shroomfolk. Needs: warmth (stay near the fire) and energy (rest in a hut).
  * Jobs: keep the woodpile stocked and keep the brazier fed.
  *
  *   sprouting -> idle
- *   idle -> feed -> stoke -> idle          (fire low, logs in the pile)
- *   idle -> fetch -> haul -> idle          (pile running short, a stick lying about)
- *   idle -> toHut -> asleep -> idle        (warm, dry, sleepy)
- *   idle -> wander -> idle                 (otherwise)
+ *   idle -> feed -> stoke -> idle                          (fire low, logs in the pile)
+ *   idle -> toHut -> entering -> asleep -> exiting -> idle (tired, and there's room)
+ *   idle -> fetch -> haul -> idle                          (pile running short, a stick lying about)
+ *   idle -> wander -> idle                                 (otherwise)
  *
  * Reacts to: fire:low (drop what you're doing and feed it), stick:dropped
- * (someone go get it), rain:start (wake up, they love the rain).
+ * (someone go get it), rain:start (wake up and come out, they love the rain).
  */
 import { clamp, rand } from '../util'
-import { PROPS } from '../world'
+import { HUT, PROPS } from '../world'
 import { fsm } from './fsm'
 import { countIn, freeSpotNear, isRaining, lightRadius, moveTo } from './helpers'
 import type { Ctx, Def, Mush, MushState, Stick } from './types'
 
-export const createMush = (x: number, z: number, size = 1): Mush => ({
+export const createMush = (x: number, z: number, size = 1, home = (Math.random() * PROPS.huts.length) | 0): Mush => ({
   fsm: fsm<MushState>(size < 1 ? 'sprouting' : 'idle'),
   id: Math.random(),
   x,
@@ -27,16 +27,25 @@ export const createMush = (x: number, z: number, size = 1): Mush => ({
   flip: false,
   wait: rand(0, 2),
   warmth: 0.8,
+  energy: rand(0.45, 1),
+  home,
   size,
   carrying: false,
   claim: null,
   hut: null,
-  sleepT: 0,
 })
 
 const PILE_SPOT = [PROPS.woodpile.x - 3, PROPS.woodpile.z + 3] as const
 const MAX_FETCHERS = 2
-const MAX_SLEEPERS = 3
+const WORKING: MushState[] = ['fetch', 'haul', 'feed', 'stoke']
+const doorX = (hut: number) => PROPS.huts[hut].x + HUT.doorDx
+
+/** A hut with a free bed (counting those already on their way), preferring home. */
+function hutWithRoom(m: Mush, ctx: Ctx): number | null {
+  const taken = (i: number) => ctx.w.mush.filter((o) => o !== m && o.hut === i).length
+  const order = [m.home, ...PROPS.huts.map((_, i) => i).filter((i) => i !== m.home)]
+  return order.find((i) => taken(i) < HUT.capacity) ?? null
+}
 
 const adult = (m: Mush) => m.size >= 1
 const someoneFeeding = (ctx: Ctx) => countIn(ctx.w.mush, 'feed', 'stoke') > 0
@@ -54,12 +63,19 @@ function claim(m: Mush, s: Stick): MushState {
 function decide(m: Mush, ctx: Ctx): MushState {
   const w = ctx.w
   if (wantsToFeed(m, ctx)) return 'feed'
+  // tired: go home to rest (in the rain they'd rather stay out, unless exhausted)
+  if (adult(m) && m.energy < 0.3 && (!isRaining(w) || m.energy < 0.1)) {
+    const hut = hutWithRoom(m, ctx)
+    if (hut !== null) {
+      m.hut = hut
+      return 'toHut'
+    }
+  }
   const free = w.sticks.filter((s) => !s.claimed)
   if (adult(m) && w.pile < 5 && free.length && fetchers(ctx) < MAX_FETCHERS) {
     const nearest = free.reduce((a, b) => (Math.hypot(a.x - m.x, a.z - m.z) < Math.hypot(b.x - m.x, b.z - m.z) ? a : b))
     return claim(m, nearest)
   }
-  if (!isRaining(w) && m.warmth > 0.7 && Math.random() < 0.15 && countIn(w.mush, 'toHut', 'asleep') < MAX_SLEEPERS) return 'toHut'
   return 'wander'
 }
 
@@ -73,6 +89,8 @@ export const mushMachine: Def<Mush, MushState> = {
   always: (m, ctx, dt) => {
     const near = Math.hypot(m.x, m.z) < lightRadius(ctx.w) * 0.55
     m.warmth = clamp(m.warmth + dt * (near ? 0.08 : -0.05) * (isRaining(ctx.w) ? 0.6 : 1))
+    if (m.fsm.state === 'asleep') m.energy = clamp(m.energy + dt / 10)
+    else if (adult(m)) m.energy = clamp(m.energy - dt / (WORKING.includes(m.fsm.state) ? 60 : 100))
   },
   states: {
     sprouting: {
@@ -143,22 +161,33 @@ export const mushMachine: Def<Mush, MushState> = {
       exit: (m) => (m.carrying = false),
     },
     toHut: {
+      // walk up to the door
       enter: (m) => {
-        m.hut = (Math.random() * PROPS.huts.length) | 0
-        const hut = PROPS.huts[m.hut]
-        m.tx = hut.x - 0.5
-        m.tz = hut.z + 1.5
-        m.sleepT = rand(8, 18)
+        m.tx = doorX(m.hut!)
+        m.tz = PROPS.huts[m.hut!].z + HUT.front
       },
-      update: (m, _ctx, dt) => (moveTo(m, 6, dt) ? 'asleep' : undefined),
+      update: (m, _ctx, dt) => (moveTo(m, 6, dt) ? 'entering' : undefined),
+    },
+    entering: {
+      // step through the open door; the hut's walls hide them as they pass inside
+      enter: (m) => (m.tz = PROPS.huts[m.hut!].z + HUT.inside),
+      update: (m, _ctx, dt) => (moveTo(m, 3, dt) ? 'asleep' : undefined),
     },
     asleep: {
       update: (m, ctx, dt) => {
         if (Math.random() < dt * 0.5) ctx.w.zs.push({ hut: m.hut!, age: 0 })
-        return (m.sleepT -= dt) <= 0 ? 'idle' : undefined
+        return m.energy >= 1 ? 'exiting' : undefined
       },
+      on: { 'rain:start': () => 'exiting' },
+    },
+    exiting: {
+      enter: (m) => {
+        m.x = m.tx = doorX(m.hut!)
+        m.z = PROPS.huts[m.hut!].z + HUT.inside
+        m.tz = PROPS.huts[m.hut!].z + HUT.front + 1
+      },
+      update: (m, _ctx, dt) => (moveTo(m, 3, dt) ? 'idle' : undefined),
       exit: (m) => (m.hut = null),
-      on: { 'rain:start': () => 'idle' },
     },
   },
 }

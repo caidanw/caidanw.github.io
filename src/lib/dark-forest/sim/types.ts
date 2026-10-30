@@ -41,6 +41,10 @@ export type BrazierState = 'roaring' | 'steady' | 'low'
 export interface Brazier {
   fsm: Fsm<BrazierState>
   fuel: number
+  /** What the fire looks like right now: chases fuel with lag, so a new log catches gradually. */
+  heat: number
+  /** A short-lived kick added on top of fuel (a fresh log roars, rain makes it hiss and sink). */
+  flare: number
 }
 
 export type KnightState = 'resting' | 'nodding'
@@ -49,17 +53,20 @@ export interface Knight extends Point {
   headDown: boolean
 }
 
-export type MushState = 'sprouting' | 'idle' | 'wander' | 'fetch' | 'haul' | 'feed' | 'stoke' | 'toHut' | 'asleep'
+export type MushState = 'sprouting' | 'idle' | 'wander' | 'fetch' | 'haul' | 'feed' | 'stoke' | 'toHut' | 'entering' | 'asleep' | 'exiting'
 export interface Mush extends Walker {
   fsm: Fsm<MushState>
   id: number
   wait: number
   warmth: number
+  /** Rest need: drains while awake (faster while working), refills asleep in a hut. */
+  energy: number
+  /** The hut this one prefers to sleep in. */
+  home: number
   size: number
   carrying: boolean
   claim: Stick | null
   hut: number | null
-  sleepT: number
 }
 
 export type DeerState = 'graze' | 'walk' | 'toPool' | 'drink' | 'flee'

@@ -11,6 +11,8 @@ export interface DarkForestOptions {
   glow?: boolean
   debug?: boolean
   rain?: boolean
+  /** Time multiplier for the sim (handy for watching slow behaviour). */
+  speed?: number
   /** Called whenever a toggle changes, so the page can reflect it in its controls. */
   onChange?: (state: DarkForestState) => void
 }
@@ -58,13 +60,23 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
   fit()
 
   // ---------- input: hover names things and spooks the deer; click drops a stick
-  const toWorld = (e: PointerEvent) => {
+  const toScreen = (e: PointerEvent) => {
     const r = canvas.getBoundingClientRect()
-    const q = unproject(((e.clientX - r.left) / r.width) * W, ((e.clientY - r.top) / r.height) * H)
+    return { x: ((e.clientX - r.left) / r.width) * W, y: ((e.clientY - r.top) / r.height) * H }
+  }
+  const toWorld = (e: PointerEvent) => {
+    const { x, y } = toScreen(e)
+    const q = unproject(x, y)
     return q ? { x: q[0], z: q[1] } : null
   }
-  const onMove = (e: PointerEvent) => (world.cursor = toWorld(e))
-  const onLeave = () => (world.cursor = null)
+  const onMove = (e: PointerEvent) => {
+    renderer.pointer = toScreen(e) // hover works anywhere, including over the sky
+    world.cursor = toWorld(e) // the deer only cares about the ground
+  }
+  const onLeave = () => {
+    renderer.pointer = null
+    world.cursor = null
+  }
   const onDown = (e: PointerEvent) => {
     const p = toWorld(e)
     if (p) dropStick(world, p)
@@ -78,7 +90,7 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
   let last = performance.now()
   let wasRaining = isRaining(world)
   const frame = (now: number) => {
-    const dt = Math.min(0.05, (now - last) / 1000)
+    const dt = Math.min(0.05, (now - last) / 1000) * (options.speed ?? 1)
     last = now
     if (!paused) step(world, dt, renderer.isOpenWater)
     renderer.render(world, opts)

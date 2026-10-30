@@ -4,13 +4,17 @@ import type { Fsm } from './fsm'
 import type { MushState, Stick, Walker, World } from './types'
 
 export const isRaining = (w: World): boolean => w.weather.fsm.state === 'raining'
-export const lightRadius = (w: World): number => 50 + 55 * w.brazier.fuel
+/** How far the firelight reaches; follows the fire's heat, not its fuel, so it swells and fades naturally. */
+export const lightRadius = (w: World): number => 32 + 78 * w.brazier.heat
 export const countIn = <S extends string>(list: { fsm: Fsm<S> }[], ...states: S[]): number => list.filter((e) => states.includes(e.fsm.state)).length
 export const hutOccupancy = (w: World, hut: number): number => w.mush.filter((m) => m.fsm.state === 'asleep' && m.hut === hut).length
 export const isMoving = (e: Walker): boolean => Math.hypot(e.tx - e.x, e.tz - e.z) > 0.6
 
 /** Shroomfolk states where they are walking somewhere. */
-export const WALKING: MushState[] = ['wander', 'fetch', 'haul', 'feed', 'stoke', 'toHut']
+export const WALKING: MushState[] = ['wander', 'fetch', 'haul', 'feed', 'stoke', 'toHut', 'entering', 'exiting']
+
+/** Is someone stepping through this hut's door right now? */
+export const doorOpen = (w: World, hut: number): boolean => w.mush.some((m) => m.hut === hut && (m.fsm.state === 'entering' || m.fsm.state === 'exiting'))
 
 /** Step toward (tx, tz); returns true on arrival. */
 export function moveTo(e: Walker, speed: number, dt: number): boolean {

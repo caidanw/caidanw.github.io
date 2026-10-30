@@ -69,6 +69,13 @@ export const C = {
   stoneD: hex('#4a463e'),
   stoneHi: hex('#8a8476'),
   hutCap: hex('#8f4b3c'),
+  hutCapHi: hex('#b2705a'),
+  hutGill: hex('#5a3028'),
+  hutStemHi: hex('#e2d8c0'),
+  hutFrame: hex('#7a5f45'),
+  hutInside: hex('#140d08'),
+  hutDoor: hex('#4a3424'),
+  hutDoorD: hex('#33241a'),
   hutCapD: hex('#6e382d'),
   hutSpot: hex('#d9c7b0'),
   hutStem: hex('#cfc2a6'),
@@ -110,8 +117,8 @@ export const PROPS = {
   pack: { x: -27, z: 5 },
   woodpile: { x: 15, z: -7 },
   huts: [
-    { x: -60, z: -16 },
-    { x: -44, z: -34 },
+    { x: -66, z: -14 },
+    { x: -40, z: -40 },
   ],
   graves: [
     { x: 74, z: -24, helm: true },
@@ -139,8 +146,26 @@ export const HEARTH: [number, number][] = [
   [-4, 8],
 ]
 
-const avoid: Point[] = [...PROPS.huts, ...PROPS.graves, PROPS.lantern, PROPS.trigon]
-export const nearProp = (x: number, z: number, r: number): boolean => avoid.some((p) => Math.hypot(p.x - x, p.z - z) < r)
+/** Hut geometry in world units: the door sits left of centre; shroomfolk step from the front point to the inside point. */
+export const HUT = { doorDx: -1.9, front: 3.5, inside: -3, capacity: 2 }
+
+const avoid: (Point & { pad: number })[] = [
+  ...PROPS.huts.map((p) => ({ ...p, pad: 8 })),
+  ...PROPS.graves.map((p) => ({ ...p, pad: 0 })),
+  { ...PROPS.lantern, pad: 0 },
+  { ...PROPS.trigon, pad: 0 },
+]
+export const nearProp = (x: number, z: number, r: number): boolean => avoid.some((p) => Math.hypot(p.x - x, p.z - z) < r + p.pad)
+
+/** Landmarks that must stay visible: no tree may stand between them and the camera. [point, half-width in world units] */
+const landmarks: [Point, number][] = [
+  ...PROPS.huts.map((p): [Point, number] => [p, 15]),
+  ...PROPS.graves.map((p): [Point, number] => [p, 10]),
+  [PROPS.lantern, 9],
+  [PROPS.trigon, 9],
+]
+/** Would something at (x, z) stand in front of a landmark from the camera's point of view? */
+export const blocksLandmark = (x: number, z: number): boolean => landmarks.some(([p, hw]) => z > p.z && Math.abs(x - p.x) < hw)
 
 export interface Tree extends Point {
   h: number
@@ -158,14 +183,14 @@ export const TREES: Tree[] = (() => {
   for (let i = 0; i < 500 && out.length < 54; i++) {
     const x = (rng() * 2 - 1) * 200
     const z = -86 + rng() * 40
-    if (Math.abs(x) < 22 + -z * 0.12 || !ok(x, z, 8) || nearProp(x, z, 12)) continue
+    if (Math.abs(x) < 22 + -z * 0.12 || !ok(x, z, 8) || nearProp(x, z, 12) || blocksLandmark(x, z)) continue
     add(x, z, 0.9 + rng() * 0.5, 0.6 + rng() * 0.5)
   }
   // mid band, the edge of the clearing
   for (let i = 0; i < 500 && out.length < 84; i++) {
     const x = (rng() * 2 - 1) * 170
     const z = -50 + rng() * 60
-    if (Math.hypot(x * 0.8, z) < 52 || Math.abs(x) < 40 || !ok(x, z, 11) || nearProp(x, z, 14)) continue
+    if (Math.hypot(x * 0.8, z) < 52 || Math.abs(x) < 40 || !ok(x, z, 11) || nearProp(x, z, 14) || blocksLandmark(x, z)) continue
     add(x, z, 0.85 + rng() * 0.4, 0.8 + rng() * 0.5)
   }
   // near framing trunks
