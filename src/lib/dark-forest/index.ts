@@ -5,7 +5,7 @@
  */
 import { Renderer } from './renderer'
 import { createWorld, dropStick, isRaining, step, toggleRain, type World } from './sim'
-import { H, W, unproject } from './world'
+import { H, W, unproject, RELICS, type Relic } from './world'
 
 export interface DarkForestOptions {
   glow?: boolean
@@ -13,6 +13,12 @@ export interface DarkForestOptions {
   rain?: boolean
   /** Time multiplier for the sim (handy for watching slow behaviour). */
   speed?: number
+  /** Light objects with generated normal maps (default on). */
+  normals?: boolean
+  /** What stands planted in the fire. */
+  relic?: Relic
+  /** Called with each line of the village's story as it happens. */
+  onStory?: (line: string) => void
   /** Called whenever a toggle changes, so the page can reflect it in its controls. */
   onChange?: (state: DarkForestState) => void
 }
@@ -21,6 +27,7 @@ export interface DarkForestState {
   rain: boolean
   glow: boolean
   debug: boolean
+  normals: boolean
   paused: boolean
 }
 
@@ -28,6 +35,7 @@ export interface DarkForest {
   toggleRain(): void
   toggleGlow(): void
   toggleDebug(): void
+  toggleNormals(): void
   togglePause(): void
   state(): DarkForestState
   destroy(): void
@@ -37,12 +45,13 @@ const MAX_SCALE = 8
 
 export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOptions = {}): DarkForest {
   const world: World = createWorld()
-  const renderer = new Renderer(canvas)
-  const opts = { glow: options.glow ?? true, debug: options.debug ?? false }
+  const relic = options.relic && RELICS.includes(options.relic) ? options.relic : 'crook'
+  const renderer = new Renderer(canvas, relic)
+  const opts = { glow: options.glow ?? true, debug: options.debug ?? false, normals: options.normals ?? true }
   let paused = false
   if (options.rain) toggleRain(world)
 
-  const state = (): DarkForestState => ({ rain: isRaining(world), glow: opts.glow, debug: opts.debug, paused })
+  const state = (): DarkForestState => ({ rain: isRaining(world), glow: opts.glow, debug: opts.debug, normals: opts.normals, paused })
   const changed = () => options.onChange?.(state())
 
   // ---------- sizing: fit 16:9 in the parent, render at an integer scale for crisp pixels
@@ -94,6 +103,7 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
     last = now
     if (!paused) step(world, dt, renderer.isOpenWater)
     renderer.render(world, opts)
+    while (world.story.length) options.onStory?.(world.story.shift()!)
     // weather changes on its own timer (and toggles land a tick later), so report it when it happens
     if (isRaining(world) !== wasRaining) {
       wasRaining = !wasRaining
@@ -113,6 +123,10 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
     },
     toggleDebug() {
       opts.debug = !opts.debug
+      changed()
+    },
+    toggleNormals() {
+      opts.normals = !opts.normals
       changed()
     },
     togglePause() {

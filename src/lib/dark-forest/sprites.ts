@@ -48,6 +48,8 @@ export const MUSH = {
   baby: ['.r.', 'rrr', '.s.'] as Rows,
 }
 export const MUSH_PAL: Palette = { r: hex('#8f4b3c'), w: hex('#e0b896'), u: hex('#5a3028'), s: hex('#d8ccb4'), e: hex('#1a1410') }
+/** Elders fade: a greyer cap, paler spots. */
+export const MUSH_PAL_ELDER: Palette = { r: hex('#7d655c'), w: hex('#ece2d2'), u: hex('#4a3a34'), s: hex('#c9c2b4'), e: hex('#1a1410') }
 
 export const DEER = {
   walk: [

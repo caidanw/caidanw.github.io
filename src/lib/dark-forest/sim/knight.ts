@@ -10,12 +10,12 @@ export const knightMachine: Def<Knight, KnightState> = {
   states: {
     resting: {
       enter: (e) => (e.headDown = false),
-      update: (e, ctx) => (ctx.w.brazier.fsm.state === 'low' && e.fsm.time > 3 ? 'nodding' : undefined),
+      update: (e, ctx) => (ctx.w.fire.fsm.state === 'low' && e.fsm.time > 3 ? 'nodding' : undefined),
     },
     nodding: {
       update: (e, ctx) => {
         e.headDown = Math.sin(e.fsm.time * 0.7) > -0.3
-        return ctx.w.brazier.fsm.state !== 'low' ? 'resting' : undefined
+        return ctx.w.fire.fsm.state !== 'low' ? 'resting' : undefined
       },
       on: { 'fire:fed': () => 'resting' },
     },

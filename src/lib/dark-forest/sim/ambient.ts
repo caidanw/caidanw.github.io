@@ -21,7 +21,7 @@ export function stepAmbient(w: World, dt: number, isOpenWater: (sx: number, sy: 
   }
 
   // embers and sleepy z's
-  if (Math.random() < dt * (8 + 20 * w.brazier.fuel) * (raining ? 0.5 : 1)) burst(w, 1, 1)
+  if (Math.random() < dt * (8 + 20 * w.fire.fuel) * (raining ? 0.5 : 1)) burst(w, 1, 1)
   w.embers = w.embers.filter((e) => {
     e.age += dt
     e.oy += e.vy * dt

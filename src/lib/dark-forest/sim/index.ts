@@ -10,17 +10,17 @@ import { H, HORIZON, W, inPool, type Point } from '../world'
 import { rand } from '../util'
 import { send, tick, type Fsm, type MachineDef } from './fsm'
 import { stepAmbient } from './ambient'
-import { brazierMachine, createBrazier } from './brazier'
+import { fireMachine, createFire } from './fire'
 import { createCrow, createFrog, crowMachine, frogMachine } from './critters'
 import { createDeer, deerMachine } from './deer'
-import { stickSpot, freeSpotNear } from './helpers'
+import { freeSpotNear, stickSpot, tell } from './helpers'
 import { createKnight, knightMachine } from './knight'
-import { createMush, mushMachine } from './shroomfolk'
+import { createMush, createTraveler, mushMachine } from './shroomfolk'
 import type { Ctx, SimEvents, World } from './types'
 import { createWeather, weatherMachine } from './weather'
 
 export * from './types'
-export { doorOpen, hutOccupancy, isMoving, isRaining, lightRadius, perchPos, WALKING } from './helpers'
+export { doorOpen, hutOccupancy, isElder, isMoving, isRaining, lightRadius, perchPos, WALKING } from './helpers'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Agent = [MachineDef<any, Ctx, string, SimEvents>, { fsm: Fsm<string> }]
@@ -29,7 +29,7 @@ type Agent = [MachineDef<any, Ctx, string, SimEvents>, { fsm: Fsm<string> }]
 function agents(w: World): Agent[] {
   return [
     [weatherMachine, w.weather],
-    [brazierMachine, w.brazier],
+    [fireMachine, w.fire],
     [knightMachine, w.knight],
     [deerMachine, w.deer],
     [frogMachine, w.frog],
@@ -50,14 +50,17 @@ export function createWorld(): World {
     poolLevel: 1,
     rune: 0,
     weather: createWeather(),
-    brazier: createBrazier(),
+    fire: createFire(),
     knight: createKnight(),
     deer: createDeer(),
     frog: createFrog(),
     crow: createCrow(),
-    mush: [createMush(-26, -10, 1, 0), createMush(20, -14, 1, 1), createMush(-6, 16, 1, 0), createMush(30, 6, 1, 1), createMush(-40, -20, 1, 0)],
+    mush: [],
     sticks: [],
     stickTimer: 3,
+    memorials: [],
+    arrivalTimer: 90,
+    story: [],
     embers: [],
     drops: Array.from({ length: 220 }, () => ({ x: Math.random() * W, y: Math.random() * H, v: rand(170, 240), stop: rand(HORIZON, H) })),
     ripples: [],
@@ -69,6 +72,15 @@ export function createWorld(): World {
     queue: [],
   }
   for (let i = 0; i < 3; i++) w.sticks.push(stickSpot(w))
+  // a village of five, at different points in their lives
+  const start: [number, number][] = [
+    [-26, -10],
+    [20, -14],
+    [-6, 16],
+    [30, 6],
+    [-40, -20],
+  ]
+  start.forEach(([x, z], i) => w.mush.push(createMush(w, x, z, { home: i % 2, aged: Math.random() * 0.8 })))
   return w
 }
 
@@ -84,6 +96,19 @@ export function step(w: World, dt: number, isOpenWater: (sx: number, sy: number)
   for (const [def, e] of agents(w)) tick(def, e, ctx, dt)
   stepAmbient(w, dt, isOpenWater)
   if (w.queue.length) dispatch(w, ctx)
+  w.mush = w.mush.filter((m) => !m.gone)
+  welcomeTravelers(w, dt)
+}
+
+const MAX_VILLAGE = 7
+
+/** When the village gets small, now and then someone new comes up the road. */
+function welcomeTravelers(w: World, dt: number) {
+  if (w.mush.length >= 4 || (w.arrivalTimer -= dt) > 0) return
+  w.arrivalTimer = rand(60, 120)
+  const m = createTraveler(w)
+  w.mush.push(m)
+  tell(w, `A traveler came up the road. The village took them in and called them ${m.name}.`)
 }
 
 /** Deliver queued events to every agent. Events raised while handling are delivered in the next round. */
@@ -100,9 +125,11 @@ function dispatch(w: World, ctx: Ctx) {
 
 /** World-level reaction: every shower leaves a new sprout behind. */
 function sproutAfterRain(w: World) {
-  if (w.mush.length >= 9) return
+  if (w.mush.length >= MAX_VILLAGE) return
   const [x, z] = freeSpotNear(w, 30, 44)
-  w.mush.push(createMush(x, z, 0.1))
+  const m = createMush(w, x, z, { size: 0.1 })
+  w.mush.push(m)
+  tell(w, `A sprout pushed up through the wet earth after the rain. They named it ${m.name}.`)
 }
 
 // ---------- input from the page ----------

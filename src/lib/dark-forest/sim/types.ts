@@ -37,9 +37,9 @@ export interface Weather {
   manual: boolean
 }
 
-export type BrazierState = 'roaring' | 'steady' | 'low'
-export interface Brazier {
-  fsm: Fsm<BrazierState>
+export type FireState = 'roaring' | 'steady' | 'low'
+export interface Fire {
+  fsm: Fsm<FireState>
   fuel: number
   /** What the fire looks like right now: chases fuel with lag, so a new log catches gradually. */
   heat: number
@@ -53,10 +53,35 @@ export interface Knight extends Point {
   headDown: boolean
 }
 
-export type MushState = 'sprouting' | 'idle' | 'wander' | 'fetch' | 'haul' | 'feed' | 'stoke' | 'toHut' | 'entering' | 'asleep' | 'exiting'
+export type MushState =
+  | 'arriving' // a traveler coming up the road
+  | 'sprouting'
+  | 'idle'
+  | 'wander'
+  | 'fetch'
+  | 'haul'
+  | 'feed'
+  | 'stoke'
+  | 'toHut'
+  | 'entering'
+  | 'asleep'
+  | 'exiting'
+  | 'farewell' // end of life: one last moment by the knight...
+  | 'departing' // ...then off down the road with a lantern
+  | 'wilting' // or: walk to the forest edge and return to the soil
 export interface Mush extends Walker {
   fsm: Fsm<MushState>
   id: number
+  name: string
+  /** Seconds lived, and how long this one gets. Past ~75% they're an elder. */
+  age: number
+  lifespan: number
+  /** Route for arriving / departing (consumed front to back). */
+  route: [number, number][]
+  /** 0..1 while sinking back into the soil. */
+  sink: number
+  /** Set when they've left the scene for good; removed at the end of the tick. */
+  gone: boolean
   wait: number
   warmth: number
   /** Rest need: drains while awake (faster while working), refills asleep in a hut. */
@@ -106,7 +131,7 @@ export interface World {
   poolLevel: number
   rune: number
   weather: Weather
-  brazier: Brazier
+  fire: Fire
   knight: Knight
   deer: Deer
   frog: Frog
@@ -114,6 +139,12 @@ export interface World {
   mush: Mush[]
   sticks: Stick[]
   stickTimer: number
+  /** Glowcaps that grew where shroomfolk returned to the soil. */
+  memorials: (Point & { name: string; ph: number })[]
+  /** Countdown to the next traveler, if the village is small. */
+  arrivalTimer: number
+  /** Story lines waiting to be shown by the page. */
+  story: string[]
   // ambient particles (no state machines; just systems)
   embers: { ox: number; oy: number; vx: number; vy: number; life: number; age: number; ph: number }[]
   drops: { x: number; y: number; v: number; stop: number }[]

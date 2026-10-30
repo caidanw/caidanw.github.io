@@ -4,14 +4,34 @@ import type { Fsm } from './fsm'
 import type { MushState, Stick, Walker, World } from './types'
 
 export const isRaining = (w: World): boolean => w.weather.fsm.state === 'raining'
+export const tell = (w: World, line: string) => w.story.push(line)
+export const isElder = (m: { age: number; lifespan: number }): boolean => m.age > m.lifespan * 0.75
+
+const NAMES =
+  'Morel Puffball Sorrel Bracken Tuft Fen Wick Pip Bram Chanterelle Truffle Lichen Bolete Spore Inkcap Russet Moss Thimble Cobb Fennel Nettle Burr Hazel Oakmoss Bilberry Cap Gill Tansy Woodruff Clover Marrow Brindle Dusk Ember Peat Rook Wren Sedge'.split(
+    ' ',
+  )
+/** A name nobody in the village currently has. */
+export function freshName(w: World): string {
+  const taken = new Set(w.mush.map((m) => m.name))
+  const free = NAMES.filter((n) => !taken.has(n))
+  return free.length ? free[(Math.random() * free.length) | 0] : NAMES[(Math.random() * NAMES.length) | 0]
+}
+
+/** The road out: past the lantern and off the left edge. */
+export const ROAD: [number, number][] = [
+  [-60, 12],
+  [-92, 19],
+  [-160, 25],
+]
 /** How far the firelight reaches; follows the fire's heat, not its fuel, so it swells and fades naturally. */
-export const lightRadius = (w: World): number => 32 + 78 * w.brazier.heat
+export const lightRadius = (w: World): number => 32 + 78 * w.fire.heat
 export const countIn = <S extends string>(list: { fsm: Fsm<S> }[], ...states: S[]): number => list.filter((e) => states.includes(e.fsm.state)).length
 export const hutOccupancy = (w: World, hut: number): number => w.mush.filter((m) => m.fsm.state === 'asleep' && m.hut === hut).length
 export const isMoving = (e: Walker): boolean => Math.hypot(e.tx - e.x, e.tz - e.z) > 0.6
 
 /** Shroomfolk states where they are walking somewhere. */
-export const WALKING: MushState[] = ['wander', 'fetch', 'haul', 'feed', 'stoke', 'toHut', 'entering', 'exiting']
+export const WALKING: MushState[] = ['arriving', 'wander', 'fetch', 'haul', 'feed', 'stoke', 'toHut', 'entering', 'exiting', 'farewell', 'departing', 'wilting']
 
 /** Is someone stepping through this hut's door right now? */
 export const doorOpen = (w: World, hut: number): boolean => w.mush.some((m) => m.hut === hut && (m.fsm.state === 'entering' || m.fsm.state === 'exiting'))
@@ -29,7 +49,7 @@ export function moveTo(e: Walker, speed: number, dt: number): boolean {
   return false
 }
 
-/** A random open spot in a ring around the brazier, away from water and props. */
+/** A random open spot in a ring around the fire, away from water and props. */
 export function freeSpotNear(w: World, r0: number, r1: number): [number, number] {
   for (let k = 0; k < 40; k++) {
     const a = Math.random() * Math.PI * 2

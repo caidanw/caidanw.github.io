@@ -5,17 +5,22 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
 <BreadcrumbLayout title="Dark Forest" description="A small firelit clearing with a primitive simulation." noindex>
   <div id="app">
     <div class="stage">
-      <canvas id="canvas" aria-label="A pixel-art forest clearing at night: a brazier, a resting knight, shroomfolk, a deer and a rain pool."></canvas>
+      <canvas id="canvas" aria-label="A pixel-art forest clearing at night: a campfire, a resting knight, shroomfolk, a deer and a rain pool."></canvas>
     </div>
 
     <div class="bar">
-      <p class="hint">hover to learn names · click the ground to drop a stick</p>
+      <p class="story" aria-live="polite">
+        <span id="story">hover to learn names · click the ground to drop a stick</span>
+      </p>
       <div class="toggles">
         <button type="button" data-toggle="rain" aria-pressed="false">
           <kbd>R</kbd> rain
         </button>
         <button type="button" data-toggle="glow" aria-pressed="true">
           <kbd>G</kbd> glow
+        </button>
+        <button type="button" data-toggle="normals" aria-pressed="true">
+          <kbd>N</kbd> normals
         </button>
         <button type="button" data-toggle="debug" aria-pressed="false">
           <kbd>D</kbd> debug
@@ -66,8 +71,19 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     color: var(--theme-text-dim);
   }
 
-  .hint {
+  .story {
     margin: 0;
+    min-width: 0;
+    flex: 1;
+  }
+
+  #story {
+    display: inline-block;
+    transition: opacity 0.8s ease;
+  }
+
+  #story.fresh {
+    color: var(--theme-text-subtle);
   }
 
   .toggles {
@@ -98,10 +114,25 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
 
 <script>
   import { startDarkForest, type DarkForestState } from '../../lib/dark-forest'
+  import type { Relic } from '../../lib/dark-forest/world'
 
   const canvas = document.getElementById('canvas') as HTMLCanvasElement
   const buttons = document.querySelectorAll<HTMLButtonElement>('[data-toggle]')
   const params = new URLSearchParams(location.hash.slice(1))
+
+  // the village's story, one line at a time
+  const storyEl = document.getElementById('story')!
+  let storyTimer = 0
+  function tellStory(line: string) {
+    storyEl.style.opacity = '0'
+    clearTimeout(storyTimer)
+    storyTimer = window.setTimeout(() => {
+      storyEl.textContent = line
+      storyEl.classList.add('fresh')
+      storyEl.style.opacity = '1'
+      storyTimer = window.setTimeout(() => storyEl.classList.remove('fresh'), 12000)
+    }, 400)
+  }
 
   const sync = (s: DarkForestState) => {
     for (const b of buttons) b.setAttribute('aria-pressed', String(s[b.dataset.toggle as keyof DarkForestState]))
@@ -111,6 +142,8 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     debug: params.has('debug'),
     rain: params.has('rain'),
     speed: Number(params.get('speed')) || 1,
+    relic: (params.get('relic') ?? undefined) as Relic | undefined,
+    onStory: tellStory,
     onChange: sync,
   })
   sync(forest.state())
@@ -119,6 +152,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     rain: forest.toggleRain,
     glow: forest.toggleGlow,
     debug: forest.toggleDebug,
+    normals: forest.toggleNormals,
     paused: forest.togglePause,
   }
   for (const b of buttons) {
@@ -128,7 +162,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     })
   }
 
-  const keys: Record<string, string> = { r: 'rain', g: 'glow', d: 'debug', ' ': 'paused' }
+  const keys: Record<string, string> = { r: 'rain', g: 'glow', d: 'debug', n: 'normals', ' ': 'paused' }
   addEventListener('keydown', (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey) return
     const action = keys[e.key.toLowerCase()]

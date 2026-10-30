@@ -1,7 +1,7 @@
 /**
  * The fixed world: camera, palette, and the hand-placed (or seeded) layout.
  * World space is a ground plane (x right, z toward the camera, y up) with the
- * brazier at the origin.
+ * campfire at the origin.
  */
 import { clamp, hex, rngFrom, vnoise, type Color } from './util'
 
@@ -94,6 +94,20 @@ export const C = {
   frogD: hex('#3e5e30'),
   crow: hex('#0b0b0e'),
   outline: hex('#0c0a09'),
+  ash: hex('#8f887b'),
+  ashD: hex('#5f594f'),
+  bone: hex('#ddd4c1'),
+  boneD: hex('#9c937f'),
+  char: hex('#1d1814'),
+  logLit: hex('#8a6440'),
+  moss2: hex('#4a5e3c'),
+  menhir: hex('#4a4740'),
+  menhirHi: hex('#6a665c'),
+  menhirD: hex('#302e2a'),
+  relicWood: hex('#5e4632'),
+  relicWoodHi: hex('#8a6c4e'),
+  relicIron: hex('#7c7468'),
+  relicIronHi: hex('#b0a694'),
 } satisfies Record<string, Color>
 
 // ---------- layout ----------
@@ -137,14 +151,26 @@ export const PADS: [number, number][] = [
   [-6, 34],
   [34, 33],
 ]
-export const HEARTH: [number, number][] = [
-  [-13, -4],
-  [-8, -9],
-  [9, -9],
-  [13, -2],
-  [11, 6],
-  [-4, 8],
+/** A ring of stones around the campfire, each a little different. */
+export const STONE_RING = Array.from({ length: 13 }, (_, i) => {
+  const r = rngFrom(40 + i)
+  const a = (i / 13) * Math.PI * 2 + r() * 0.2
+  return { x: Math.cos(a) * 9.5, z: Math.sin(a) * 6.5, w: 2 + ((r() * 2) | 0), h: 1 + ((r() * 2) | 0), seed: (r() * 1e6) | 0 }
+})
+
+/** Three old standing stones behind the fire; the middle one carries a carved spiral that warms with the flames. */
+export const HEARTHSTONES = [
+  { x: -27, z: -19, h: 13, w: 3, lean: -1, carved: false },
+  { x: 14, z: -35, h: 18, w: 4, lean: 0, carved: true },
+  { x: 30, z: -15, h: 11, w: 3, lean: 1, carved: false },
 ]
+
+/**
+ * What stands planted in the ashes: the bonfire's coiled sword, reimagined.
+ * Pick one with #relic=crook|key|antler.
+ */
+export type Relic = 'crook' | 'key' | 'antler'
+export const RELICS: Relic[] = ['crook', 'key', 'antler']
 
 /** Hut geometry in world units: the door sits left of centre; shroomfolk step from the front point to the inside point. */
 export const HUT = { doorDx: -1.9, front: 3.5, inside: -3, capacity: 2 }
