@@ -11,11 +11,11 @@
   "dependencies": {
     "@astrojs/rss": "^4.0.19",
     "@astrojs/sitemap": "^3.7.4",
-    "astro": "^5.16.1",
-    "date-fns": "^4.1.0"
+    "astro": "^7.4.4",
+    "date-fns": "^4.4.0"
   },
   "devDependencies": {
-    "prettier": "3.7.1",
-    "prettier-plugin-astro": "0.14.1"
+    "prettier": "3.9.10",
+    "prettier-plugin-astro": "1.1.2"
   }
 }

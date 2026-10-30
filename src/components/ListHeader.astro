@@ -8,13 +8,14 @@ import Hr from '@components/Hr.astro'
 <Hr />
 
 <style>
+  /* h1/p arrive via <slot />, so they don't carry this component's scope attribute. */
   header {
-    > h1 {
+    > :global(h1) {
       font-size: 2rem;
       font-weight: bold;
       letter-spacing: 0.05em;
 
-      + p {
+      + :global(p) {
         font-size: 1rem;
         color: var(--theme-text-dim);
         line-height: 1.35;
