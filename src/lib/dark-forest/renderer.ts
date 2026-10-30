@@ -373,6 +373,21 @@ const RELICS: Record<Relic, { rows: Rows; pal: Palette; name: string; sub: strin
   },
 }
 
+/** Break text into lines no wider than maxWidth (in the context's current font). */
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  const out: string[] = []
+  let line = ''
+  for (const word of text.split(' ')) {
+    const next = line ? `${line} ${word}` : word
+    if (line && ctx.measureText(next).width > maxWidth) {
+      out.push(line)
+      line = word
+    } else line = next
+  }
+  if (line) out.push(line)
+  return out
+}
+
 /** Stable ids for hover tags, by key ('knight', 'hut0', 'mush42'...). */
 const TAGS = new Map<string, number>()
 function tagId(key: string): number {
@@ -442,7 +457,7 @@ export class Renderer {
   /** Hover tag stamped on everything drawn while it's set (see tagged()). */
   private tag = 0
   /** What each hover tag is called this frame: [name, line of lore]. */
-  private labels = new Map<number, [string, string]>()
+  private labels = new Map<number, [string, string, boolean]>()
   /** Pointer position in framebuffer pixels, or null when it's off the canvas. */
   pointer: { x: number; y: number } | null = null
   /** What the pointer is over, as of the last frame (for tests and debugging). */
@@ -636,9 +651,9 @@ export class Renderer {
     return { bx, by, h, glow, dep }
   }
 
-  /** Name a hoverable thing for this frame. */
-  private say(key: string, name: string, sub: string) {
-    this.labels.set(tagId(key), [name, sub])
+  /** Name a hoverable thing for this frame. `above` puts the name over it (for things behind the fire). */
+  private say(key: string, name: string, sub: string, above = false) {
+    this.labels.set(tagId(key), [name, sub, above])
   }
 
   /** Draw with every pixel stamped as belonging to `key`, so hovering exactly those pixels names it. */
@@ -979,7 +994,9 @@ export class Renderer {
 
   /** Three old standing stones behind the fire: bevelled, pitted, mossy at the foot. */
   private drawHearthstones(B: Buf) {
-    for (const hs of HEARTHSTONES) {
+    HEARTHSTONES.forEach((hs, idx) => {
+      const prevTag = this.tag
+      this.tag = tagId(`hearth${idx}`)
       const [bx, by, s] = project(hs.x, 0, hs.z)
       const hgt = Math.round(hs.h * s * 0.75)
       const cy = by - Math.round(hgt * 0.55)
@@ -1005,7 +1022,8 @@ export class Renderer {
           this.put(B, px, py, c, hs.x + k / s, hs.z, r / s, by, hs.z, false, shape.slab(k, half, r, hgt), mh, WEIGHT.stone)
         }
       }
-    }
+      this.tag = prevTag
+    })
   }
 
   private buildStatic(lvl: number) {
@@ -1079,7 +1097,7 @@ export class Renderer {
       { z: PROPS.lantern.z, draw: () => this.tagged('lantern', () => this.drawLanternPost(B, PROPS.lantern)) },
       { z: PROPS.trigon.z, draw: () => this.tagged('trigon', () => this.drawTrigon(B, PROPS.trigon)) },
       { z: PROPS.pack.z, draw: () => this.tagged('pack', () => this.drawPack(B, PROPS.pack)) },
-      { z: -13, draw: () => this.tagged('hearth', () => this.drawHearthstones(B)) },
+      { z: -13, draw: () => this.drawHearthstones(B) },
       { z: 0, draw: () => this.tagged('fire', () => this.drawStoneRing(B)) },
     ]
     for (const s of statics.sort((a, b) => a.z - b.z)) s.draw()
@@ -1275,7 +1293,9 @@ export class Renderer {
     this.say('lantern', 'the road out', 'someone keeps the lantern lit')
     this.say('trigon', 'the trigon stone', w.rune > 0.1 ? 'it hums in the rain' : 'cold and quiet')
     this.say('pack', 'his pack', w.knight.fsm.state === 'gone' ? 'left by the fire; nobody has moved it' : 'everything he still owns')
-    this.say('hearth', 'the hearthstones', w.fire.heat > 0.55 ? 'the spiral glows when the fire is high' : 'older than the village')
+    this.say('hearth0', 'a hearthstone', 'older than the village', true)
+    this.say('hearth1', 'the carved hearthstone', w.fire.heat > 0.55 ? 'its spiral glows when the fire is high' : 'a spiral, worn smooth by hands', true)
+    this.say('hearth2', 'a hearthstone', 'it leans, as if listening', true)
     {
       const companions = w.knight.fsm.state === 'gone' ? 'the knight and his companions' : "the knight's companions"
       const village = w.memorials.length ? `, and ${w.memorials.length} of the village` : ''
@@ -1456,7 +1476,7 @@ export class Renderer {
       }),
     )
     // the carved spiral on the middle hearthstone warms with the fire
-    this.tagged('hearth', () => {
+    this.tagged('hearth1', () => {
       const hs = HEARTHSTONES.find((h) => h.carved)!
       const [bx, by, s] = project(hs.x, 0, hs.z)
       const cy = by - Math.round(Math.round(hs.h * s * 0.75) * 0.55)
@@ -1662,14 +1682,26 @@ export class Renderer {
     }
     for (const m of w.mush) {
       if (m.size < 0.5 || m.fsm.state === 'asleep') continue
-      out.push({ x: m.x, y: 6, z: m.z, radius: 8, color: [0.08, 0.3, 0.28], wobble: 0, tail: 0, shadows: false, seed: m.id })
+      out.push({ x: m.x, y: 6, z: m.z, radius: 8, color: [0.08, 0.3, 0.28], wobble: 0, tail: 0, shadows: false, seed: m.id, owner: tagId(`mush${m.id}`) })
       if (m.id === w.keeperId)
         out.push({ x: m.x + (m.flip ? -3 : 3), y: 4, z: m.z, radius: 10, color: [0.75, 0.38, 0.12], wobble: 0.5, tail: 0, shadows: false, seed: m.id })
       if (m.fsm.state === 'departing')
         out.push({ x: m.x + (m.flip ? -3 : 3), y: 5, z: m.z, radius: 15, color: warm(0.8), wobble: 0.6, tail: 0.03, shadows: false, seed: m.id })
     }
     for (const s of SHROOMS) out.push({ x: s.x, y: 1, z: s.z, radius: 7, color: [0.16, 0.1, 0.3], wobble: 0, tail: 0, shadows: false, seed: s.ph })
-    for (const m of w.memorials) out.push({ x: m.x, y: 3, z: m.z, radius: 13, color: [0.15, 0.6, 0.55], wobble: 0, tail: 0.03, shadows: false, seed: m.ph })
+    for (const m of w.memorials)
+      out.push({
+        x: m.x,
+        y: 3,
+        z: m.z,
+        radius: 13,
+        color: [0.15, 0.6, 0.55],
+        wobble: 0,
+        tail: 0.03,
+        shadows: false,
+        seed: m.ph,
+        owner: tagId(`glowcap${m.spot}`),
+      })
     for (const f of w.flies)
       if (f.a > 0.05)
         out.push({ x: f.x, y: f.y, z: f.z, radius: 8, color: [0.5 * f.a, 0.6 * f.a, 0.2 * f.a], wobble: 0, tail: 0, shadows: false, seed: f.seed })
@@ -1701,7 +1733,7 @@ export class Renderer {
       Lc[0] = 0.15 * amb * moon
       Lc[1] = 0.18 * amb * moon
       Lc[2] = 0.27 * amb * moon
-      gatherLight(lights, t, x, y, z, ground, ground ? groundGrain(x, z) : 0.5, normal, Lc)
+      gatherLight(lights, t, x, y, z, ground, ground ? groundGrain(x, z) : 0.5, normal, Lc, i >= 0 ? B.hv[i] : 0)
       if (normal && B.sp[i] > 0) {
         // metal: a tight warm glint where the surface faces the fire, a cool rim toward the moon
         const fire = lights[0]
@@ -1884,35 +1916,46 @@ export class Renderer {
     if (!id && inside && B.pool[py * W + px] && !B.obj[py * W + px]) id = tagId('pool')
     const label = this.labels.get(id)
     if (!label) return
-    this.hovered = label
-    // place the name under the thing's own pixels
+    this.hovered = [label[0], label[1]]
+    // place the name under the part of the thing near the pointer (wide things like the grove
+    // spread across the screen), wrapped, and kept inside the frame
     let x0 = W
     let x1 = 0
     let y0 = H
     let y1 = 0
     const pool = id === tagId('pool')
-    for (let i = 0; i < N; i++) {
-      if (pool ? !(B.pool[i] && !B.obj[i]) : B.hv[i] !== id) continue
-      const x = i % W
-      const y = (i / W) | 0
-      if (x < x0) x0 = x
-      if (x > x1) x1 = x
-      if (y < y0) y0 = y
-      if (y > y1) y1 = y
+    const near = 28
+    for (let y = 0; y < H; y++) {
+      for (let x = Math.max(0, px - near); x < Math.min(W, px + near); x++) {
+        const i = y * W + x
+        if (pool ? !(B.pool[i] && !B.obj[i]) : B.hv[i] !== id) continue
+        if (x < x0) x0 = x
+        if (x > x1) x1 = x
+        if (y < y0) y0 = y
+        if (y > y1) y1 = y
+      }
     }
     if (x1 < x0) return
     const { ctx, scale: S } = this
-    const x = Math.max(24, Math.min(W - 24, (x0 + x1) / 2)) * S
-    const below = y1 + 6.5 < H - 6
-    const y = (below ? y1 + 6.5 : y0 - 7) * S
     ctx.save()
     ctx.textAlign = 'center'
-    ctx.font = `${3.25 * S}px ${FONT}`
+    const nameFont = `${3.25 * S}px ${FONT}`
+    const subFont = `${2.75 * S}px ${FONT}`
+    ctx.font = subFont
+    const lines = wrapText(ctx, label[1], 84 * S)
+    ctx.font = nameFont
+    const widest = Math.max(ctx.measureText(label[0]).width, ...lines.map((l) => ((ctx.font = subFont), ctx.measureText(l).width)))
+    const half = widest / 2 + 3 * S
+    const x = Math.max(half, Math.min(W * S - half, ((x0 + x1) / 2) * S))
+    const height = (4 + lines.length * 4) * S
+    const below = !label[2] && (y1 + 6.5) * S + height < H * S - 2 * S
+    const y = below ? (y1 + 6.5) * S : (y0 - 3) * S - height + 3.25 * S
+    ctx.font = nameFont
     ctx.fillStyle = 'rgba(233,227,212,0.95)'
     ctx.fillText(label[0], x, y)
-    ctx.font = `${2.75 * S}px ${FONT}`
+    ctx.font = subFont
     ctx.fillStyle = 'rgba(154,151,140,0.95)'
-    ctx.fillText(label[1], x, y + 4 * S)
+    lines.forEach((l, k) => ctx.fillText(l, x, y + (4 + k * 3.6) * S))
     ctx.restore()
   }
 

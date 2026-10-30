@@ -31,6 +31,8 @@ export interface Light {
   shadows: boolean
   /** Varies the wobble pattern between lights. */
   seed: number
+  /** Hover tag of the thing giving off this light; it doesn't light itself (a cap's glow would flicker across its own cap). */
+  owner?: number
 }
 
 /** Something standing on the ground that can cast a shadow: base, half-width, height. */
@@ -100,8 +102,10 @@ export function gatherLight(
   grain: number,
   normal: [number, number, number] | null,
   out: Color,
+  tag = 0,
 ) {
   for (const l of lights) {
+    if (tag && l.owner === tag) continue
     const dx = x - l.x
     const dz = z - l.z
     const dy = y - l.y
