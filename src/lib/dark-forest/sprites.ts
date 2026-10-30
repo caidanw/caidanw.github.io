@@ -96,6 +96,10 @@ export const DEER = {
 }
 export const DEER_PAL: Palette = { b: hex('#9a7a5c'), h: hex('#a8876a'), t: hex('#c9b9a0'), n: hex('#2a2018'), l: hex('#7a5f47') }
 
+/** A glowcap: grows where one of the shroomfolk returned to the soil. Its cap glows. */
+export const GLOWCAP: Rows = ['.ccc.', 'ccccc', '..s..', '..s..']
+export const GLOWCAP_PAL: Palette = { c: hex('#9ff5e4'), s: hex('#d8ccb4') }
+
 export const FROG: Rows[] = [
   ['.e.e', 'gggg'],
   ['e.e.', '.gg.', 'gggg'],

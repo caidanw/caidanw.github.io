@@ -45,7 +45,7 @@ const MAX_SCALE = 8
 
 export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOptions = {}): DarkForest {
   const world: World = createWorld()
-  const relic = options.relic && RELICS.includes(options.relic) ? options.relic : 'crook'
+  const relic = options.relic && RELICS.includes(options.relic) ? options.relic : 'antler'
   const renderer = new Renderer(canvas, relic)
   const opts = { glow: options.glow ?? true, debug: options.debug ?? false, normals: options.normals ?? true }
   let paused = false

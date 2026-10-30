@@ -167,10 +167,10 @@ export const HEARTHSTONES = [
 
 /**
  * What stands planted in the ashes: the bonfire's coiled sword, reimagined.
- * Pick one with #relic=crook|key|antler.
+ * The antler crown by default; the others with #relic=crook|key.
  */
-export type Relic = 'crook' | 'key' | 'antler'
-export const RELICS: Relic[] = ['crook', 'key', 'antler']
+export type Relic = 'antler' | 'crook' | 'key'
+export const RELICS: Relic[] = ['antler', 'crook', 'key']
 
 /** Hut geometry in world units: the door sits left of centre; shroomfolk step from the front point to the inside point. */
 export const HUT = { doorDx: -1.9, front: 3.5, inside: -3, capacity: 2 }
@@ -253,7 +253,7 @@ export const REEDS = (() => {
   return out
 })()
 
-/** Bioluminescent mushrooms at the forest edge. */
+/** Foxfire: a faint violet fungus glowing on rotten wood at the forest edge (not to be confused with glowcaps). */
 export const SHROOMS = (() => {
   const rng = rngFrom(13)
   const out: (Point & { ph: number })[] = []

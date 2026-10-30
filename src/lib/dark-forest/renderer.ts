@@ -10,7 +10,7 @@
  * banded, noise-dithered firelight with shadows cast away from the fire;
  * objects get smooth light shaped by their normals.
  */
-import { BAYER4, clamp, hash, hex, mix, rngFrom, vnoise, type Color } from './util'
+import { clamp, hash, hex, mix, rngFrom, vnoise, type Color } from './util'
 import {
   C,
   EYES,
@@ -35,8 +35,25 @@ import {
   type Relic,
   type Tree,
 } from './world'
-import { CROW, DEER, DEER_PAL, FROG, FROG_PAL, KNIGHT, KNIGHT_NOD, KNIGHT_PAL, MUSH, MUSH_PAL, MUSH_PAL_ELDER, type Palette, type Rows } from './sprites'
+import {
+  CROW,
+  DEER,
+  DEER_PAL,
+  FROG,
+  FROG_PAL,
+  GLOWCAP,
+  GLOWCAP_PAL,
+  KNIGHT,
+  KNIGHT_NOD,
+  KNIGHT_PAL,
+  MUSH,
+  MUSH_PAL,
+  MUSH_PAL_ELDER,
+  type Palette,
+  type Rows,
+} from './sprites'
 import { lightness, reliefNormals, spriteNormals } from './normals'
+import { gatherLight, groundGrain, prepareLights, type Caster, type Light } from './lights'
 import { WALKING, doorOpen, hutOccupancy, isElder, isMoving, isRaining, lightRadius, perchPos, type Mush, type World } from './sim'
 
 const FONT = "ServerMono, 'Server Mono', ui-monospace, monospace"
@@ -47,8 +64,8 @@ const GLOW = {
   inside: hex('#b8743a'),
   lantern: [hex('#ffd27a'), hex('#ffb347'), hex('#ff9a3c')],
   rune: hex('#8ff0e0'),
-  shroom: hex('#7fe6d6'),
-  shroomD: hex('#5bc2b4'),
+  foxfire: hex('#b9a2f5'),
+  foxfireD: hex('#8a70d8'),
   memorial: hex('#b8fff0'),
   candle: hex('#ffd27a'),
   eye: hex('#e8d78a'),
@@ -272,14 +289,6 @@ interface Hit {
   sub: string
 }
 
-/** Something that casts a fire shadow on the ground: world base, half-width, height. */
-interface Caster {
-  x: number
-  z: number
-  r: number
-  h: number
-}
-
 export class Renderer {
   private ctx: CanvasRenderingContext2D
   private scale = 4
@@ -294,6 +303,9 @@ export class Renderer {
     rg: new Float32Array(N),
     rb: new Float32Array(N),
     ra: new Float32Array(N),
+    // how much each emissive pixel feeds the bloom (0 = none)
+    bw: new Float32Array(N),
+    rbw: new Float32Array(N),
   }
   private out = { r: new Float32Array(N), g: new Float32Array(N), b: new Float32Array(N) }
   private outC = document.createElement('canvas')
@@ -311,7 +323,7 @@ export class Renderer {
 
   constructor(
     private canvas: HTMLCanvasElement,
-    private relic: Relic = 'crook',
+    private relic: Relic = 'antler',
   ) {
     this.ctx = canvas.getContext('2d')!
     for (const c of [this.outC, this.fxC]) {
@@ -400,9 +412,11 @@ export class Renderer {
   /**
    * Write an emissive pixel. Emissives that belong to something in the world
    * pass its `depth`, so whatever stands in front hides them (and their bloom).
-   * `baseY` is the screen line to mirror about for pool reflections.
+   * `baseY` is the screen line to mirror about for pool reflections. `bloom` is how much the
+   * pixel feeds the glow: 1 for small lights, less for big bright areas, 0 for things that
+   * merely sit in the emissive layer (smoke, silhouettes, rain ripples...).
    */
-  private putFx(px: number, py: number, c: Color, a: number, baseY?: number, depth?: number) {
+  private putFx(px: number, py: number, c: Color, a: number, baseY?: number, depth?: number, bloom = 1) {
     const fx = this.fx
     px = Math.round(px)
     py = Math.round(py)
@@ -413,6 +427,7 @@ export class Renderer {
     fx.g[i] = c[1]
     fx.b[i] = c[2]
     fx.a[i] = a
+    fx.bw[i] = bloom
     if (baseY === undefined) return
     const ry = Math.round(2 * baseY - py)
     if (ry < 0 || ry >= H) return
@@ -422,6 +437,7 @@ export class Renderer {
       fx.rg[j] = c[1]
       fx.rb[j] = c[2]
       fx.ra[j] = a
+      fx.rbw[j] = bloom
     }
   }
 
@@ -847,7 +863,7 @@ export class Renderer {
         const px = Math.round(x0 + (x1 - x0) * t)
         const py = Math.round(y0 + (y1 - y0) * t)
         this.put(B, fx + px, fy + py, t > 0.6 ? C.char : t > 0.3 ? C.log : C.logLit, px * 0.6, 0.2, -py + 1, fy, 0.05)
-        if (t > 0.55 && hash(px, py + ((w.t * 3) | 0)) < 0.6) this.putFx(fx + px, fy + py, GLOW.ember, 0.4 + 0.6 * heat, fy, 0.06)
+        if (t > 0.55 && hash(px, py + ((w.t * 3) | 0)) < 0.6) this.putFx(fx + px, fy + py, GLOW.ember, 0.4 + 0.6 * heat, fy, 0.06, 0.4)
       }
     }
     return [fx, fy - 3]
@@ -923,6 +939,12 @@ export class Renderer {
       this.put(B, gx, gy - 1, C.candle, g.x + 3, g.z + 1, 2, gy, g.z + 2)
     }
 
+    // glowcaps: where shroomfolk returned to the soil
+    const glowcaps = w.memorials.map((m) => ({
+      ...this.sprite(B, GLOWCAP, m.x, m.z, GLOWCAP_PAL, false, { glowChar: 'c', hover: ['a glowcap', `where ${m.name} returned to the soil`] }),
+      ph: m.ph,
+    }))
+
     // shroomfolk (asleep ones are inside their hut)
     const caps: { glow: [number, number][]; by: number; dep: number; elder: boolean }[] = []
     const lanterns: { x: number; y: number; dep: number }[] = []
@@ -992,7 +1014,7 @@ export class Renderer {
     if (K.fsm.state === 'flying' || K.fsm.state === 'returning') {
       CROW[1 + (((t * 8) % 2) | 0)].forEach((row, r) =>
         [...row].forEach((ch, c) => {
-          if (ch !== '.') this.putFx(K.x + c - 2, K.y + r - 1, C.crow, 1)
+          if (ch !== '.') this.putFx(K.x + c - 2, K.y + r - 1, C.crow, 1, undefined, undefined, 0)
         }),
       )
       this.hit(K.x - 3, K.y - 2, K.x + 2, K.y + 2, 100, 'a crow', 'off somewhere drier')
@@ -1002,7 +1024,7 @@ export class Renderer {
       const asleep = hutOccupancy(w, i)
       const open = doorOpen(w, i)
       if (asleep || open)
-        for (const [dk, dr] of DOOR_PX) this.putFx(hx + dk, hy - dr, GLOW.inside, asleep ? 0.45 : 0.25, undefined, hut.z + HUT_PX.inside + 0.1)
+        for (const [dk, dr] of DOOR_PX) this.putFx(hx + dk, hy - dr, GLOW.inside, asleep ? 0.45 : 0.25, undefined, hut.z + HUT_PX.inside + 0.1, 0.3)
       if (asleep) for (const [dk, dr] of WINDOW_PX) this.putFx(hx + dk, hy - dr, GLOW.window, 0.95, undefined, hut.z + 0.05)
       const sleepers = w.mush.filter((m) => m.fsm.state === 'asleep' && m.hut === i).map((m) => m.name)
       const sub = sleepers.length ? `${sleepers.join(' and ')} asleep inside` : open ? 'someone is stepping through the door' : 'empty for now'
@@ -1061,20 +1083,18 @@ export class Renderer {
       }
       this.hit(x0, y0, x1, by + 1, hs.z, 'the hearthstones', warm > 0.3 ? 'the spiral glows when the fire is high' : 'older than the village')
     }
+    // foxfire: faint violet specks on rotten wood (ambient, just pretty)
     for (const s of SHROOMS) {
       const [sx, sy] = project(s.x, 0, s.z)
-      const a = 0.55 + 0.35 * Math.sin(t * 0.8 + s.ph)
-      this.putFx(sx, sy, GLOW.shroom, a, sy, s.z + 0.05)
-      this.putFx(sx + 1, sy - 1, GLOW.shroomD, a * 0.7, sy, s.z + 0.05)
+      const a = 0.4 + 0.25 * Math.sin(t * 0.8 + s.ph)
+      this.putFx(sx, sy, GLOW.foxfire, a, sy, s.z + 0.05, 0.6)
+      this.putFx(sx + 1, sy, GLOW.foxfireD, a * 0.7, sy, s.z + 0.05, 0.6)
+      this.hit(sx - 2, sy - 2, sx + 3, sy + 1, s.z, 'foxfire', 'a fungus that glows on rotting wood')
     }
-    for (const m of w.memorials) {
-      const [sx, sy] = project(m.x, 0, m.z)
-      const a = 0.7 + 0.3 * Math.sin(t * 0.6 + m.ph)
-      this.putFx(sx, sy, GLOW.memorial, a, sy, m.z + 0.05)
-      this.putFx(sx, sy - 1, GLOW.memorial, a * 0.9, sy, m.z + 0.05)
-      this.putFx(sx - 1, sy - 1, GLOW.shroom, a * 0.6, sy, m.z + 0.05)
-      this.putFx(sx + 1, sy - 1, GLOW.shroom, a * 0.6, sy, m.z + 0.05)
-      this.hit(sx - 3, sy - 4, sx + 3, sy + 2, m.z, 'a glowcap', `where ${m.name} returned to the soil`)
+    // glowcap caps (the mushrooms themselves are drawn with the objects)
+    for (const g of glowcaps) {
+      const pulse = 0.75 + 0.25 * Math.sin(t * 0.6 + g.ph)
+      for (const [gx, gy] of g.glow) this.putFx(gx, gy, GLOW.memorial, pulse, g.by, g.dep + 0.01)
     }
     for (const e of EYES) {
       const d = Math.hypot(e.x, e.z)
@@ -1090,7 +1110,7 @@ export class Renderer {
 
     // the flame: its size follows the fire's heat, so a fresh log swells it gradually
     const coals = Math.round(3 + 3 * Math.min(1, heat))
-    for (let kk = -coals; kk <= coals; kk++) this.putFx(fireX + kk, fireY + 1, FLAME[hash(kk, (t * 8) | 0) < 0.5 ? 1 : 2], 1, groundY, 0.2)
+    for (let kk = -coals; kk <= coals; kk++) this.putFx(fireX + kk, fireY + 1, FLAME[hash(kk, (t * 8) | 0) < 0.5 ? 1 : 2], 1, groundY, 0.2, 0.3)
     const fh = 4 + 20 * heat
     const half0 = 2.5 + 4.5 * heat
     for (let y = Math.floor(fireY - fh - 2); y <= fireY; y++) {
@@ -1102,7 +1122,7 @@ export class Renderer {
         const n = vnoise(x * 0.42, y * 0.38 + t * 7)
         const v = (1 - Math.abs(x - fireX - sway) / half) * (1 - dy * 0.6) + (n - 0.5) * 0.9 - dy * 0.35
         if (v < 0.12) continue
-        this.putFx(x, y, FLAME[v > 0.8 ? 3 : v > 0.52 ? 2 : v > 0.3 ? 1 : 0], 1, groundY, 0.2)
+        this.putFx(x, y, FLAME[v > 0.8 ? 3 : v > 0.52 ? 2 : v > 0.3 ? 1 : 0], 1, groundY, 0.2, 0.22)
       }
     }
     // The relic stands in the flames. Like the bonfire's sword it is a dark silhouette where the
@@ -1121,7 +1141,7 @@ export class Renderer {
           const lit: Color = [art.pal[ch][0] * (0.5 + 1.3 * heat), art.pal[ch][1] * (0.4 + 0.8 * heat), art.pal[ch][2] * (0.35 + 0.45 * heat)]
           const base = inFlame ? mix(art.pal[ch], C.char, 0.8) : lit
           const col = ch === 'g' ? mix(base, GLOW.carving, warm * (0.6 + 0.3 * vnoise(t * 3, c + r))) : base
-          this.putFx(px, py, col, 1, groundY, 0.31)
+          this.putFx(px, py, col, 1, groundY, 0.31, ch === 'g' ? 0.5 * warm : 0) // the bone/wood itself doesn't glow
         }),
       )
       this.hit(fireX - (wd >> 1) - 1, groundY - h - 1, fireX + (wd >> 1) + 1, groundY - 4, 0.35, art.name, art.sub)
@@ -1133,12 +1153,12 @@ export class Renderer {
         const age = (t * 0.35 + i / 10) % 1
         const sx = fireX + (vnoise(i * 3.1, t * 0.4) - 0.5) * 8 * age + Math.sin(t + i) * age * 3
         const sy = fireY - 6 - age * 34
-        this.putFx(sx, sy, GLOW.smoke, smoky * 0.22 * (1 - age))
+        this.putFx(sx, sy, GLOW.smoke, smoky * 0.22 * (1 - age), undefined, undefined, 0)
       }
     }
     for (const e of w.embers) {
       const life = 1 - e.age / e.life
-      this.putFx(fireX + e.ox, groundY - e.oy, [1, (120 + life * 100) / 255, 60 / 255], life, groundY, 0.2)
+      this.putFx(fireX + e.ox, groundY - e.oy, [1, (120 + life * 100) / 255, 60 / 255], life, groundY, 0.2, 0.6)
     }
     this.hit(
       fireX - 10,
@@ -1172,7 +1192,7 @@ export class Renderer {
     for (const r of w.ripples) {
       const a = r.age / 0.7
       const hw = (1 + a * 4) | 0
-      for (let dx = -hw; dx <= hw; dx++) this.putFx(r.x + dx, r.y, GLOW.ripple, 0.55 * (1 - a))
+      for (let dx = -hw; dx <= hw; dx++) this.putFx(r.x + dx, r.y, GLOW.ripple, 0.55 * (1 - a), undefined, undefined, 0.2)
     }
 
     // ---- hover boxes for the remaining static props
@@ -1201,8 +1221,8 @@ export class Renderer {
 
   // ---------------------------------------------------------------- lighting
 
-  /** Things standing in the firelight, for ground shadows. */
-  private casters(w: World, R: number): Caster[] {
+  /** Things standing on the ground that can cast shadows from a light. */
+  private casters(w: World): Caster[] {
     const out: Caster[] = [
       { x: w.knight.x, z: w.knight.z, r: 3, h: 11 },
       { x: w.deer.x, z: w.deer.z, r: 3.5, h: 8 },
@@ -1217,7 +1237,57 @@ export class Renderer {
       ...TREES.map((t) => ({ x: t.x, z: t.z, r: 1.1 * t.w, h: 60 })),
     ]
     for (const m of w.mush) if (m.fsm.state !== 'asleep') out.push({ x: m.x, z: m.z, r: 2.2 * Math.max(0.4, m.size), h: 6 * Math.max(0.3, m.size) })
-    return out.filter((c) => Math.hypot(c.x, c.z) < R * 1.15 && Math.hypot(c.x, c.z) > 3)
+    return out
+  }
+
+  /**
+   * Every light in the scene this frame, all in the same model (see lights.ts).
+   * Colours include brightness; flames wobble and spill, steady glows don't.
+   */
+  private lights(w: World): Light[] {
+    const t = w.t
+    const heat = w.fire.heat
+    const warm = (k: number): Color => [0.9 * k, 0.6 * k, 0.25 * k]
+    const out: Light[] = []
+    const fi = (0.3 + 0.7 * heat) * (0.84 + 0.16 * vnoise(t * 9, 3.3))
+    out.push({ x: 0, y: FIRE_Y, z: 0, radius: lightRadius(w), color: [1.7 * fi, 0.95 * fi, 0.42 * fi], wobble: 1, tail: 0.11, shadows: true, seed: 7 })
+    {
+      const fl = 0.85 + 0.15 * vnoise(t * 6, 7)
+      out.push({ x: PROPS.lantern.x + 3, y: 16, z: PROPS.lantern.z, radius: 32, color: warm(1.4 * fl), wobble: 0.5, tail: 0.06, shadows: true, seed: 3 })
+    }
+    for (const g of PROPS.graves) {
+      const fl = 0.8 + 0.2 * vnoise(t * 7 + g.x, 2)
+      out.push({ x: g.x + 3, y: 3, z: g.z + 1, radius: 22, color: warm(1.2 * fl), wobble: 0.7, tail: 0.04, shadows: true, seed: g.x })
+    }
+    PROPS.huts.forEach((h, i) => {
+      if (hutOccupancy(w, i)) out.push({ x: h.x + 3, y: 10, z: h.z + 3, radius: 18, color: warm(0.95), wobble: 0, tail: 0.04, shadows: false, seed: i })
+    })
+    if (w.rune > 0.02) {
+      const k = w.rune
+      out.push({
+        x: PROPS.trigon.x,
+        y: 20,
+        z: PROPS.trigon.z + 2,
+        radius: 30,
+        color: [0.15 * k, 0.8 * k, 0.75 * k],
+        wobble: 0.2,
+        tail: 0.05,
+        shadows: false,
+        seed: 11,
+      })
+    }
+    for (const m of w.mush) {
+      if (m.size < 0.5 || m.fsm.state === 'asleep') continue
+      out.push({ x: m.x, y: 6, z: m.z, radius: 8, color: [0.08, 0.3, 0.28], wobble: 0, tail: 0, shadows: false, seed: m.id })
+      if (m.fsm.state === 'departing')
+        out.push({ x: m.x + (m.flip ? -3 : 3), y: 5, z: m.z, radius: 15, color: warm(0.8), wobble: 0.6, tail: 0.03, shadows: false, seed: m.id })
+    }
+    for (const s of SHROOMS) out.push({ x: s.x, y: 1, z: s.z, radius: 7, color: [0.16, 0.1, 0.3], wobble: 0, tail: 0, shadows: false, seed: s.ph })
+    for (const m of w.memorials) out.push({ x: m.x, y: 3, z: m.z, radius: 13, color: [0.15, 0.6, 0.55], wobble: 0, tail: 0.03, shadows: false, seed: m.ph })
+    for (const f of w.flies)
+      if (f.a > 0.05)
+        out.push({ x: f.x, y: f.y, z: f.z, radius: 8, color: [0.5 * f.a, 0.6 * f.a, 0.2 * f.a], wobble: 0, tail: 0, shadows: false, seed: f.seed })
+    return out
   }
 
   private compose(w: World, opts: RenderOptions) {
@@ -1225,96 +1295,27 @@ export class Renderer {
     const B = this.fb
     const fx = this.fx
     const out = this.out
-    const heat = w.fire.heat
-    const flick = 0.84 + 0.16 * vnoise(t * 9, 3.3)
-    const FI = (0.3 + 0.7 * heat) * flick // brightness follows heat, like the radius does
-    const FR = lightRadius(w)
     const amb = isRaining(w) ? 0.8 : 1
     const useNormals = opts.normals
+    const lights = prepareLights(this.lights(w), this.casters(w))
+    const nrm: [number, number, number] = [0, 0, 0]
 
-    // small point lights: [x, z, y, radius, r, g, b]
-    const lamps: number[][] = []
-    for (const m of w.mush) if (m.size >= 0.5 && m.fsm.state !== 'asleep') lamps.push([m.x, m.z, 6, 7, 0.08, 0.3, 0.28])
-    for (const m of w.mush) if (m.fsm.state === 'departing') lamps.push([m.x + (m.flip ? -3 : 3), m.z, 5, 12, 0.7, 0.48, 0.18])
-    for (const s of SHROOMS) lamps.push([s.x, s.z, 1, 7, 0.1, 0.45, 0.4])
-    for (const m of w.memorials) lamps.push([m.x, m.z, 1, 10, 0.15, 0.6, 0.55])
-    for (const f of w.flies) if (f.a > 0.05) lamps.push([f.x, f.z, f.y, 8, 0.5 * f.a, 0.6 * f.a, 0.2 * f.a])
-    PROPS.huts.forEach((h, i) => hutOccupancy(w, i) && lamps.push([h.x + 3, h.z + 3, 10, 14, 0.9, 0.6, 0.25]))
-    for (const g of PROPS.graves) lamps.push([g.x + 3, g.z + 1, 4, 16, 0.75, 0.52, 0.2])
-    lamps.push([PROPS.lantern.x + 3, PROPS.lantern.z, 16, 22, 0.9, 0.6, 0.25])
-    if (w.rune > 0.02) lamps.push([PROPS.trigon.x, PROPS.trigon.z + 2, 20, 26, 0.15 * w.rune, 0.8 * w.rune, 0.75 * w.rune])
-
-    // fire shadows: each caster throws a soft wedge away from the fire
-    const shadowers = this.casters(w, FR).map((c) => {
-      const d = Math.hypot(c.x, c.z)
-      return { x: c.x, z: c.z, ux: c.x / d, uz: c.z / d, d, L: Math.min(70, (c.h * d) / FIRE_Y), r: c.r }
-    })
-    const shadowAt = (x: number, z: number) => {
-      let s = 0
-      for (const c of shadowers) {
-        const vx = x - c.x
-        const vz = z - c.z
-        const along = vx * c.ux + vz * c.uz
-        if (along < -c.r || along > c.L) continue
-        const perp = Math.abs(vx * c.uz - vz * c.ux)
-        const rr = c.r * (1 + (Math.max(0, along) / c.d) * 0.9) // the penumbra widens with distance
-        if (perp > rr + 1.5) continue
-        const edge = 1 - clamp((perp - rr + 0.6) / 2.1)
-        const fade = Math.pow(1 - Math.max(0, along) / c.L, 0.6)
-        s = Math.max(s, edge * fade * 0.85)
-      }
-      return 1 - s
-    }
-
-    const Lc = [0, 0, 0]
-    // Ground: banded firelight, dithered with world-anchored noise (grain, not a grid), with a
-    // breathing irregular edge, shadows, and a long faint tail that bleeds into the forest.
-    // Objects: smooth light shaped by their normals, plus a moonlit rim.
+    // Ambient moonlight (with a rim on surfaces that face the moon), plus every light source.
+    const Lc: Color = [0, 0, 0]
     const light = (i: number, x: number, z: number, y: number, ground: boolean) => {
-      const d = Math.hypot(x, z)
-      const edge = 1 + 0.16 * (vnoise(Math.atan2(z, x) * 2.4 + 7, t * 0.7) - 0.5) + 0.08 * (vnoise(x * 0.06, z * 0.06) - 0.5)
-      let f = 1 - d / (FR * edge)
-      f = f > 0 ? f * f * FI * Math.exp(-Math.max(0, y - 8) / 70) : 0
-      let tail = (0.11 * FI) / (1 + (d / FR) ** 2 * 5)
-      let ambMul = 1
-      if (ground) {
-        if (f > 0) {
-          const grain = hash(Math.floor(x * 1.35) + 999, Math.floor(z * 0.6))
-          const banded = Math.floor(f * 6 + grain) / 6
-          f = (0.55 * banded + 0.45 * f) * shadowAt(x, z)
-        }
-      } else if (useNormals && B.nz[i] > 0) {
-        const nx = B.nx[i]
-        const ny = B.ny[i]
-        const nz = B.nz[i]
-        const lx = -x
-        const ly = FIRE_Y - y
-        const lz = -z
-        const ndl = (nx * lx + ny * ly + nz * lz) / (Math.hypot(lx, ly, lz) || 1)
-        const lam = clamp((ndl + 0.15) / 1.15)
-        f *= 0.2 + 1.15 * lam
-        tail *= 0.4 + 0.9 * lam
-        ambMul = 0.5 + 1.3 * Math.max(0, nx * MOON[0] + ny * MOON[1] + nz * MOON[2])
+      let moon = 1
+      let normal: [number, number, number] | null = null
+      if (!ground && useNormals && i >= 0 && B.nz[i] > 0) {
+        nrm[0] = B.nx[i]
+        nrm[1] = B.ny[i]
+        nrm[2] = B.nz[i]
+        normal = nrm
+        moon = 0.5 + 1.3 * Math.max(0, nrm[0] * MOON[0] + nrm[1] * MOON[1] + nrm[2] * MOON[2])
       }
-      const fire = f + tail
-      let lr = 0.15 * amb * ambMul + fire * 1.7
-      let lg = 0.18 * amb * ambMul + fire * 0.95
-      let lb = 0.27 * amb * ambMul + fire * 0.42
-      for (const L of lamps) {
-        const ex = x - L[0]
-        const ez = z - L[1]
-        const ey = y - L[2]
-        const dd = ex * ex + ez * ez + ey * ey * 0.5
-        if (dd >= L[3] * L[3]) continue
-        let k = 1 - Math.sqrt(dd) / L[3]
-        k = ground ? Math.floor(k * k * 4 + BAYER4[((i % W) & 3) + ((((i / W) | 0) & 3) << 2)]) / 4 : k * k
-        lr += k * L[4]
-        lg += k * L[5]
-        lb += k * L[6]
-      }
-      Lc[0] = lr
-      Lc[1] = lg
-      Lc[2] = lb
+      Lc[0] = 0.15 * amb * moon
+      Lc[1] = 0.18 * amb * moon
+      Lc[2] = 0.27 * amb * moon
+      gatherLight(lights, t, x, y, z, ground, ground ? groundGrain(x, z) : 0.5, normal, Lc)
     }
 
     for (let y = 0; y < H; y++) {
@@ -1394,12 +1395,12 @@ export class Renderer {
       d[o + 1] = clamp(out.g[i]) * 255
       d[o + 2] = clamp(out.b[i]) * 255
       d[o + 3] = 255
-      const ra = fx.ra[i] * 0.6
+      const ra = fx.ra[i] * 0.6 * fx.rbw[i]
       const useR = ra > fx.a[i]
       e[o] = (useR ? fx.rr[i] : fx.r[i]) * 255
       e[o + 1] = (useR ? fx.rg[i] : fx.g[i]) * 255
       e[o + 2] = (useR ? fx.rb[i] : fx.b[i]) * 255
-      e[o + 3] = Math.max(fx.a[i], ra) * 255
+      e[o + 3] = Math.max(fx.a[i] * fx.bw[i], ra) * 255
     }
     this.outX.putImageData(this.outImg, 0, 0)
     this.fxX.putImageData(this.fxImg, 0, 0)
@@ -1425,8 +1426,8 @@ export class Renderer {
       ctx.translate(fsx * S, fsy * S)
       ctx.scale(1, 0.6)
       const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, lightRadius(w) * 1.5 * S)
-      gr.addColorStop(0, `rgba(255,140,60,${0.16 * fl})`)
-      gr.addColorStop(0.4, `rgba(255,110,40,${0.06 * fl})`)
+      gr.addColorStop(0, `rgba(255,140,60,${0.07 * fl})`)
+      gr.addColorStop(0.4, `rgba(255,110,40,${0.025 * fl})`)
       gr.addColorStop(1, 'rgba(255,100,30,0)')
       ctx.fillStyle = gr
       ctx.fillRect(-DW, -DH * 2, DW * 2, DH * 4)
