@@ -1,7 +1,9 @@
 /**
  * Shroomfolk. Needs: warmth (stay near the fire) and energy (rest in a hut).
- * Jobs: keep the woodpile stocked and keep the fire fed. They age, and every
- * life ends one of two ways, both told in the story feed.
+ * Jobs: keep the fire fed, keep the woodpile stocked, keep the grove candles
+ * lit. They age, and every life ends one of two ways, both told in the story
+ * feed. The quiet grove is where the knight's companions lie; the shroomfolk
+ * learned from him to honour the dead there.
  *
  *   sprouting | arriving -> idle
  *   idle -> feed -> stoke -> idle                          (fire low, logs in the pile)
@@ -9,15 +11,18 @@
  *   idle -> fetch -> haul -> idle                          (pile running short, a stick lying about)
  *   idle -> wander -> idle                                 (otherwise)
  *   idle -> farewell -> departing -> (gone)                (old: a last moment by the knight, then the road)
- *   idle -> wilting -> (gone, leaves a glowcap)            (old: back to the soil at the forest edge)
+ *   idle -> wilting -> (gone, leaves a glowcap)            (old: back to the soil in the quiet grove)
+ *   idle -> tend -> idle                                   (the grove candles are out or burning low)
+ *   idle -> visit -> idle                                  (now and then, sit by a friend's glowcap)
+ *   idle -> keep -> idle                                   (the keeper, once the knight has gone)
  *
  * Reacts to: fire:low (drop what you're doing and feed it), stick:dropped
  * (someone go get it), rain:start (wake up and come out, they love the rain).
  */
 import { clamp, rand } from '../util'
-import { HUT, PROPS } from '../world'
+import { GROVE, GROVE_SPOTS, HUT, PROPS } from '../world'
 import { fsm } from './fsm'
-import { ROAD, countIn, freeSpotNear, freshName, isElder, isRaining, lightRadius, moveTo, tell } from './helpers'
+import { ROAD, candlesNeedTending, countIn, freeGroveSpot, freeSpotNear, freshName, isElder, isRaining, lightRadius, moveTo, tell } from './helpers'
 import type { Ctx, Def, Mush, MushState, Stick, World } from './types'
 
 export interface MushOptions {
@@ -40,6 +45,8 @@ export function createMush(w: World, x: number, z: number, o: MushOptions = {}):
     route: [],
     sink: 0,
     gone: false,
+    spot: null,
+    lastVisit: -999,
     x,
     z,
     tx: x,
@@ -117,10 +124,19 @@ function decide(m: Mush, ctx: Ctx): MushState {
       return 'toHut'
     }
   }
-  const free = w.sticks.filter((s) => !s.claimed)
+  // the grove candles: someone goes to relight them once the rain has passed
+  if (adult(m) && !isRaining(w) && candlesNeedTending(w) && countIn(w.mush, 'tend') === 0) return 'tend'
+  const free = w.sticks.filter((s) => !s.claimed && s.landed)
   if (adult(m) && w.pile < 5 && free.length && fetchers(ctx) < MAX_FETCHERS) {
     const nearest = free.reduce((a, b) => (Math.hypot(a.x - m.x, a.z - m.z) < Math.hypot(b.x - m.x, b.z - m.z) ? a : b))
     return claim(m, nearest)
+  }
+  // the keeper sits in the knight's place by the fire
+  if (w.keeperId === m.id && Math.random() < 0.6) return 'keep'
+  // now and then, sit a while by a friend's glowcap
+  if (adult(m) && w.memorials.length && !isRaining(w) && w.t - m.lastVisit > 90 && Math.random() < 0.12) {
+    m.spot = (Math.random() * w.memorials.length) | 0
+    return 'visit'
   }
   return 'wander'
 }
@@ -254,19 +270,81 @@ export const mushMachine: Def<Mush, MushState> = {
       },
     },
     wilting: {
-      // walk to the forest edge, sit, and sink back into the soil
+      // walk to the quiet grove, settle among the others, and sink back into the soil
       enter: (m, ctx) => {
-        ;[m.tx, m.tz] = freeSpotNear(ctx.w, 44, 62)
+        let spot = freeGroveSpot(ctx.w)
+        if (spot === null) {
+          // the grove is full: the oldest glowcap has faded, and its place is free again
+          const old = ctx.w.memorials.shift()!
+          tell(ctx.w, `${old.name}'s glowcap has faded. The grove still remembers.`)
+          spot = old.spot
+        }
+        m.spot = spot
+        ;[m.tx, m.tz] = GROVE_SPOTS[spot]
         m.sink = 0
       },
       update: (m, ctx, dt) => {
         if (!moveTo(m, 3.5 * pace(m), dt)) return
         if ((m.sink += dt / 6) < 1) return
-        ctx.w.memorials.push({ x: m.x, z: m.z, name: m.name, ph: Math.random() * 6 })
-        if (ctx.w.memorials.length > 12) ctx.w.memorials.shift()
-        tell(ctx.w, `Old ${m.name} returned to the soil at the forest's edge. A glowcap grows there now.`)
+        ctx.w.memorials.push({ x: m.x, z: m.z, name: m.name, ph: Math.random() * 6, spot: m.spot! })
+        tell(ctx.w, `Old ${m.name} returned to the soil in the quiet grove. A glowcap grows there now.`)
         m.gone = true
       },
+    },
+    tend: {
+      // walk to the grove and relight every candle
+      enter: (m) => {
+        m.tx = GROVE.x - 2
+        m.tz = GROVE.z + 7
+        m.wait = 3
+      },
+      update: (m, ctx, dt) => {
+        if (!moveTo(m, 5 * pace(m), dt)) return
+        m.flip = true
+        if ((m.wait -= dt) > 0) return
+        const wasOut = ctx.w.candles.some((c) => !c.lit)
+        for (const c of ctx.w.candles) {
+          c.wax = 1
+          c.lit = true
+        }
+        if (wasOut && Math.random() < 0.6) tell(ctx.w, `${m.name} relit the candles in the quiet grove.`)
+        return 'idle'
+      },
+      on: { 'rain:start': () => 'idle' },
+    },
+    visit: {
+      // sit a while by a friend's glowcap
+      enter: (m, ctx) => {
+        const g = ctx.w.memorials[m.spot ?? 0]
+        if (!g) return
+        m.tx = g.x + 2.5
+        m.tz = g.z + 1.5
+        m.wait = rand(6, 10)
+        m.lastVisit = ctx.w.t
+        if (Math.random() < 0.5) tell(ctx.w, `${m.name} sat by ${g.name}'s glowcap for a while.`)
+      },
+      update: (m, ctx, dt) => {
+        if (!ctx.w.memorials[m.spot ?? 0]) return 'idle'
+        if (!moveTo(m, 4 * pace(m), dt)) return
+        m.flip = true // face the glowcap
+        return (m.wait -= dt) <= 0 ? 'idle' : undefined
+      },
+      exit: (m) => (m.spot = null),
+      on: { 'fire:low': answerFire, 'rain:start': () => 'idle' },
+    },
+    keep: {
+      // the keeper sits where the knight sat, facing the fire
+      enter: (m, ctx) => {
+        m.tx = ctx.w.knight.home.x
+        m.tz = ctx.w.knight.home.z
+        m.wait = rand(12, 25)
+      },
+      update: (m, _ctx, dt) => {
+        if (!moveTo(m, 4 * pace(m), dt)) return
+        m.flip = false
+        return (m.wait -= dt) <= 0 ? 'idle' : undefined
+      },
+      on: { 'fire:low': answerFire },
     },
     exiting: {
       enter: (m) => {

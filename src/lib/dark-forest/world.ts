@@ -172,6 +172,26 @@ export const HEARTHSTONES = [
 export type Relic = 'antler' | 'crook' | 'key'
 export const RELICS: Relic[] = ['antler', 'crook', 'key']
 
+/** The quiet grove: the knight's companions lie here, and the shroomfolk return to the soil around them. */
+export const GROVE = { x: 83, z: -22 }
+/** Where the knight will one day rest, beside them. */
+export const KNIGHT_GRAVE = { x: 67, z: -16 }
+/** Spots in the grove where glowcaps can grow: a loose ring around the graves. */
+export const GROVE_SPOTS: [number, number][] = (() => {
+  const rng = rngFrom(31)
+  const out: [number, number][] = []
+  const graves = [...PROPS.graves, KNIGHT_GRAVE]
+  for (let i = 0; i < 400 && out.length < 14; i++) {
+    const a = rng() * Math.PI * 2
+    const r = 7 + rng() * 11
+    const x = GROVE.x + Math.cos(a) * r
+    const z = GROVE.z + Math.sin(a) * r * 0.7
+    if (graves.some((g) => Math.hypot(g.x - x, g.z - z) < 4.5) || out.some(([ox, oz]) => Math.hypot(ox - x, oz - z) < 3.5)) continue
+    out.push([x, z])
+  }
+  return out
+})()
+
 /** Hut geometry in world units: the door sits left of centre; shroomfolk step from the front point to the inside point. */
 export const HUT = { doorDx: -1.9, front: 3.5, inside: -3, capacity: 2 }
 
@@ -187,6 +207,7 @@ export const nearProp = (x: number, z: number, r: number): boolean => avoid.some
 const landmarks: [Point, number][] = [
   ...PROPS.huts.map((p): [Point, number] => [p, 15]),
   ...PROPS.graves.map((p): [Point, number] => [p, 10]),
+  [{ x: 67, z: -16 }, 8],
   [PROPS.lantern, 9],
   [PROPS.trigon, 9],
 ]

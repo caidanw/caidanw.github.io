@@ -120,17 +120,28 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   const buttons = document.querySelectorAll<HTMLButtonElement>('[data-toggle]')
   const params = new URLSearchParams(location.hash.slice(1))
 
-  // the village's story, one line at a time
+  // the village's story, one line at a time: lines that arrive together queue up, each gets a moment
   const storyEl = document.getElementById('story')!
-  let storyTimer = 0
+  const storyQueue: string[] = []
+  let telling = false
   function tellStory(line: string) {
+    storyQueue.push(line)
+    if (!telling) showNext()
+  }
+  function showNext() {
+    const line = storyQueue.shift()
+    if (line === undefined) {
+      telling = false
+      window.setTimeout(() => !telling && storyEl.classList.remove('fresh'), 8000)
+      return
+    }
+    telling = true
     storyEl.style.opacity = '0'
-    clearTimeout(storyTimer)
-    storyTimer = window.setTimeout(() => {
+    window.setTimeout(() => {
       storyEl.textContent = line
       storyEl.classList.add('fresh')
       storyEl.style.opacity = '1'
-      storyTimer = window.setTimeout(() => storyEl.classList.remove('fresh'), 12000)
+      window.setTimeout(showNext, storyQueue.length ? 4500 : 1500)
     }, 400)
   }
 
@@ -142,11 +153,13 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     debug: params.has('debug'),
     rain: params.has('rain'),
     speed: Number(params.get('speed')) || 1,
+    vigil: Number(params.get('vigil')) || undefined,
     relic: (params.get('relic') ?? undefined) as Relic | undefined,
     onStory: tellStory,
     onChange: sync,
   })
   sync(forest.state())
+  if (params.has('debug')) Object.assign(window, { forest }) // poke at it from the console
 
   const actions: Record<string, () => void> = {
     rain: forest.toggleRain,

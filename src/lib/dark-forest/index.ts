@@ -15,6 +15,8 @@ export interface DarkForestOptions {
   speed?: number
   /** Light objects with generated normal maps (default on). */
   normals?: boolean
+  /** Seconds of vigil before the knight goes to rest in the grove (default 40 minutes). */
+  vigil?: number
   /** What stands planted in the fire. */
   relic?: Relic
   /** Called with each line of the village's story as it happens. */
@@ -38,6 +40,8 @@ export interface DarkForest {
   toggleNormals(): void
   togglePause(): void
   state(): DarkForestState
+  /** The live world, for debugging and tests. */
+  inspect(): World
   destroy(): void
 }
 
@@ -50,6 +54,7 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
   const opts = { glow: options.glow ?? true, debug: options.debug ?? false, normals: options.normals ?? true }
   let paused = false
   if (options.rain) toggleRain(world)
+  if (options.vigil) world.knight.vigilLength = options.vigil
 
   const state = (): DarkForestState => ({ rain: isRaining(world), glow: opts.glow, debug: opts.debug, normals: opts.normals, paused })
   const changed = () => options.onChange?.(state())
@@ -86,9 +91,13 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
     renderer.pointer = null
     world.cursor = null
   }
+  // a dropped stick starts at the cursor and falls to the ground beneath it
+  const DROP_HEIGHT = 22
   const onDown = (e: PointerEvent) => {
-    const p = toWorld(e)
-    if (p) dropStick(world, p)
+    const { x, y } = toScreen(e)
+    let q = unproject(x, y + DROP_HEIGHT * 1.35)
+    for (let i = 0; i < 3 && q; i++) q = unproject(x, y + DROP_HEIGHT * (1 + q[1] * 0.0028) * 1.35) // refine for depth
+    if (q) dropStick(world, { x: q[0], z: q[1] }, DROP_HEIGHT)
   }
   canvas.addEventListener('pointermove', onMove)
   canvas.addEventListener('pointerleave', onLeave)
@@ -134,6 +143,7 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
       changed()
     },
     state,
+    inspect: () => world,
     destroy() {
       cancelAnimationFrame(raf)
       ro.disconnect()

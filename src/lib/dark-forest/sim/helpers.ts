@@ -1,10 +1,18 @@
 import { rand } from '../util'
-import { PROPS, inPool, nearProp, project } from '../world'
+import { GROVE_SPOTS, PROPS, inPool, nearProp, project } from '../world'
 import type { Fsm } from './fsm'
 import type { MushState, Stick, Walker, World } from './types'
 
 export const isRaining = (w: World): boolean => w.weather.fsm.state === 'raining'
 export const tell = (w: World, line: string) => w.story.push(line)
+/** A grove spot with no glowcap and nobody already heading to it. */
+export function freeGroveSpot(w: World): number | null {
+  const taken = new Set([...w.memorials.map((m) => m.spot), ...w.mush.filter((m) => m.fsm.state === 'wilting' && m.spot !== null).map((m) => m.spot)])
+  const free = GROVE_SPOTS.map((_, i) => i).filter((i) => !taken.has(i))
+  return free.length ? free[(Math.random() * free.length) | 0] : null
+}
+export const candlesNeedTending = (w: World): boolean => w.candles.some((c) => !c.lit || c.wax < 0.2)
+
 export const isElder = (m: { age: number; lifespan: number }): boolean => m.age > m.lifespan * 0.75
 
 const NAMES =
@@ -63,6 +71,19 @@ export function freeSpotNear(w: World, r0: number, r1: number): [number, number]
   return [r0, 0]
 }
 
+/** A stick lying on the ground. */
+export const restingStick = (x: number, z: number): Stick => ({
+  x,
+  z,
+  claimed: false,
+  y: 0,
+  vy: 0,
+  angle: Math.random() < 0.5 ? 0 : Math.PI,
+  spin: 0,
+  landed: true,
+  glint: 0,
+})
+
 /** Somewhere at the forest edge for a stick to fall. */
 export function stickSpot(w: World): Stick {
   for (let k = 0; k < 40; k++) {
@@ -70,9 +91,9 @@ export function stickSpot(w: World): Stick {
     const r = rand(40, 66)
     const x = Math.cos(a) * r
     const z = Math.sin(a) * r * 0.8
-    if (!inPool(x, z, w.poolLevel * 1.3) && z > -48 && Math.abs(x) < 120 && !nearProp(x, z, 10)) return { x, z, claimed: false }
+    if (!inPool(x, z, w.poolLevel * 1.3) && z > -48 && Math.abs(x) < 120 && !nearProp(x, z, 10)) return restingStick(x, z)
   }
-  return { x: -50, z: 10, claimed: false }
+  return restingStick(-50, 10)
 }
 
 export function burst(w: World, n: number, power: number) {

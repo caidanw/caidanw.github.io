@@ -105,7 +105,7 @@ export function gatherLight(
     const dx = x - l.x
     const dz = z - l.z
     const dy = y - l.y
-    const dd = dx * dx + dz * dz + dy * dy * 0.2
+    const dd = dx * dx + dz * dz + dy * dy // true 3D distance: light falls off up a wall as fast as across the ground
     if (dd >= l.reach2) continue
     const d = Math.sqrt(dd)
     let R = l.radius

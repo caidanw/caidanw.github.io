@@ -47,10 +47,18 @@ export interface Fire {
   flare: number
 }
 
-export type KnightState = 'resting' | 'nodding'
-export interface Knight extends Point {
+export type KnightState = 'resting' | 'nodding' | 'rising' | 'walking' | 'kneeling' | 'gone'
+export interface Knight extends Walker {
   fsm: Fsm<KnightState>
   headDown: boolean
+  /** Where he sits by the fire (the keeper sits here after him). */
+  home: Point
+  /** Seconds of vigil kept, and how long it lasts before he goes to rest. */
+  vigil: number
+  vigilLength: number
+  route: [number, number][]
+  sword: 'planted' | 'carried' | 'laid'
+  step: number
 }
 
 export type MushState =
@@ -68,7 +76,10 @@ export type MushState =
   | 'exiting'
   | 'farewell' // end of life: one last moment by the knight...
   | 'departing' // ...then off down the road with a lantern
-  | 'wilting' // or: walk to the forest edge and return to the soil
+  | 'wilting' // or: walk to the quiet grove and return to the soil
+  | 'tend' // relight the candles at the grove
+  | 'visit' // sit a while by a friend's glowcap
+  | 'keep' // the keeper sits in the knight's place by the fire
 export interface Mush extends Walker {
   fsm: Fsm<MushState>
   id: number
@@ -82,6 +93,10 @@ export interface Mush extends Walker {
   sink: number
   /** Set when they've left the scene for good; removed at the end of the tick. */
   gone: boolean
+  /** Grove spot they're heading to (wilting), or the glowcap they're visiting. */
+  spot: number | null
+  /** When they last visited the grove (sim seconds). */
+  lastVisit: number
   wait: number
   warmth: number
   /** Rest need: drains while awake (faster while working), refills asleep in a hut. */
@@ -123,6 +138,14 @@ export interface Crow {
 
 export interface Stick extends Point {
   claimed: boolean
+  /** Height above the ground while falling, vertical speed, and tumble. */
+  y: number
+  vy: number
+  angle: number
+  spin: number
+  landed: boolean
+  /** 1 when freshly dropped by the visitor, fading to 0 after it lands (so you can see where it went). */
+  glint: number
 }
 
 export interface World {
@@ -139,8 +162,12 @@ export interface World {
   mush: Mush[]
   sticks: Stick[]
   stickTimer: number
-  /** Glowcaps that grew where shroomfolk returned to the soil. */
-  memorials: (Point & { name: string; ph: number })[]
+  /** Glowcaps that grew where shroomfolk returned to the soil, each on a grove spot. */
+  memorials: (Point & { name: string; ph: number; spot: number })[]
+  /** One candle per grave: wax left (1 = fresh) and whether it's lit. */
+  candles: { wax: number; lit: boolean }[]
+  /** The shroomfolk who took up the knight's place, once he's gone. */
+  keeperId: number | null
   /** Countdown to the next traveler, if the village is small. */
   arrivalTimer: number
   /** Story lines waiting to be shown by the page. */
@@ -150,6 +177,8 @@ export interface World {
   drops: { x: number; y: number; v: number; stop: number }[]
   ripples: { x: number; y: number; age: number }[]
   zs: { hut: number; age: number }[]
+  /** Dust kicked up where something lands. */
+  puffs: { x: number; z: number; age: number; seed: number }[]
   flies: { seed: number; x: number; y: number; z: number; a: number }[]
   shooting: { x: number; y: number; age: number } | null
   nextShoot: number

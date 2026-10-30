@@ -8,36 +8,111 @@ import { hex, type Color } from './util'
 export type Rows = readonly string[]
 export type Palette = Record<string, Color>
 
+/**
+ * The last knight, in plate. Seated facing the fire (to his right): great helm
+ * with a visor slit, pauldrons, mail, a cape behind, knees drawn up.
+ */
 export const KNIGHT: Rows = [
+  '.....hhh......',
+  '....hHHhh.....',
+  '....hHhhhd....',
+  '....hhvvvd....',
+  '....dhhhhd....',
+  '.....dhhd.....',
+  '...cpHhhpd....',
+  '..ccpHmmmpd...',
+  '..ccdmmdmmhh..',
+  '..ccmdmmdhhg..',
+  '..cclmmmmll...',
+  '.ccclllllllll.',
+  '.cccLlllllllh.',
+  '.ccc.....dhhd.',
+  '.cc......dhhd.',
+  '.........bbbb.',
+  '........bbbbbb',
+]
+/** Same knight with his head bowed toward the fire: nodding off. */
+export const KNIGHT_NOD: Rows = KNIGHT.map((r, i) => (i < 6 ? '.' + r.slice(0, 13) : r))
+/** Standing, sword in hand (two walking frames). */
+export const KNIGHT_STAND: Rows[] = [
+  [
+    '...hhh....',
+    '..hHHhh...',
+    '..hHhhhd..',
+    '..hhvvvd..',
+    '..dhhhhd..',
+    '...dhhd...',
+    '.cpHhhpd..',
+    'ccpHmmmpd.',
+    'ccdmmdmmhs',
+    'ccmdmmdmhs',
+    'cclmmmmlgs',
+    'ccllllll.s',
+    'cc.ll.ll.s',
+    'c..ll.ll.s',
+    '...dh.dh..',
+    '...dh.dh..',
+    '...dh.dh..',
+    '...dh.dh..',
+    '..bbb.bbb.',
+    '..bbb.bbb.',
+  ],
+  [
+    '...hhh....',
+    '..hHHhh...',
+    '..hHhhhd..',
+    '..hhvvvd..',
+    '..dhhhhd..',
+    '...dhhd...',
+    '.cpHhhpd..',
+    'ccpHmmmpd.',
+    'ccdmmdmmhs',
+    'ccmdmmdmhs',
+    'cclmmmmlgs',
+    'ccllllll.s',
+    'cc.ll..ll.',
+    'c.ll...ll.',
+    '..dh...dh.',
+    '..dh...dh.',
+    '.dh.....dh',
+    '.dh.....dh',
+    'bbb....bbb',
+    'bbb....bbb',
+  ],
+]
+/** Kneeling at the grove, planting his sword. */
+export const KNIGHT_KNEEL: Rows = [
   '....hhh.....',
   '...hHHhh....',
-  '...hhvvh....',
-  '...hhhhh....',
-  '....hhh.....',
-  '...cbbbc....',
-  '..ccbBbbc...',
-  '..cbbBbbbb..',
-  '..cbbbbbbbg.',
-  '.ccbbbbbb...',
-  '.cccbbbbb...',
-  '.ccc.lllllll',
-  '.cc..lllllLl',
-  '......ll..ll',
-  '......LL..LL',
+  '...hHhhhd...',
+  '...hhvvvd.s.',
+  '...dhhhhd.s.',
+  '....dhhd..s.',
+  '..cpHhhpd.s.',
+  '.ccpHmmmphg.',
+  '.ccdmmdmm.s.',
+  '.ccmdmmdm.s.',
+  '.cclllll..s.',
+  '.cc.lllll.s.',
+  '.cc..dhhd.s.',
+  '....bbbbbbs.',
 ]
-/** Same knight with his head dropped forward: nodding off. */
-export const KNIGHT_NOD: Rows = KNIGHT.map((r, i) => (i < 5 ? '.' + r.slice(0, 11) : r))
 export const KNIGHT_PAL: Palette = {
-  h: hex('#bdb6a6'),
-  H: hex('#e2dccd'),
-  v: hex('#141210'),
-  b: hex('#55505c'),
-  B: hex('#8a8492'),
-  c: hex('#3d2c2c'),
-  l: hex('#45414b'),
-  L: hex('#2c2a30'),
-  g: hex('#8a8492'),
+  H: hex('#ecebe6'), // helm and plate highlight
+  h: hex('#aeada9'), // steel
+  d: hex('#53575e'), // steel in shadow (cool)
+  v: hex('#0e0d0d'), // visor slit
+  p: hex('#bab8b2'), // pauldrons
+  m: hex('#73767b'), // mail
+  c: hex('#5c2323'), // cape
+  l: hex('#5a4532'), // leather
+  L: hex('#3a2c22'), // leather in shadow
+  g: hex('#b0aba2'), // gauntlet
+  b: hex('#2e2a29'), // boots
+  s: hex('#d2cfc8'), // his sword
 }
+/** How shiny each part of the knight is (specular strength): plate gleams, mail less, cloth not at all. */
+export const KNIGHT_SHINE: Record<string, number> = { H: 1, h: 1, p: 1, g: 1, s: 1, d: 0.7, m: 0.45 }
 
 export const MUSH = {
   walk: [

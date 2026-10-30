@@ -17,6 +17,7 @@ import {
   H,
   HEARTHSTONES,
   HORIZON,
+  KNIGHT_GRAVE,
   N,
   PADS,
   PROPS,
@@ -44,8 +45,11 @@ import {
   GLOWCAP,
   GLOWCAP_PAL,
   KNIGHT,
+  KNIGHT_KNEEL,
   KNIGHT_NOD,
   KNIGHT_PAL,
+  KNIGHT_SHINE,
+  KNIGHT_STAND,
   MUSH,
   MUSH_PAL,
   MUSH_PAL_ELDER,
@@ -53,6 +57,7 @@ import {
   type Rows,
 } from './sprites'
 import { lightness, reliefNormals, spriteNormals } from './normals'
+import { WEIGHT, micro, shape, type Normal } from './materials'
 import { gatherLight, groundGrain, prepareLights, type Caster, type Light } from './lights'
 import { WALKING, doorOpen, hutOccupancy, isElder, isMoving, isRaining, lightRadius, perchPos, type Mush, type World } from './sim'
 
@@ -76,14 +81,24 @@ const GLOW = {
   ripple: hex('#aabed8'),
   ember: hex('#ff8a3a'),
   smoke: hex('#8a8a92'),
+  dust: hex('#9c8a6a'),
+  glint: hex('#e8c89a'),
   carving: hex('#ff9a4a'),
 }
 
 /** Fire light comes from a little above the logs. */
 const FIRE_Y = 6
+/** Toward the viewer: the camera sits low, looking a little down into the clearing. */
+const VIEW = [0, 0.3, 0.95]
 /** Moonlight direction (toward the moon: up, and behind the clearing). Gives rims in the dark. */
 const MOON = (() => {
   const v = [0.15, 0.75, -0.65]
+  const l = Math.hypot(...v)
+  return v.map((c) => c / l)
+})()
+/** Half-vector between the moon and the viewer, for metal's cool highlight. */
+const MOON_H = (() => {
+  const v = [MOON[0] + VIEW[0], MOON[1] + VIEW[1], MOON[2] + VIEW[2]]
   const l = Math.hypot(...v)
   return v.map((c) => c / l)
 })()
@@ -108,8 +123,12 @@ function makeBuf() {
     nx: f(),
     ny: f(),
     nz: f(),
-    // static object region (for normal generation)
+    // static object region (for normal generation), material micro height and its weight
     id: new Int32Array(N),
+    mh: f(),
+    mw: f(),
+    // specular strength (metal gleams)
+    sp: f(),
     // planar reflection (what the pool mirrors at this pixel)
     rr: f(),
     rg: f(),
@@ -142,6 +161,97 @@ const trigonPx = (() => {
   for (let r = 0; r < 5; r++) for (let k = -r; k <= r; k++) if (r === 4 || Math.abs(k) === r) out.push([k, r - 2])
   return out
 })()
+
+/** The face inside the carved triangle (for a slight recess and an inner glow). */
+const TRIGON_INSIDE = (() => {
+  const out: [number, number][] = []
+  for (let r = 1; r < 4; r++) for (let k = -r + 1; k <= r - 1; k++) out.push([k, r - 2])
+  return out
+})()
+
+/** Pixels just outside the cut (its lip), for a faint halo. */
+const TRIGON_LIP = (() => {
+  const taken = new Set([...trigonPx, ...TRIGON_INSIDE].map(([x, y]) => `${x},${y}`))
+  const out: [number, number][] = []
+  for (const [x, y] of trigonPx) {
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ]) {
+      const key = `${x + dx},${y + dy}`
+      if (taken.has(key)) continue
+      taken.add(key)
+      out.push([x + dx, y + dy])
+    }
+  }
+  return out
+})()
+
+/**
+ * Bake material micro height into the normals: Sobel slopes of the micro height (plus a
+ * little painted lightness), within each object region, tilt its shape normal.
+ */
+function bakeMicroDetail(B: Buf) {
+  const STRENGTH = 1.6
+  const h = new Float32Array(N)
+  for (let i = 0; i < N; i++) if (B.id[i]) h[i] = B.mh[i] + 0.6 * (lightness(B.r[i], B.g[i], B.b[i]) - 0.35)
+  for (let y = 1; y < H - 1; y++) {
+    for (let x = 1; x < W - 1; x++) {
+      const i = y * W + x
+      const wgt = B.mw[i]
+      if (!B.id[i] || wgt <= 0 || B.nz[i] <= 0) continue
+      const at = (dx: number, dy: number) => {
+        const j = (y + dy) * W + x + dx
+        return B.id[j] === B.id[i] ? h[j] : h[i]
+      }
+      const sx = (at(1, -1) + 2 * at(1, 0) + at(1, 1) - at(-1, -1) - 2 * at(-1, 0) - at(-1, 1)) * 0.125
+      const sy = (at(-1, 1) + 2 * at(0, 1) + at(1, 1) - at(-1, -1) - 2 * at(0, -1) - at(1, -1)) * 0.125
+      const nx = B.nx[i] - sx * STRENGTH * wgt
+      const ny = B.ny[i] + sy * STRENGTH * wgt
+      const nz = B.nz[i]
+      const l = Math.hypot(nx, ny, nz) || 1
+      B.nx[i] = nx / l
+      B.ny[i] = ny / l
+      B.nz[i] = nz / l
+    }
+  }
+}
+
+/** A stick in four poses as it tumbles: flat, rising, upright, falling. The second pixel is the cut end. */
+const STICK_POSES: [number, number][][] = [
+  [
+    [-3, 0],
+    [-2, 0],
+    [-1, 0],
+    [0, 0],
+    [1, 0],
+    [2, -1],
+    [3, -1],
+  ],
+  [
+    [-2, 1],
+    [-1, 0],
+    [0, -1],
+    [1, -2],
+    [2, -3],
+  ],
+  [
+    [0, 1],
+    [0, 0],
+    [0, -1],
+    [0, -2],
+    [0, -3],
+  ],
+  [
+    [-2, -3],
+    [-1, -2],
+    [0, -1],
+    [1, 0],
+    [2, 1],
+  ],
+]
 
 /** Hut pixel geometry, relative to the hut's base (k = columns from centre, r = rows up). */
 const HUT_PX = { stemH: 16, capY: 20, inside: -3.5, chimney: [9.5, 31] as const }
@@ -270,7 +380,10 @@ const STATE_WORDS: Record<string, string> = {
   exiting: 'up and about again',
   farewell: 'saying goodbye to the knight',
   departing: 'setting off down the road',
-  wilting: 'going back to the soil',
+  wilting: 'going to rest in the quiet grove',
+  tend: 'relighting the grove candles',
+  visit: 'sitting with an old friend',
+  keep: "keeping the fire, in the knight's place",
 }
 
 export interface RenderOptions {
@@ -373,6 +486,9 @@ export class Renderer {
     depth: number,
     noRefl = false,
     nrm?: [number, number, number],
+    mh = 0,
+    mw = 0,
+    spec = 0,
   ): boolean {
     px = Math.round(px)
     py = Math.round(py)
@@ -392,6 +508,9 @@ export class Renderer {
     B.nx[i] = nrm ? nrm[0] : 0
     B.ny[i] = nrm ? nrm[1] : 0
     B.nz[i] = nrm ? nrm[2] : 0
+    B.mh[i] = mh
+    B.mw[i] = mw
+    B.sp[i] = spec
     if (noRefl) return true
     // mirror the pixel about its base line into the pool
     const ry = Math.round(2 * baseY - py)
@@ -449,7 +568,7 @@ export class Renderer {
     wz: number,
     pal: Palette,
     flip: boolean,
-    opts: { lift?: number; dep?: number; glowChar?: string; hover?: [string, string]; sinkTo?: number } = {},
+    opts: { lift?: number; dep?: number; glowChar?: string; hover?: [string, string]; sinkTo?: number; shine?: Record<string, number> } = {},
   ) {
     const [bx, by] = project(wx, 0, wz)
     const dep = opts.dep ?? wz + 0.5
@@ -480,7 +599,7 @@ export class Renderer {
         if (py > clip) continue
         const src = (r + 2) * nm.w + (flip ? w - 1 - c : c) + 2
         const nrm: [number, number, number] = [flip ? -nm.nx[src] : nm.nx[src], nm.ny[src], nm.nz[src]]
-        if (this.put(B, px, py, pal[ch], wx, wz, h - r + lift, by, dep, false, nrm) && ch === opts.glowChar) glow.push([px, py])
+        if (this.put(B, px, py, pal[ch], wx, wz, h - r + lift, by, dep, false, nrm, 0, 0, opts.shine?.[ch] ?? 0) && ch === opts.glowChar) glow.push([px, py])
       }
     }
     if (opts.hover) this.hit(bx - (w >> 1) - 1, by - h - lift, bx - (w >> 1) + w, by + 1, dep, ...opts.hover)
@@ -517,15 +636,35 @@ export class Renderer {
     const h = 95 * t.h
     const tw = Math.max(1, Math.round(1.8 * t.w * s))
     const rng = rngFrom(t.seed)
+    // the trunk is a cylinder with grooved bark
     this.region++
     for (let r = 0; r <= h * 1.25 * ys; r++) {
-      for (let k = 0; k < tw; k++) this.put(B, bx - (tw >> 1) + k, by - r, k === 0 && tw > 1 ? C.trunkRim : C.trunk, t.x, t.z, r / ys, by, dep)
+      for (let k = 0; k < tw; k++) {
+        const u = tw > 1 ? ((k + 0.5) / tw) * 2 - 1 : 0
+        const px = bx - (tw >> 1) + k
+        const py = by - r
+        this.put(
+          B,
+          px,
+          py,
+          k === 0 && tw > 1 ? C.trunkRim : C.trunk,
+          t.x + u,
+          t.z,
+          r / ys,
+          by,
+          dep,
+          false,
+          shape.cylinder(u),
+          micro.bark(px, py, t.seed),
+          WEIGHT.bark,
+        )
+      }
     }
     if (tw >= 2) {
-      this.put(B, bx - (tw >> 1) - 1, by, C.trunk, t.x, t.z, 0, by, dep)
-      this.put(B, bx + tw - (tw >> 1), by, C.trunk, t.x, t.z, 0, by, dep)
+      this.put(B, bx - (tw >> 1) - 1, by, C.trunk, t.x, t.z, 0, by, dep, false, shape.cylinder(-0.9))
+      this.put(B, bx + tw - (tw >> 1), by, C.trunk, t.x, t.z, 0, by, dep, false, shape.cylinder(0.9))
     }
-    // a column of stacked clumps, narrowing toward the top, moonlit on the upper left; each clump its own dome
+    // a column of stacked leafy clumps, each its own dome, narrowing toward the top
     const n = 4 + ((rng() * 4) | 0)
     const y0 = h * (0.32 + rng() * 0.15)
     const y1 = h * 1.2
@@ -543,7 +682,21 @@ export class Renderer {
           if (u > 0.45) c = C.canopyD
           if ((u < -0.55 && v < 0.3) || (v < -0.7 && u < 0.3)) c = tex < 0.7 ? C.canopyRim : C.canopyHi
           else if (tex < 0.07) c = C.canopyHi
-          this.put(B, px, py, c, t.x + (px - bx) / s, t.z, wy - ((v * rad) / ys) * 0.5, by, dep + 0.001 * k)
+          this.put(
+            B,
+            px,
+            py,
+            c,
+            t.x + (px - bx) / s,
+            t.z,
+            wy - ((v * rad) / ys) * 0.5,
+            by,
+            dep + 0.001 * k,
+            false,
+            shape.dome(u, v),
+            micro.leaves(px, py, t.seed),
+            WEIGHT.leaves,
+          )
         },
         cx,
         cy,
@@ -554,29 +707,34 @@ export class Renderer {
   }
 
   /**
-   * A big mushroom house. The doorway is drawn as interior *behind* the walls
-   * (depth hut.z + HUT_PX.inside), so shroomfolk walking in are hidden by the
-   * walls but stay visible through the open door. The door itself, the lit
+   * A big mushroom house: a fibrous cylindrical stem and a cap with a domed top,
+   * a lip and a gilled underside. The doorway is drawn as interior *behind* the
+   * walls (depth hut.z + HUT_PX.inside), so shroomfolk walking in are hidden by
+   * the walls but stay visible through the open door. The door itself, the lit
    * window and the interior glow are dynamic.
    */
   private drawHut(B: Buf, hut: Point) {
     const [bx, by, s] = project(hut.x, 0, hut.z)
     const dep = hut.z
     // light each column at its own world x, so the side facing the fire is the lit one
-    const put = (k: number, r: number, c: Color, d = dep) => this.put(B, bx + k, by - r, c, hut.x + k / s, hut.z, r, by, d)
+    const put = (k: number, r: number, c: Color, d: number, n: Normal, mh: number, mw: number) =>
+      this.put(B, bx + k, by - r, c, hut.x + k / s, hut.z, r, by, d, false, n, mh, mw)
     this.region++
     for (let r = 0; r < HUT_PX.stemH; r++) {
       const flare = r < 2 ? 1 : 0
       for (let k = -7 - flare; k <= 6 + flare; k++) {
+        const u = (k + 0.5) / (7 + flare)
         if (isDoor(k, r)) {
-          put(k, r, C.hutInside, dep + HUT_PX.inside)
+          put(k, r, C.hutInside, dep + HUT_PX.inside, shape.flat, 0, 0)
           continue
         }
         let c = k >= 4 ? C.hutStemD : k <= -6 ? C.hutStemHi : C.hutStem
         if (hash(k * 13, r * 5 + hut.x) < 0.12) c = C.hutStemD // fibres
         if (isDoorFrame(k, r)) c = C.hutFrame
         if (isWindow(k, r)) c = C.door
-        put(k, r, c)
+        // the frame stands proud of the wall; the window is set in
+        const mh = isDoorFrame(k, r) ? 0.8 : isWindow(k, r) ? -0.8 : micro.fibre(bx + k, by - r, hut.x)
+        put(k, r, c, dep, shape.cylinder(u), mh, isDoorFrame(k, r) || isWindow(k, r) ? 0.8 : WEIGHT.stem)
       }
     }
     // the cap: big pale spots, gills underneath, moonlit rim on the upper left
@@ -591,11 +749,17 @@ export class Renderer {
     disc(
       (px, py, u, v) => {
         let c = C.hutCap
-        if (v > 0.55) c = (px & 1) === 0 ? C.hutGill : C.hutCapD
-        else if (spots.some(([su, sv, sr]) => (u - su) ** 2 + ((v - sv) * 0.7) ** 2 < sr * sr)) c = C.hutSpot
-        else if (u < -0.6 && v < 0.1) c = C.hutCapHi
+        let mh = 0
+        const spot = spots.some(([su, sv, sr]) => (u - su) ** 2 + ((v - sv) * 0.7) ** 2 < sr * sr)
+        if (v > 0.6) {
+          c = (px & 1) === 0 ? C.hutGill : C.hutCapD
+          mh = (px & 1) === 0 ? -0.6 : 0.4 // gills
+        } else if (spot) {
+          c = C.hutSpot
+          mh = 0.6 // spots are raised
+        } else if (u < -0.6 && v < 0.1) c = C.hutCapHi
         else if (u > 0.6 || v > 0.35) c = C.hutCapD
-        this.put(B, px, py, c, hut.x + (px - bx) / s, hut.z, HUT_PX.capY - v * 4, by, dep + 0.01)
+        this.put(B, px, py, c, hut.x + (px - bx) / s, hut.z, HUT_PX.capY - v * 4, by, dep + 0.01, false, shape.cap(u, v), mh, WEIGHT.cap)
       },
       bx,
       by - HUT_PX.capY,
@@ -603,88 +767,144 @@ export class Renderer {
       8,
     )
     this.region++
-    for (let r = 25; r < 31; r++) for (let k = 9; k <= 10; k++) put(k, r, r === 30 ? C.stoneD : k === 9 ? C.stone : C.stoneD, dep + 0.02) // chimney
+    for (let r = 25; r < 31; r++) {
+      for (let k = 9; k <= 10; k++) {
+        put(
+          k,
+          r,
+          r === 30 ? C.stoneD : k === 9 ? C.stone : C.stoneD,
+          dep + 0.02,
+          shape.cylinder(k === 9 ? -0.5 : 0.5),
+          micro.stone(bx + k, by - r, 3),
+          WEIGHT.stone,
+        )
+      }
+    }
   }
 
-  /** The knight's own sword, planted point-down beside him. */
+  /** The knight's own sword, planted point-down beside him: a bevelled blade. */
   private drawSword(B: Buf, p: Point) {
     const [bx, by] = project(p.x, 0, p.z)
     const dep = p.z
     this.region++
     for (let r = 0; r < 13; r++) {
       const lean = r > 8 ? 1 : 0
-      this.put(B, bx + lean, by - r, C.blade, p.x, p.z, r, by, dep)
-      this.put(B, bx + 1 + lean, by - r, C.bladeD, p.x, p.z, r, by, dep)
+      this.put(B, bx + lean, by - r, C.blade, p.x, p.z, r, by, dep, false, [-0.5, 0, 0.87], 0, WEIGHT.metal)
+      this.put(B, bx + 1 + lean, by - r, C.bladeD, p.x, p.z, r, by, dep, false, [0.5, 0, 0.87], 0, WEIGHT.metal)
     }
-    for (let k = -2; k <= 3; k++) this.put(B, bx + 1 + k, by - 13, C.guard, p.x, p.z, 13, by, dep)
-    for (let r = 14; r < 17; r++) this.put(B, bx + 1, by - r, C.grip, p.x, p.z, r, by, dep)
-    this.put(B, bx + 1, by - 17, C.pommel, p.x, p.z, 17, by, dep)
+    for (let k = -2; k <= 3; k++) this.put(B, bx + 1 + k, by - 13, C.guard, p.x, p.z, 13, by, dep, false, [0, 0.5, 0.87])
+    for (let r = 14; r < 17; r++) this.put(B, bx + 1, by - r, C.grip, p.x, p.z, r, by, dep, false, shape.flat)
+    this.put(B, bx + 1, by - 17, C.pommel, p.x, p.z, 17, by, dep, false, [0, 0.7, 0.7])
   }
 
   private drawPack(B: Buf, p: Point) {
     const [bx, by] = project(p.x, 0, p.z)
     this.region++
-    disc((px, py, _u, v) => this.put(B, px, py, v < -0.3 ? C.packHi : C.pack, p.x, p.z, 2 - v * 2, by, p.z), bx, by - 2, 3, 2)
-    this.put(B, bx - 3, by - 1, C.bedroll, p.x, p.z, 1, by, p.z)
-    this.put(B, bx + 3, by - 1, C.bedroll, p.x, p.z, 1, by, p.z)
+    disc((px, py, u, v) => this.put(B, px, py, v < -0.3 ? C.packHi : C.pack, p.x, p.z, 2 - v * 2, by, p.z, false, shape.dome(u, v)), bx, by - 2, 3, 2)
+    this.put(B, bx - 3, by - 1, C.bedroll, p.x, p.z, 1, by, p.z, false, shape.cylinder(-0.6))
+    this.put(B, bx + 3, by - 1, C.bedroll, p.x, p.z, 1, by, p.z, false, shape.cylinder(0.6))
   }
 
   private drawGrave(B: Buf, g: Point & { helm?: boolean }, i: number) {
     const [bx, by] = project(g.x, 0, g.z)
     const dep = g.z
     this.region++
-    disc((px, py, u, v) => this.put(B, px, py, v < -0.2 && u < 0 ? C.stoneHi : hash(px, py) < 0.4 ? C.stoneD : C.stone, g.x, g.z, 1 - v, by, dep), bx, by, 3, 1)
+    disc(
+      (px, py, u, v) =>
+        this.put(
+          B,
+          px,
+          py,
+          v < -0.2 && u < 0 ? C.stoneHi : hash(px, py) < 0.4 ? C.stoneD : C.stone,
+          g.x,
+          g.z,
+          1 - v,
+          by,
+          dep,
+          false,
+          shape.dome(u, v),
+          micro.stone(px, py, i),
+          WEIGHT.stone,
+        ),
+      bx,
+      by,
+      3,
+      1,
+    )
     // a rusted sword, tilted differently on each grave
     const tilt = [-1, 0, 1][i % 3]
     this.region++
-    for (let r = 1; r < 11; r++) this.put(B, bx + Math.round((tilt * r) / 8), by - r, r % 4 === 0 ? C.rust : C.bladeD, g.x, g.z, r, by, dep + 0.1)
+    for (let r = 1; r < 11; r++) {
+      const px = bx + Math.round((tilt * r) / 8)
+      this.put(B, px, by - r, r % 4 === 0 ? C.rust : C.bladeD, g.x, g.z, r, by, dep + 0.1, false, shape.flat, r % 4 === 0 ? -0.5 : 0, 0.5)
+    }
     const tx = bx + Math.round((tilt * 11) / 8)
-    for (let k = -2; k <= 2; k++) this.put(B, tx + k, by - 11, C.rust, g.x, g.z, 11, by, dep + 0.1)
-    this.put(B, tx, by - 12, C.grip, g.x, g.z, 12, by, dep + 0.1)
-    this.put(B, tx, by - 13, C.grip, g.x, g.z, 13, by, dep + 0.1)
+    for (let k = -2; k <= 2; k++) this.put(B, tx + k, by - 11, C.rust, g.x, g.z, 11, by, dep + 0.1, false, [0, 0.5, 0.87])
+    this.put(B, tx, by - 12, C.grip, g.x, g.z, 12, by, dep + 0.1, false, shape.flat)
+    this.put(B, tx, by - 13, C.grip, g.x, g.z, 13, by, dep + 0.1, false, shape.flat)
     if (g.helm) {
       this.region++
-      disc((px, py, u, v) => this.put(B, px, py, v < 0 && u < 0 ? C.stoneHi : C.helm, g.x, g.z, 14 - v, by, dep + 0.2), tx, by - 15, 2, 2)
-      this.put(B, tx + 1, by - 15, C.door, g.x, g.z, 15, by, dep + 0.3)
+      disc(
+        (px, py, u, v) => this.put(B, px, py, v < 0 && u < 0 ? C.stoneHi : C.helm, g.x, g.z, 14 - v, by, dep + 0.2, false, shape.dome(u, v), 0, WEIGHT.metal),
+        tx,
+        by - 15,
+        2,
+        2,
+      )
+      this.put(B, tx + 1, by - 15, C.door, g.x, g.z, 15, by, dep + 0.3, false, shape.flat)
     }
   }
 
   private drawLanternPost(B: Buf, p: Point) {
     const [bx, by] = project(p.x, 0, p.z)
-    const put = (dx: number, r: number, c: Color) => this.put(B, bx + dx, by - r, c, p.x, p.z, r, by, p.z)
+    const put = (dx: number, r: number, c: Color, n: Normal = shape.flat, mh = 0, mw = 0) =>
+      this.put(B, bx + dx, by - r, c, p.x, p.z, r, by, p.z, false, n, mh, mw)
     this.region++
-    for (let r = 0; r < 22; r++) put(0, r, C.wood)
-    for (let k = 0; k < 6; k++) put(k, 21, C.wood)
-    put(5, 20, C.iron)
+    for (let r = 0; r < 22; r++) put(0, r, C.wood, shape.cylinder(0), micro.wood(bx, by - r, 1), WEIGHT.wood)
+    for (let k = 0; k < 6; k++) put(k, 21, C.wood, [0, 0.6, 0.8], micro.wood(bx + k, by - 21, 2), WEIGHT.wood)
+    put(5, 20, C.iron, [0, 0.5, 0.87])
     for (let r = 15; r < 19; r++) {
-      put(4, r, C.iron)
-      put(6, r, C.iron)
+      put(4, r, C.iron, shape.cylinder(-0.7))
+      put(6, r, C.iron, shape.cylinder(0.7))
     }
-    put(5, 19, C.iron)
-    put(5, 14, C.iron)
+    put(5, 19, C.iron, [0, 0.7, 0.7])
+    put(5, 14, C.iron, [0, -0.7, 0.7])
     this.region++
-    for (let k = -5; k <= -1; k++) for (let r = 12; r < 15; r++) put(k, r, k === -5 ? C.signD : C.sign) // signboard pointing out of frame
+    for (let k = -5; k <= -1; k++)
+      for (let r = 12; r < 15; r++) put(k, r, k === -5 ? C.signD : C.sign, k === -5 ? [-0.7, 0, 0.7] : shape.flat, micro.wood(bx + k, by - r, 5), WEIGHT.wood) // signboard
   }
 
+  /**
+   * The trigon stone: a bevelled slab of grainy, pitted, rain-streaked stone with a triangle
+   * cut into it. The cut is a groove (low micro height) so its lips catch the rune's light.
+   */
   private drawTrigon(B: Buf, p: Point) {
     const [bx, by, s] = project(p.x, 0, p.z)
     const hgt = Math.round(40 * s)
     const wid = Math.round(7 * s)
+    const hy = by - Math.round(hgt * 0.6)
+    const carved = new Set(trigonPx.map(([dx, dy]) => `${bx + dx},${hy + dy}`))
+    const inside = new Set(TRIGON_INSIDE.map(([dx, dy]) => `${bx + dx},${hy + dy}`))
     this.region++
     for (let r = 0; r < hgt; r++) {
       const taper = r > hgt - 4 ? 1 : 0
       for (let k = -wid + taper; k <= wid - taper; k++) {
+        const px = bx + k
+        const py = by - r
         let c = k < -wid + 2 ? C.stoneHi : k > wid - 2 ? C.stoneD : C.stone
         if (hash(k * 7, r * 3) < 0.08) c = C.stoneD
         if (hash(k, r) < 0.05 && r < hgt * 0.4) c = C.moss
-        this.put(B, bx + k, by - r, c, p.x + k / s, p.z, r / s, by, p.z)
+        let mh = micro.stone(px, py, 17)
+        if (carved.has(`${px},${py}`)) {
+          c = C.stoneD
+          mh = -2.2 // the cut
+        } else if (inside.has(`${px},${py}`)) mh -= 0.5 // the face inside the triangle sits a little lower
+        this.put(B, px, py, c, p.x + k / s, p.z, r / s, by, p.z, false, shape.slab(k, wid, r, hgt), mh, WEIGHT.carving)
       }
     }
-    const hy = by - Math.round(hgt * 0.6)
-    for (const [dx, dy] of trigonPx) this.put(B, bx + dx, hy + dy, C.stoneD, p.x, p.z, (hgt * 0.6) / s, by, p.z + 0.1)
   }
 
-  /** A ring of stones around the fire. */
+  /** A ring of stones around the fire: grainy domes. */
   private drawStoneRing(B: Buf) {
     for (const st of STONE_RING) {
       const [sx, sy, s] = project(st.x, 0, st.z)
@@ -694,7 +914,21 @@ export class Renderer {
           let c = hash(px * 3 + st.seed, py) < 0.3 ? C.stoneD : C.stone
           if (v < -0.2 && u < 0.2) c = C.stoneHi
           if (v > 0.5) c = C.stoneD
-          this.put(B, px, py, c, st.x + (px - sx) / s, st.z, (sy - py) / s + 0.5, sy, st.z)
+          this.put(
+            B,
+            px,
+            py,
+            c,
+            st.x + (px - sx) / s,
+            st.z,
+            (sy - py) / s + 0.5,
+            sy,
+            st.z,
+            false,
+            shape.dome(u, v),
+            micro.stone(px, py, st.seed),
+            WEIGHT.stone * 0.7,
+          )
         },
         sx,
         sy - Math.floor(st.h / 2),
@@ -704,25 +938,33 @@ export class Renderer {
     }
   }
 
-  /** Three old standing stones behind the fire, leaning a little, mossy at the foot. */
+  /** Three old standing stones behind the fire: bevelled, pitted, mossy at the foot. */
   private drawHearthstones(B: Buf) {
     for (const hs of HEARTHSTONES) {
       const [bx, by, s] = project(hs.x, 0, hs.z)
       const hgt = Math.round(hs.h * s * 0.75)
+      const cy = by - Math.round(hgt * 0.55)
+      const spiral = new Set(SPIRAL_PX.map(([dx, dy]) => `${bx + dx},${cy + dy}`))
       this.region++
       for (let r = 0; r < hgt; r++) {
         const lean = Math.round((hs.lean * r) / hgt)
         const half = r > hgt - 3 ? hs.w - 1 : hs.w
         for (let k = -half; k <= half - 1; k++) {
+          const px = bx + k + lean
+          const py = by - r
           let c = k === -half ? C.menhirHi : k >= half - 1 ? C.menhirD : C.menhir
           if (hash(k * 5 + hs.x, r * 3) < 0.1) c = C.menhirD
-          if (r < 3 && hash(k, r + hs.z) < 0.5) c = C.moss2
-          this.put(B, bx + k + lean, by - r, c, hs.x + k / s, hs.z, r / s, by, hs.z)
+          let mh = micro.stone(px, py, hs.x)
+          if (r < 3 && hash(k, r + hs.z) < 0.5) {
+            c = C.moss2
+            mh += 0.6 // moss sits proud
+          }
+          if (hs.carved && spiral.has(`${px},${py}`)) {
+            c = C.menhirD
+            mh = -2 // the carved spiral
+          }
+          this.put(B, px, py, c, hs.x + k / s, hs.z, r / s, by, hs.z, false, shape.slab(k, half, r, hgt), mh, WEIGHT.stone)
         }
-      }
-      if (hs.carved) {
-        const cy = by - Math.round(hgt * 0.55)
-        for (const [dx, dy] of SPIRAL_PX) this.put(B, bx + dx, cy + dy, C.menhirD, hs.x, hs.z, hgt * 0.55, by, hs.z + 0.05)
       }
     }
   }
@@ -797,7 +1039,6 @@ export class Renderer {
       ...PROPS.graves.map((g, i) => ({ z: g.z, draw: () => this.drawGrave(B, g, i) })),
       { z: PROPS.lantern.z, draw: () => this.drawLanternPost(B, PROPS.lantern) },
       { z: PROPS.trigon.z, draw: () => this.drawTrigon(B, PROPS.trigon) },
-      { z: PROPS.sword.z, draw: () => this.drawSword(B, PROPS.sword) },
       { z: PROPS.pack.z, draw: () => this.drawPack(B, PROPS.pack) },
       { z: -13, draw: () => this.drawHearthstones(B) },
       { z: 0, draw: () => this.drawStoneRing(B) },
@@ -823,10 +1064,27 @@ export class Renderer {
         this.put(B, sx + 1, sy - rd.h + 2, C.cattail, rd.x, rd.z, rd.h, sy, rd.z)
       }
     }
-    // normal maps for every static object, generated from their own pixels
+    // Normals for every static object. Most props were drawn from primitives that know their
+    // own shape normal; anything that wasn't gets one from the relief generator (normals.ts).
+    // Then the material layer bakes micro detail (grain, pits, grooves, carvings) on top.
     const light = new Float32Array(N)
-    for (let i = 0; i < N; i++) if (B.id[i]) light[i] = lightness(B.r[i], B.g[i], B.b[i])
-    reliefNormals(W, H, B.id, light, B.nx, B.ny, B.nz)
+    const reliefRegion = new Int32Array(N)
+    for (let i = 0; i < N; i++) {
+      if (!B.id[i]) continue
+      light[i] = lightness(B.r[i], B.g[i], B.b[i])
+      if (B.nz[i] === 0) reliefRegion[i] = B.id[i]
+    }
+    const rx = new Float32Array(N)
+    const ry = new Float32Array(N)
+    const rz = new Float32Array(N)
+    reliefNormals(W, H, reliefRegion, light, rx, ry, rz)
+    for (let i = 0; i < N; i++) {
+      if (!reliefRegion[i]) continue
+      B.nx[i] = rx[i]
+      B.ny[i] = ry[i]
+      B.nz[i] = rz[i]
+    }
+    bakeMicroDetail(B)
   }
 
   // ---------------------------------------------------------------- dynamic layer
@@ -892,10 +1150,16 @@ export class Renderer {
     }
   }
 
-  private drawStick(B: Buf, wx: number, wz: number, lift: number) {
-    const [bx, by] = project(wx, 0, wz)
-    for (let k = -2; k <= 2; k++) this.put(B, bx + k, by - lift, k === 2 ? C.stickD : C.stick, wx, wz, lift, by, wz + 0.6)
-    this.put(B, bx + 1, by - lift - 1, C.stick, wx, wz, lift + 1, by, wz + 0.6)
+  /** A stick: lying flat, carried, or tumbling through the air (`height` above the ground, `angle` of its spin). */
+  private drawStick(B: Buf, wx: number, wz: number, lift: number, angle = 0, height = 0) {
+    const [bx, by] = project(wx, height, wz)
+    const [, gy] = project(wx, 0, wz)
+    const a = ((angle % Math.PI) + Math.PI) % Math.PI
+    const pts = STICK_POSES[Math.round(a / (Math.PI / 4)) % 4]
+    pts.forEach(([dx, dy], i) => {
+      const c = i === pts.length - 1 ? C.stickD : i === 1 ? C.logEnd : C.stick
+      this.put(B, bx + dx, by - lift + dy, c, wx, wz, height + lift - dy, gy, wz + 0.6, false, shape.cylinder(0))
+    })
   }
 
   /** Closed: planks over the doorway. Open: nothing, so the dark interior (and anyone passing through) shows. */
@@ -908,11 +1172,44 @@ export class Renderer {
     }
   }
 
-  private mushHover(m: Mush): [string, string] {
+  private mushHover(m: Mush, w: World): [string, string] {
     const st = m.fsm.state
     if (st === 'sprouting') return [m.name, 'a sprout, new since the rain']
-    const words = STATE_WORDS[st] ?? ''
-    return [isElder(m) && st !== 'departing' && st !== 'wilting' ? `old ${m.name}` : m.name, words]
+    let words = STATE_WORDS[st] ?? ''
+    if (st === 'visit' && m.spot !== null && w.memorials[m.spot]) words = `sitting by ${w.memorials[m.spot].name}'s glowcap`
+    const name = w.keeperId === m.id ? `${m.name}, the keeper` : isElder(m) && st !== 'departing' && st !== 'wilting' ? `old ${m.name}` : m.name
+    return [name, words]
+  }
+
+  /** The knight, as far along his story as he is. */
+  private drawKnight(B: Buf, w: World) {
+    const k = w.knight
+    const st = k.fsm.state
+    if (k.sword === 'planted') this.drawSword(B, PROPS.sword)
+    if (k.sword === 'laid') {
+      // his grave, beside his companions': a cairn, his sword planted, his helm on the hilt
+      this.drawGrave(B, { ...KNIGHT_GRAVE, helm: true }, 1)
+      const [gx, gy] = project(KNIGHT_GRAVE.x, 0, KNIGHT_GRAVE.z)
+      this.hit(gx - 4, gy - 18, gx + 4, gy + 2, KNIGHT_GRAVE.z, 'the last knight', 'he rests with them now')
+    }
+    if (st === 'gone') return
+    const sub: Record<string, string> = {
+      resting: 'keeping his vigil',
+      nodding: 'nodding off',
+      rising: 'rising, slowly',
+      walking: 'walking to the quiet grove',
+      kneeling: 'laying down his sword',
+    }
+    const hover: [string, string] = ['the last knight', sub[st]]
+    const shine = KNIGHT_SHINE
+    if (st === 'resting' || st === 'nodding') {
+      this.sprite(B, st === 'nodding' && k.headDown ? KNIGHT_NOD : KNIGHT, k.x, k.z, KNIGHT_PAL, false, { hover, shine })
+    } else if (st === 'kneeling') {
+      this.sprite(B, KNIGHT_KNEEL, k.x, k.z, KNIGHT_PAL, false, { hover, shine })
+    } else {
+      const frame = st === 'walking' ? KNIGHT_STAND[((k.step * 3) % 2) | 0] : KNIGHT_STAND[0]
+      this.sprite(B, frame, k.x, k.z, KNIGHT_PAL, k.flip, { hover, shine })
+    }
   }
 
   private drawDynamic(w: World) {
@@ -927,21 +1224,18 @@ export class Renderer {
     const [fireX, fireY] = this.drawCampfire(B, w)
     const [, groundY] = project(0, 0, 0)
     this.drawWoodpile(B, w.pile)
-    const nodding = w.knight.fsm.state === 'nodding' && w.knight.headDown
-    this.sprite(B, nodding ? KNIGHT_NOD : KNIGHT, w.knight.x, w.knight.z, KNIGHT_PAL, false, {
-      hover: ['the last knight', w.knight.fsm.state === 'nodding' ? 'nodding off' : 'resting, as always'],
-    })
-    for (const s of w.sticks) this.drawStick(B, s.x, s.z, 0)
+    this.drawKnight(B, w)
+    for (const s of w.sticks) this.drawStick(B, s.x, s.z, 0, s.angle, s.y)
     PROPS.huts.forEach((hut, i) => this.drawHutDoor(B, hut, doorOpen(w, i)))
-    for (const g of PROPS.graves) {
+    PROPS.graves.forEach((g, i) => {
       const [gx, gy] = project(g.x + 3, 0, g.z + 1)
       this.put(B, gx, gy, C.candle, g.x + 3, g.z + 1, 1, gy, g.z + 2)
-      this.put(B, gx, gy - 1, C.candle, g.x + 3, g.z + 1, 2, gy, g.z + 2)
-    }
+      if (w.candles[i].wax > 0.4) this.put(B, gx, gy - 1, C.candle, g.x + 3, g.z + 1, 2, gy, g.z + 2)
+    })
 
     // glowcaps: where shroomfolk returned to the soil
     const glowcaps = w.memorials.map((m) => ({
-      ...this.sprite(B, GLOWCAP, m.x, m.z, GLOWCAP_PAL, false, { glowChar: 'c', hover: ['a glowcap', `where ${m.name} returned to the soil`] }),
+      ...this.sprite(B, GLOWCAP, m.x, m.z, GLOWCAP_PAL, false, { glowChar: 'c', hover: ['a glowcap', `${m.name} rests here`] }),
       ph: m.ph,
     }))
 
@@ -952,7 +1246,7 @@ export class Renderer {
       const st = m.fsm.state
       if (st === 'asleep') continue
       if (st === 'sprouting') {
-        this.sprite(B, m.size < 0.5 ? MUSH.baby : MUSH.mid, m.x, m.z, MUSH_PAL, m.flip, { hover: this.mushHover(m) })
+        this.sprite(B, m.size < 0.5 ? MUSH.baby : MUSH.mid, m.x, m.z, MUSH_PAL, m.flip, { hover: this.mushHover(m, w) })
         continue
       }
       const moving = WALKING.includes(st) && isMoving(m)
@@ -964,9 +1258,11 @@ export class Renderer {
         glowChar: 'w',
         lift: hop - sink,
         sinkTo: sink ? by : undefined,
-        hover: this.mushHover(m),
+        hover: this.mushHover(m, w),
       })
       caps.push({ ...sp, elder })
+      // the keeper wears a little circlet of the knight's steel
+      if (w.keeperId === m.id) for (let k = -1; k <= 1; k++) this.put(B, sp.bx + k, sp.by - sp.h + 1 - hop + sink, C.helm, m.x, m.z, sp.h, sp.by, sp.dep + 0.02)
       if (m.carrying) this.drawStick(B, m.x, m.z, sp.h + 1 + hop)
       if (st === 'departing') lanterns.push({ x: sp.bx + (m.flip ? -4 : 4), y: sp.by - 4, dep: sp.dep + 0.02 })
     }
@@ -1044,7 +1340,11 @@ export class Renderer {
       const wid = Math.round(7 * sc)
       if (w.rune > 0.02) {
         const hy = by - Math.round(hgt * 0.6)
-        for (const [dx, dy] of trigonPx) this.putFx(bx + dx, hy + dy, GLOW.rune, w.rune * (0.7 + 0.3 * Math.sin(t * 2)), undefined, p.z + 0.2)
+        const pulse = w.rune * (0.7 + 0.3 * Math.sin(t * 2))
+        // light sits in the cut, radiates faintly from the face inside it, and haloes the lip around it
+        for (const [dx, dy] of TRIGON_INSIDE) this.putFx(bx + dx, hy + dy, GLOW.rune, 0.22 * pulse, undefined, p.z + 0.2, 0.4)
+        for (const [dx, dy] of TRIGON_LIP) this.putFx(bx + dx, hy + dy, GLOW.rune, 0.18 * pulse, undefined, p.z + 0.2, 0.6)
+        for (const [dx, dy] of trigonPx) this.putFx(bx + dx, hy + dy, GLOW.rune, pulse, undefined, p.z + 0.2)
       }
       this.hit(bx - wid, by - hgt, bx + wid, by + 1, p.z, 'the trigon stone', w.rune > 0.1 ? 'it hums in the rain' : 'cold and quiet')
     }
@@ -1053,16 +1353,20 @@ export class Renderer {
       let y0 = Infinity
       let x1 = -Infinity
       let y1 = -Infinity
-      for (const g of PROPS.graves) {
+      PROPS.graves.forEach((g, i) => {
         const [gx, gy] = project(g.x + 3, 0, g.z + 1)
-        this.putFx(gx, gy - 2, GLOW.candle, 0.7 + 0.3 * vnoise(t * 7 + g.x, 2), gy, g.z + 2.05)
+        const c = w.candles[i]
+        if (c.lit) this.putFx(gx, gy - (c.wax > 0.4 ? 2 : 1), GLOW.candle, (0.7 + 0.3 * vnoise(t * 7 + g.x, 2)) * (0.6 + 0.4 * c.wax), gy, g.z + 2.05)
         const [bx, by] = project(g.x, 0, g.z)
         x0 = Math.min(x0, bx - 4)
         x1 = Math.max(x1, gx + 1)
         y0 = Math.min(y0, by - 17)
         y1 = Math.max(y1, by + 2)
-      }
-      this.hit(x0, y0, x1, y1, PROPS.graves[0].z, 'three who went on', 'someone still leaves candles')
+      })
+      const companions = w.knight.fsm.state === 'gone' ? 'the knight and his companions' : "the knight's companions"
+      const village = w.memorials.length ? `, and ${w.memorials.length} of the village` : ''
+      const candles = w.candles.some((c) => c.lit) ? '' : ' · the candles are out'
+      this.hit(x0, y0, x1, y1, PROPS.graves[0].z, 'the quiet grove', `${companions}${village}${candles}`)
     }
     // the carved spiral on the middle hearthstone warms with the fire
     {
@@ -1189,14 +1493,40 @@ export class Renderer {
         if (x > 0 && x < W && y > 0 && y < HORIZON && !B.a[(y | 0) * W + (x | 0)]) this.putFx(x, y, GLOW.star, (1 - i / 8) * (1 - s.age / 0.9))
       }
     }
+    // a stick you just dropped carries a soft highlight, so you can see where it went
+    for (const s of w.sticks) {
+      if (s.glint <= 0.02) continue
+      const [bx, by] = project(s.x, s.y, s.z)
+      const a = ((s.angle % Math.PI) + Math.PI) % Math.PI
+      for (const [dx, dy] of STICK_POSES[Math.round(a / (Math.PI / 4)) % 4])
+        this.putFx(bx + dx, by + dy, GLOW.glint, 0.55 * s.glint, undefined, s.z + 0.65, 0.25)
+    }
+    // falling sticks cast a small shadow that tightens as they near the ground; landings kick up dust
+    for (const s of w.sticks) {
+      if (s.landed) continue
+      const [gx, gy] = project(s.x, 0, s.z)
+      const spread = Math.max(1, Math.round(3 - s.y / 10))
+      for (let dx = -spread; dx <= spread; dx++) this.putFx(gx + dx, gy, C.char, 0.45 * (1 - s.y / 30), undefined, s.z - 0.1, 0)
+    }
+    for (const p of w.puffs) {
+      if (p.age < 0) continue
+      const k = p.age / 0.9
+      const [gx, gy] = project(p.x, 0, p.z)
+      for (let i = 0; i < 4; i++) {
+        const ox = (hash(p.seed, i) - 0.5) * 9 * (0.3 + k)
+        const oy = -k * 4 - hash(i, p.seed) * 2
+        this.putFx(gx + ox, gy + oy, GLOW.dust, 0.55 * (1 - k), undefined, p.z + 1, 0)
+      }
+    }
     for (const r of w.ripples) {
+      if (r.age < 0) continue
       const a = r.age / 0.7
       const hw = (1 + a * 4) | 0
       for (let dx = -hw; dx <= hw; dx++) this.putFx(r.x + dx, r.y, GLOW.ripple, 0.55 * (1 - a), undefined, undefined, 0.2)
     }
 
     // ---- hover boxes for the remaining static props
-    {
+    if (w.knight.sword === 'planted') {
       const p = PROPS.sword
       const [bx, by] = project(p.x, 0, p.z)
       this.hit(bx - 2, by - 18, bx + 5, by + 1, p.z, 'his sword', 'he has not drawn it in a long time')
@@ -1204,7 +1534,8 @@ export class Renderer {
     {
       const p = PROPS.pack
       const [bx, by] = project(p.x, 0, p.z)
-      this.hit(bx - 4, by - 5, bx + 4, by + 1, p.z, 'his pack', 'everything he still owns')
+      const gone = w.knight.fsm.state === 'gone'
+      this.hit(bx - 4, by - 5, bx + 4, by + 1, p.z, 'his pack', gone ? 'left by the fire; nobody has moved it' : 'everything he still owns')
     }
     {
       const p = PROPS.woodpile
@@ -1224,10 +1555,11 @@ export class Renderer {
   /** Things standing on the ground that can cast shadows from a light. */
   private casters(w: World): Caster[] {
     const out: Caster[] = [
-      { x: w.knight.x, z: w.knight.z, r: 3, h: 11 },
+      ...(w.knight.fsm.state === 'gone' ? [] : [{ x: w.knight.x, z: w.knight.z, r: 3, h: w.knight.fsm.state === 'walking' ? 15 : 11 }]),
       { x: w.deer.x, z: w.deer.z, r: 3.5, h: 8 },
       { x: PROPS.woodpile.x, z: PROPS.woodpile.z, r: 4, h: 3 },
-      { x: PROPS.sword.x, z: PROPS.sword.z, r: 0.7, h: 13 },
+      ...(w.knight.sword === 'planted' ? [{ x: PROPS.sword.x, z: PROPS.sword.z, r: 0.7, h: 13 }] : []),
+      ...(w.knight.sword === 'laid' ? [{ x: KNIGHT_GRAVE.x, z: KNIGHT_GRAVE.z, r: 1, h: 10 }] : []),
       { x: PROPS.pack.x, z: PROPS.pack.z, r: 2.5, h: 3 },
       ...PROPS.huts.map((h) => ({ x: h.x, z: h.z, r: 5.5, h: 16 })),
       ...PROPS.graves.map((g) => ({ x: g.x, z: g.z, r: 1, h: 9 })),
@@ -1255,23 +1587,26 @@ export class Renderer {
       const fl = 0.85 + 0.15 * vnoise(t * 6, 7)
       out.push({ x: PROPS.lantern.x + 3, y: 16, z: PROPS.lantern.z, radius: 32, color: warm(1.4 * fl), wobble: 0.5, tail: 0.06, shadows: true, seed: 3 })
     }
-    for (const g of PROPS.graves) {
-      const fl = 0.8 + 0.2 * vnoise(t * 7 + g.x, 2)
+    PROPS.graves.forEach((g, i) => {
+      const c = w.candles[i]
+      if (!c.lit) return
+      const fl = (0.8 + 0.2 * vnoise(t * 7 + g.x, 2)) * (0.6 + 0.4 * c.wax)
       out.push({ x: g.x + 3, y: 3, z: g.z + 1, radius: 22, color: warm(1.2 * fl), wobble: 0.7, tail: 0.04, shadows: true, seed: g.x })
-    }
+    })
     PROPS.huts.forEach((h, i) => {
       if (hutOccupancy(w, i)) out.push({ x: h.x + 3, y: 10, z: h.z + 3, radius: 18, color: warm(0.95), wobble: 0, tail: 0.04, shadows: false, seed: i })
     })
     if (w.rune > 0.02) {
       const k = w.rune
+      // the rune glows from inside the carving: a tight light at the cut, with a soft spill around it
       out.push({
         x: PROPS.trigon.x,
-        y: 20,
-        z: PROPS.trigon.z + 2,
-        radius: 30,
-        color: [0.15 * k, 0.8 * k, 0.75 * k],
-        wobble: 0.2,
-        tail: 0.05,
+        y: 24,
+        z: PROPS.trigon.z + 1.2,
+        radius: 13,
+        color: [0.2 * k, 1.0 * k, 0.95 * k],
+        wobble: 0.1,
+        tail: 0.09,
         shadows: false,
         seed: 11,
       })
@@ -1316,6 +1651,24 @@ export class Renderer {
       Lc[1] = 0.18 * amb * moon
       Lc[2] = 0.27 * amb * moon
       gatherLight(lights, t, x, y, z, ground, ground ? groundGrain(x, z) : 0.5, normal, Lc)
+      if (normal && B.sp[i] > 0) {
+        // metal: a tight warm glint where the surface faces the fire, a cool rim toward the moon
+        const fire = lights[0]
+        let lx = fire.x - x
+        let ly = fire.y - y
+        let lz = fire.z - z
+        const d = Math.hypot(lx, ly, lz) || 1
+        lx /= d
+        ly /= d
+        lz /= d
+        const reach = Math.max(0, 1 - d / (fire.radius * 1.2))
+        const hl = Math.hypot(lx, ly + VIEW[1], lz + VIEW[2]) || 1
+        const fs = Math.pow(Math.max(0, (normal[0] * lx + normal[1] * (ly + VIEW[1]) + normal[2] * (lz + VIEW[2])) / hl), 9) * reach * 2.2 * B.sp[i]
+        const ms = Math.pow(Math.max(0, normal[0] * MOON_H[0] + normal[1] * MOON_H[1] + normal[2] * MOON_H[2]), 7) * 0.45 * amb * B.sp[i]
+        Lc[0] += fs * fire.color[0] + ms * 0.55
+        Lc[1] += fs * fire.color[1] + ms * 0.65
+        Lc[2] += fs * fire.color[2] + ms * 0.85
+      }
     }
 
     for (let y = 0; y < H; y++) {
@@ -1504,7 +1857,7 @@ export class Renderer {
     const lines = [
       `weather ${wx.fsm.state} ${wx.manual ? '(manual)' : Math.ceil(wx.timer) + 's'}   pool ${w.poolLevel.toFixed(2)}`,
       `fire ${w.fire.fsm.state} · fuel ${w.fire.fuel.toFixed(2)} · heat ${w.fire.heat.toFixed(2)}   pile ${w.pile}   sticks ${w.sticks.length}`,
-      `knight ${w.knight.fsm.state}   frog ${w.frog.fsm.state}   crow ${w.crow.fsm.state}   village ${w.mush.length}   asleep ${asleep}   glowcaps ${w.memorials.length}`,
+      `knight ${w.knight.fsm.state} · vigil ${Math.round((w.knight.vigil / w.knight.vigilLength) * 100)}%   frog ${w.frog.fsm.state}   crow ${w.crow.fsm.state}   village ${w.mush.length}   asleep ${asleep}   glowcaps ${w.memorials.length}`,
     ]
     lines.forEach((l, i) => tag(l, 4 * S, (6 + i * 4.5) * S, '#f08a3c'))
     ctx.restore()

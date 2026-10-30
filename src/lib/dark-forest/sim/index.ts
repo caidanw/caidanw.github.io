@@ -6,7 +6,7 @@
  * `agents()`. To add an interaction: add an event to `SimEvents`, emit it
  * from one machine, handle it in another.
  */
-import { H, HORIZON, W, inPool, type Point } from '../world'
+import { H, HORIZON, PROPS, W, type Point } from '../world'
 import { rand } from '../util'
 import { send, tick, type Fsm, type MachineDef } from './fsm'
 import { stepAmbient } from './ambient'
@@ -59,12 +59,15 @@ export function createWorld(): World {
     sticks: [],
     stickTimer: 3,
     memorials: [],
+    candles: PROPS.graves.map(() => ({ wax: rand(0.5, 1), lit: true })),
+    keeperId: null,
     arrivalTimer: 90,
     story: [],
     embers: [],
     drops: Array.from({ length: 220 }, () => ({ x: Math.random() * W, y: Math.random() * H, v: rand(170, 240), stop: rand(HORIZON, H) })),
     ripples: [],
     zs: [],
+    puffs: [],
     flies: Array.from({ length: 12 }, (_, i) => ({ seed: i * 13.7, x: 0, y: 0, z: 0, a: 0 })),
     shooting: null,
     nextShoot: 20,
@@ -98,6 +101,23 @@ export function step(w: World, dt: number, isOpenWater: (sx: number, sy: number)
   if (w.queue.length) dispatch(w, ctx)
   w.mush = w.mush.filter((m) => !m.gone)
   welcomeTravelers(w, dt)
+  chooseKeeper(w)
+}
+
+/** Once the knight has gone to rest, the oldest of the village takes his place by the fire. */
+function chooseKeeper(w: World) {
+  if (w.knight.fsm.state !== 'gone') return
+  if (w.keeperId !== null && w.mush.some((m) => m.id === w.keeperId)) return
+  const ending = ['farewell', 'departing', 'wilting']
+  const candidates = w.mush.filter((m) => m.size >= 1 && !ending.includes(m.fsm.state))
+  if (!candidates.length) return
+  const keeper = candidates.reduce((a, b) => (a.age > b.age ? a : b))
+  const first = w.keeperId === null
+  w.keeperId = keeper.id
+  tell(
+    w,
+    first ? `${keeper.name} took up the knight's place by the fire. The village calls them the keeper now.` : `${keeper.name} is the keeper of the fire now.`,
+  )
 }
 
 const MAX_VILLAGE = 7
@@ -118,9 +138,17 @@ function dispatch(w: World, ctx: Ctx) {
     w.queue = []
     for (const ev of events) {
       if (ev.type === 'rain:end') sproutAfterRain(w)
+      if (ev.type === 'rain:start') snuffCandles(w)
       for (const [def, e] of agents(w)) send(def, e, ctx, ev.type, ev.payload)
     }
   }
+}
+
+/** World-level reaction: rain puts out the grove candles (someone relights them after). */
+function snuffCandles(w: World) {
+  if (!w.candles.some((c) => c.lit)) return
+  for (const c of w.candles) c.lit = false
+  if (Math.random() < 0.5) tell(w, 'The rain put out the candles in the quiet grove.')
 }
 
 /** World-level reaction: every shower leaves a new sprout behind. */
@@ -137,9 +165,8 @@ export function toggleRain(w: World) {
   ctxFor(w).emit('weather:toggle')
 }
 
-export function dropStick(w: World, p: Point) {
-  if (inPool(p.x, p.z, w.poolLevel * 1.1) || w.sticks.length >= 10) return
-  const stick = { x: p.x, z: p.z, claimed: false }
-  w.sticks.push(stick)
-  ctxFor(w).emit('stick:dropped', stick)
+/** Drop a stick from `height` above ground point p. It falls, tumbles and lands (see ambient.ts). */
+export function dropStick(w: World, p: Point, height: number) {
+  if (w.sticks.length >= 10) return
+  w.sticks.push({ x: p.x, z: p.z, claimed: false, y: height, vy: 0, angle: Math.random() * Math.PI, spin: (Math.random() - 0.5) * 16, landed: false, glint: 1 })
 }
