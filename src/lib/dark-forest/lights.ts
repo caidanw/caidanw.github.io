@@ -44,7 +44,7 @@ export interface Caster {
   h: number
 }
 
-interface Prepared extends Light {
+export interface Prepared extends Light {
   reach2: number
   blockers: { x: number; z: number; ux: number; uz: number; d: number; L: number; r: number }[]
 }
@@ -68,6 +68,29 @@ export function prepareLights(lights: Light[], casters: Caster[]): Prepared[] {
       : []
     return { ...l, reach2: reach * reach, blockers }
   })
+}
+
+/**
+ * Cull lights per screen tile: for each tile, only the lights whose reach touches the
+ * world-space box of what the tile shows. `boxes` holds 6 numbers per tile (min x, y, z,
+ * max x, y, z); an empty tile has min > max.
+ */
+export function cullLights(lights: Prepared[], boxes: Float32Array, tiles: number): Prepared[][] {
+  const out: Prepared[][] = []
+  for (let k = 0; k < tiles; k++) {
+    const o = k * 6
+    const list: Prepared[] = []
+    if (boxes[o] <= boxes[o + 3]) {
+      for (const l of lights) {
+        const dx = Math.max(boxes[o] - l.x, 0, l.x - boxes[o + 3])
+        const dy = Math.max(boxes[o + 1] - l.y, 0, l.y - boxes[o + 4])
+        const dz = Math.max(boxes[o + 2] - l.z, 0, l.z - boxes[o + 5])
+        if (dx * dx + dy * dy + dz * dz < l.reach2) list.push(l)
+      }
+    }
+    out.push(list)
+  }
+  return out
 }
 
 /** How much of light `l` reaches ground point (x, z): 1 = fully lit. */

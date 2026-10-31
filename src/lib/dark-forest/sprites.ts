@@ -1,6 +1,8 @@
 /**
- * Character-grid sprites. Each string is a row; '.' is transparent and every
- * other char indexes the sprite's palette. Sprites stand on their bottom row.
+ * Character-grid sprites, drawn at the full 640x360 resolution. Each string is a row; '.'
+ * is transparent and every other char indexes the sprite's palette. Sprites stand on their
+ * bottom row. Parts (for normals) are flood-filled patches of the listed chars, so giving a
+ * body part its own letters gives it its own shape.
  */
 import { C } from './world'
 import { hex, type Color } from './util'
@@ -10,140 +12,431 @@ export type Rows = readonly string[]
 export type Palette = Record<string, Color>
 
 /**
- * The last knight, in plate. Seated facing the fire (to his right): great helm
- * with a visor slit, pauldrons, mail, a cape behind, knees drawn up.
+ * The last knight, in plate. Seated on the ground facing the fire (to his right), knee drawn
+ * up, forearm resting on it: great helm with a visor slit and breathing holes, pauldrons, a
+ * mail coat, a belt with a brass buckle, a cape behind.
  */
 export const KNIGHT: Rows = [
-  '.....hhh......',
-  '....hHHhh.....',
-  '....hHhhhd....',
-  '....hhvvvd....',
-  '....dhhhhd....',
-  '.....dhhd.....',
-  '...cpHhhpd....',
-  '..ccpHmmmpd...',
-  '..ccdmmdmmhh..',
-  '..ccmdmmdhhg..',
-  '..cclmmmmll...',
-  '.ccclllllllll.',
-  '.cccLlllllllh.',
-  '.ccc.....dhhd.',
-  '.cc......dhhd.',
-  '.........bbbb.',
-  '........bbbbbb',
+  '............hhhhh...........',
+  '..........hHHHHhhhd.........',
+  '.........hHHHhhhhhhd........',
+  '.........hHHhhhhhhhd........',
+  '.........hHhhhhhhhhhd.......',
+  '.........hHhhhddddddd.......',
+  '.........hHhhhvvvvvvd.......',
+  '.........hhhhhhhhhhhd.......',
+  '.........dhhhhhhvhvhd.......',
+  '..........dhhhhhhhhd........',
+  '............ddhhdd..........',
+  '......eccpPPpmmmmmppq.......',
+  '.....eccpPPppqmnmnmppq......',
+  '.....eCcPppppqmmmmmmpq......',
+  '.....eCcpppqqqnmnmnmmn......',
+  '.....eCcqqqqqmmmmmmmmn.KKk..',
+  '.....eCcmmmmnmnmnmnmn.KKKkk.',
+  '.....eCcmnmmmmmmAAAaagGKkkj.',
+  '....eCccmmmmAAAAAaaaggGKkkj.',
+  '....eCccnmmAaaaaaalllggIiij.',
+  '....eCccmmmmlllllllllLIiiij.',
+  '....eCccLLLyLLllllllLLIiiij.',
+  '...eCCccllllllllllLLL.Iiiij.',
+  '...eCcccllllllllLLL....Iiiij',
+  '...eCcccllllllLLL......Iiiij',
+  '..eCCcccLLLLLLL.......bbbbbB',
+  '..eCccccc...........bbbbbbbB',
+  '.eCCcccccC..........BBBBBBBB',
 ]
 /** Same knight with his head bowed toward the fire: nodding off. */
-export const KNIGHT_NOD: Rows = KNIGHT.map((r, i) => (i < 6 ? '.' + r.slice(0, 13) : r))
-/** Standing, sword in hand (two walking frames). */
+export const KNIGHT_NOD: Rows = [
+  '............................',
+  '.............hhhhh..........',
+  '...........hHHHHhhhd........',
+  '..........hHHHhhhhhhd.......',
+  '..........hHHhhhhhhhd.......',
+  '..........hHhhhhhhhhhd......',
+  '..........hHhhhddddddd......',
+  '..........hHhhhvvvvvvd......',
+  '..........hhhhhhhhhhhd......',
+  '..........dhhhhhhvhvhd......',
+  '...........dhhhhhhhhd.......',
+  '......eccpPPpddhhddpq.......',
+  '.....eccpPPppqmnmnmppq......',
+  '.....eCcPppppqmmmmmmpq......',
+  '.....eCcpppqqqnmnmnmmn......',
+  '.....eCcqqqqqmmmmmmmmn.KKk..',
+  '.....eCcmmmmnmnmnmnmn.KKKkk.',
+  '.....eCcmnmmmmmmAAAaagGKkkj.',
+  '....eCccmmmmAAAAAaaaggGKkkj.',
+  '....eCccnmmAaaaaaalllggIiij.',
+  '....eCccmmmmlllllllllLIiiij.',
+  '....eCccLLLyLLllllllLLIiiij.',
+  '...eCCccllllllllllLLL.Iiiij.',
+  '...eCcccllllllllLLL....Iiiij',
+  '...eCcccllllllLLL......Iiiij',
+  '..eCCcccLLLLLLL.......bbbbbB',
+  '..eCccccc...........bbbbbbbB',
+  '.eCCcccccC..........BBBBBBBB',
+]
+/** Standing, sword held point-down at his side (two walking frames). */
 export const KNIGHT_STAND: Rows[] = [
   [
-    '...hhh....',
-    '..hHHhh...',
-    '..hHhhhd..',
-    '..hhvvvd..',
-    '..dhhhhd..',
-    '...dhhd...',
-    '.cpHhhpd..',
-    'ccpHmmmpd.',
-    'ccdmmdmmhs',
-    'ccmdmmdmhs',
-    'cclmmmmlgs',
-    'ccllllll.s',
-    'cc.ll.ll.s',
-    'c..ll.ll.s',
-    '...dh.dh..',
-    '...dh.dh..',
-    '...dh.dh..',
-    '...dh.dh..',
-    '..bbb.bbb.',
-    '..bbb.bbb.',
+    '.......hhhhh..........',
+    '.....hHHHHhhhd........',
+    '....hHHHhhhhhhd.......',
+    '....hHHhhhhhhhd.......',
+    '....hHhhhhhhhhhd......',
+    '....hHhhhddddddd......',
+    '....hHhhhvvvvvvd......',
+    '....hhhhhhhhhhhd......',
+    '....dhhhhhhvhvhd......',
+    '.....dhhhhhhhhd.......',
+    '.......ddhhdd.........',
+    '.eccpPPpmmmmmppq......',
+    'eccpPPppqmnmnmppq.....',
+    'eCcPppppqmmmmmpppq....',
+    'eCcpppqqqnmnmnmpqq....',
+    'eCcqqqqqmmmmmmmAAa..t.',
+    'eCcAAamnmnmnmnmAAa..r.',
+    'eCcAaammmmmmmmmAaa..r.',
+    'eCcAaanmnmnmnmmAaa.ggG',
+    'eCcAaammmmmmmmmmmmgggG',
+    'eCcAaaLLLLLLyLLLL.tggt',
+    'eCcggGllllllllll...sS.',
+    'eCcggGllllllllll...sS.',
+    'eC..lllllllllll....sS.',
+    'eC..lLlll.lllLl....sS.',
+    '....lLll..llLl.....sS.',
+    '.....IIij.IIij.....sS.',
+    '.....Iiij.Iiij.....sS.',
+    '.....KKkk.KKkk.....sS.',
+    '.....Kkkj.Kkkj.....sS.',
+    '.....Iiij.Iiij.....sS.',
+    '.....Iiij.Iiij.....sS.',
+    '.....Iiij.Iiij.....sS.',
+    '.....Iiij.Iiij.....sS.',
+    '.....Iiij.Iiij.....sS.',
+    '.....Iiij.Iiij.....sS.',
+    '....bbbbB.bbbbB....sS.',
+    '....bbbbbBbbbbbB...sS.',
+    '....BBBBBBBBBBBB....s.',
   ],
   [
-    '...hhh....',
-    '..hHHhh...',
-    '..hHhhhd..',
-    '..hhvvvd..',
-    '..dhhhhd..',
-    '...dhhd...',
-    '.cpHhhpd..',
-    'ccpHmmmpd.',
-    'ccdmmdmmhs',
-    'ccmdmmdmhs',
-    'cclmmmmlgs',
-    'ccllllll.s',
-    'cc.ll..ll.',
-    'c.ll...ll.',
-    '..dh...dh.',
-    '..dh...dh.',
-    '.dh.....dh',
-    '.dh.....dh',
-    'bbb....bbb',
-    'bbb....bbb',
+    '.......hhhhh..........',
+    '.....hHHHHhhhd........',
+    '....hHHHhhhhhhd.......',
+    '....hHHhhhhhhhd.......',
+    '....hHhhhhhhhhhd......',
+    '....hHhhhddddddd......',
+    '....hHhhhvvvvvvd......',
+    '....hhhhhhhhhhhd......',
+    '....dhhhhhhvhvhd......',
+    '.....dhhhhhhhhd.......',
+    '.......ddhhdd.........',
+    '.eccpPPpmmmmmppq......',
+    'eccpPPppqmnmnmppq.....',
+    'eCcPppppqmmmmmpppq....',
+    'eCcpppqqqnmnmnmpqq....',
+    'eCcqqqqqmmmmmmmAAa..t.',
+    'eCcAAamnmnmnmnmAAa..r.',
+    'eCcAaammmmmmmmmAaa..r.',
+    'eCcAaanmnmnmnmmAaa.ggG',
+    'eCcAaammmmmmmmmmmmgggG',
+    'eCcAaaLLLLLLyLLLL.tggt',
+    'eCcggGllllllllll...sS.',
+    'eCcggGllllllllll...sS.',
+    'eC..lllllllllll....sS.',
+    'eC..lLlll.lllLl....sS.',
+    '...lLll....llLl....sS.',
+    '...IIij.....IIij...sS.',
+    '...Iiij.....Iiij...sS.',
+    '..KKkk.......KKkk..sS.',
+    '..Kkkj.......Kkkj..sS.',
+    '..Iiij........Iiij.sS.',
+    '..Iiij........Iiij.sS.',
+    '.Iiij.........Iiij.sS.',
+    '.Iiij..........Iiijs..',
+    '.Iiij..........Iiij...',
+    '.Iiij..........Iiij...',
+    'bbbbB..........bbbbB..',
+    'bbbbbB.........bbbbbB.',
+    'BBBBBB.........BBBBBB.',
   ],
 ]
-/** Kneeling at the grove, planting his sword. */
+/** Kneeling at the grove, both hands on the hilt, planting his sword. */
 export const KNIGHT_KNEEL: Rows = [
-  '....hhh.....',
-  '...hHHhh....',
-  '...hHhhhd...',
-  '...hhvvvd.s.',
-  '...dhhhhd.s.',
-  '....dhhd..s.',
-  '..cpHhhpd.s.',
-  '.ccpHmmmphg.',
-  '.ccdmmdmm.s.',
-  '.ccmdmmdm.s.',
-  '.cclllll..s.',
-  '.cc.lllll.s.',
-  '.cc..dhhd.s.',
-  '....bbbbbbs.',
+  '...........hhhhh..........',
+  '.........hHHHHhhhd........',
+  '........hHHHhhhhhhd.......',
+  '........hHHhhhhhhhd.......',
+  '........hHhhhhhhhhhd......',
+  '........hHhhhddddddd......',
+  '........hHhhhvvvvvvd......',
+  '........hhhhhhhhhhhd......',
+  '........dhhhhhhvhvhd......',
+  '.........dhhhhhhhhd.......',
+  '...........ddhhdd.........',
+  '.....eccpPPpmmmmmppq......',
+  '....eccpPPppqmnmnmppq.....',
+  '....eCcPppppqmmmmmmpq.t...',
+  '....eCcpppqqqnmnmnmmn.r...',
+  '....eCcqqqqqmmmmAAAaaggG..',
+  '...eCccmmmnmnmAAAaaaagggG.',
+  '...eCccmnmmmmmmmmmm.ttttt.',
+  '...eCccLLLLLyLLLLL....sS..',
+  '...eCccllllllllllll...sS..',
+  '..eCCccllllllllllKKk..sS..',
+  '..eCcccIiiillllllKkkj.sS..',
+  '..eCcccIiiijLLLLIiiij.sS..',
+  '.eCCcccIiiij....Iiiij.sS..',
+  '.eCccccKKkkj....Iiiij.sS..',
+  '.eCcccKKkkkj....Iiiij.sS..',
+  'eCCcccKkkkkj...bbbbbbBsS..',
+  'CCCCCCCBBBBBB..BBBBBBBBS..',
 ]
 export const KNIGHT_PAL: Palette = {
-  H: hex('#ecebe6'), // helm and plate highlight
-  h: hex('#aeada9'), // steel
-  d: hex('#53575e'), // steel in shadow (cool)
-  v: hex('#0e0d0d'), // visor slit
-  p: hex('#bab8b2'), // pauldrons
-  m: hex('#73767b'), // mail
-  c: hex('#5c2323'), // cape
-  l: hex('#5a4532'), // leather
-  L: hex('#3a2c22'), // leather in shadow
-  g: hex('#b0aba2'), // gauntlet
-  b: hex('#2e2a29'), // boots
-  s: hex('#d2cfc8'), // his sword
-  // the extra shades only the #res=2 art uses
-  D: hex('#53575e'), // plate edge in shadow
+  H: hex('#ecebe6'), // helm highlight
+  h: hex('#aeada9'), // helm steel
+  d: hex('#53575e'), // helm in shadow (cool)
+  v: hex('#0e0d0d'), // visor slit, breathing holes
   P: hex('#e4e2dc'), // pauldron catching light
+  p: hex('#bab8b2'), // pauldron
   q: hex('#77797c'), // pauldron in shadow
+  m: hex('#73767b'), // mail
   n: hex('#55585e'), // mail rings
   e: hex('#7a3434'), // cape edge
+  c: hex('#5c2323'), // cape
   C: hex('#431818'), // cape folds
+  l: hex('#5a4532'), // leather
+  L: hex('#3a2c22'), // leather in shadow
+  y: hex('#c9a45a'), // brass buckle
+  A: hex('#aeada9'), // vambrace
+  a: hex('#7d7f84'), // vambrace in shadow
+  g: hex('#b0aba2'), // gauntlet
+  G: hex('#77736d'), // gauntlet in shadow
+  K: hex('#d6d4cf'), // knee cop
+  k: hex('#9c9b97'), // knee cop in shadow
+  I: hex('#c9c7c2'), // greave highlight
+  i: hex('#9a9995'), // greave
+  j: hex('#53575e'), // greave in shadow
+  b: hex('#2e2a29'), // boots
+  B: hex('#1d1a19'), // soles
+  s: hex('#d2cfc8'), // his sword
+  S: hex('#8f8d88'), // the blade's far bevel
+  t: hex('#8b8f96'), // guard and pommel
+  r: hex('#5a4532'), // grip
 }
 /** How shiny each part of the knight is (specular strength): plate gleams, mail less, cloth not at all. */
-export const KNIGHT_SHINE: Record<string, number> = { H: 1, h: 1, p: 1, P: 1, q: 0.8, g: 1, s: 1, d: 0.7, D: 0.7, m: 0.45, n: 0.35 }
+export const KNIGHT_SHINE: Record<string, number> = {
+  H: 1,
+  h: 1,
+  d: 0.7,
+  P: 1,
+  p: 1,
+  q: 0.8,
+  m: 0.45,
+  n: 0.35,
+  y: 0.8,
+  A: 1,
+  a: 0.8,
+  g: 0.8,
+  G: 0.6,
+  K: 1,
+  k: 0.9,
+  I: 1,
+  i: 0.9,
+  j: 0.7,
+  s: 1,
+  S: 0.9,
+  t: 0.9,
+}
 
+/**
+ * The shroomfolk: a domed cap with pale spots (they glow), gills underneath, a stout stem
+ * with two dark eyes and little nub arms. Drawn facing right; flipped to walk left.
+ */
 export const MUSH = {
   walk: [
-    ['..rrr..', '.rrwrr.', 'rwrrrrw', 'rrrrrrr', '.uuuuu.', '..ese..', '..sss..', '..sss..', '..s.s..'],
-    ['..rrr..', '.rrwrr.', 'rwrrrrw', 'rrrrrrr', '.uuuuu.', '..ese..', '..sss..', '..sss..', '.s...s.'],
+    [
+      '.....rrrr.....',
+      '...rrwwrrrr...',
+      '..rrrwwrrrrr..',
+      '.rrrrrrrrwwrr.',
+      '.rwwrrrrrwwrrr',
+      'rrwwrrrrrrrrrr',
+      'rrrrrrrrrrrrrr',
+      '.rrrrrrrrrrrr.',
+      '..uuuuuuuuuu..',
+      '....ssssss....',
+      '....sseses....',
+      '....sseses....',
+      '...ssssssss...',
+      '...ssssssss...',
+      '....ssssss....',
+      '....ssssss....',
+      '.....ss.ss....',
+      '....sss.sss...',
+    ],
+    [
+      '.....rrrr.....',
+      '...rrwwrrrr...',
+      '..rrrwwrrrrr..',
+      '.rrrrrrrrwwrr.',
+      '.rwwrrrrrwwrrr',
+      'rrwwrrrrrrrrrr',
+      'rrrrrrrrrrrrrr',
+      '.rrrrrrrrrrrr.',
+      '..uuuuuuuuuu..',
+      '....ssssss....',
+      '....sseses....',
+      '....sseses....',
+      '...ssssssss...',
+      '...ssssssss...',
+      '....ssssss....',
+      '....ssssss....',
+      '....ss...ss...',
+      '...sss...sss..',
+    ],
   ] as Rows[],
-  /** Sitting: lower, little feet out in front. */
-  sit: ['..rrr..', '.rrwrr.', 'rwrrrrw', 'rrrrrrr', '.uuuuu.', '..ese..', '.sssss.', 's.....s'] as Rows,
-  sitBlink: ['..rrr..', '.rrwrr.', 'rwrrrrw', 'rrrrrrr', '.uuuuu.', '..sss..', '.sssss.', 's.....s'] as Rows,
-  mid: ['.rrr.', 'rwrrr', 'rrrrr', '.ese.', '.sss.', '.s.s.'] as Rows,
-  baby: ['.r.', 'rrr', '.s.'] as Rows,
+  /** Sitting: squat, little feet out to the sides. */
+  sit: [
+    '.....rrrr.....',
+    '...rrwwrrrr...',
+    '..rrrwwrrrrr..',
+    '.rrrrrrrrwwrr.',
+    '.rwwrrrrrwwrrr',
+    'rrwwrrrrrrrrrr',
+    'rrrrrrrrrrrrrr',
+    '.rrrrrrrrrrrr.',
+    '..uuuuuuuuuu..',
+    '....ssssss....',
+    '....sseses....',
+    '....sseses....',
+    '...ssssssss...',
+    '..ssssssssss..',
+    '.sss......sss.',
+  ] as Rows,
+  sitBlink: [
+    '.....rrrr.....',
+    '...rrwwrrrr...',
+    '..rrrwwrrrrr..',
+    '.rrrrrrrrwwrr.',
+    '.rwwrrrrrwwrrr',
+    'rrwwrrrrrrrrrr',
+    'rrrrrrrrrrrrrr',
+    '.rrrrrrrrrrrr.',
+    '..uuuuuuuuuu..',
+    '....ssssss....',
+    '....ssssss....',
+    '....sseses....',
+    '...ssssssss...',
+    '..ssssssssss..',
+    '.sss......sss.',
+  ] as Rows,
+  mid: [
+    '...rrrr...',
+    '.rrwwrrrr.',
+    'rrrrrrrwwr',
+    'rwwrrrrrrr',
+    '.rrrrrrrr.',
+    '..uuuuuu..',
+    '...ssss...',
+    '...sese...',
+    '...sese...',
+    '...ssss...',
+    '...s..s...',
+    '..ss..ss..',
+  ] as Rows,
+  baby: ['.rrrr.', 'rrwrrr', 'rrrrrr', '.uuuu.', '..ss..', '..ss..'] as Rows,
 }
 /**
- * The keeper wears the knight's cape (a scrap of it, red, draped behind) and a steel crest
- * on the cap, easy to pick out from the rest of the village.
+ * The keeper wears the knight's cape (a scrap of it, red, over the shoulders and trailing
+ * behind) and a steel crest on the cap, easy to pick out from the rest of the village.
  */
 export const MUSH_KEEPER = {
   walk: [
-    ['...h...', '..rrr..', '.rrwrr.', 'rwrrrrw', 'rrrrrrr', '.uuuuu.', '.kesek.', '.ksssk.', 'kksssk.', '..s.s..'],
-    ['...h...', '..rrr..', '.rrwrr.', 'rwrrrrw', 'rrrrrrr', '.uuuuu.', '.kesek.', '.ksssk.', 'kksssk.', '.s...s.'],
+    [
+      '......hh......',
+      '.....hhhh.....',
+      '.....rrrr.....',
+      '...rrwwrrrr...',
+      '..rrrwwrrrrr..',
+      '.rrrrrrrrwwrr.',
+      '.rwwrrrrrwwrrr',
+      'rrwwrrrrrrrrrr',
+      'rrrrrrrrrrrrrr',
+      '.rrrrrrrrrrrr.',
+      '..uuuuuuuuuu..',
+      '..kkssssss....',
+      '..kksseses....',
+      '.kkksseses....',
+      '.kkssssssss...',
+      'kkkssssssss...',
+      'kk..ssssss....',
+      'k...ssssss....',
+      '.....ss.ss....',
+      '....sss.sss...',
+    ],
+    [
+      '......hh......',
+      '.....hhhh.....',
+      '.....rrrr.....',
+      '...rrwwrrrr...',
+      '..rrrwwrrrrr..',
+      '.rrrrrrrrwwrr.',
+      '.rwwrrrrrwwrrr',
+      'rrwwrrrrrrrrrr',
+      'rrrrrrrrrrrrrr',
+      '.rrrrrrrrrrrr.',
+      '..uuuuuuuuuu..',
+      '..kkssssss....',
+      '..kksseses....',
+      '.kkksseses....',
+      '.kkssssssss...',
+      'kkkssssssss...',
+      'kk..ssssss....',
+      'k...ssssss....',
+      '....ss...ss...',
+      '...sss...sss..',
+    ],
   ] as Rows[],
-  sit: ['...h...', '..rrr..', '.rrwrr.', 'rwrrrrw', 'rrrrrrr', '.uuuuu.', '.kesek.', 'ksssssk', 's.....s'] as Rows,
-  sitBlink: ['...h...', '..rrr..', '.rrwrr.', 'rwrrrrw', 'rrrrrrr', '.uuuuu.', '.ksssk.', 'ksssssk', 's.....s'] as Rows,
+  sit: [
+    '......hh......',
+    '.....hhhh.....',
+    '.....rrrr.....',
+    '...rrwwrrrr...',
+    '..rrrwwrrrrr..',
+    '.rrrrrrrrwwrr.',
+    '.rwwrrrrrwwrrr',
+    'rrwwrrrrrrrrrr',
+    'rrrrrrrrrrrrrr',
+    '.rrrrrrrrrrrr.',
+    '..uuuuuuuuuu..',
+    '..kkssssss....',
+    '..kksseses....',
+    '.kkksseses....',
+    'kkkssssssss...',
+    'kkssssssssss..',
+    '.sss......sss.',
+  ] as Rows,
+  sitBlink: [
+    '......hh......',
+    '.....hhhh.....',
+    '.....rrrr.....',
+    '...rrwwrrrr...',
+    '..rrrwwrrrrr..',
+    '.rrrrrrrrwwrr.',
+    '.rwwrrrrrwwrrr',
+    'rrwwrrrrrrrrrr',
+    'rrrrrrrrrrrrrr',
+    '.rrrrrrrrrrrr.',
+    '..uuuuuuuuuu..',
+    '..kkssssss....',
+    '..kkssssss....',
+    '.kkksseses....',
+    'kkkssssssss...',
+    'kkssssssssss..',
+    '.sss......sss.',
+  ] as Rows,
 }
 export const KEEPER_TRIM: Palette = { k: hex('#a32c2c'), h: hex('#dedad2') }
 
@@ -156,22 +449,25 @@ export const MUSH_PARTS: Part[] = [
   { chars: 'h', kind: 'dome' },
 ]
 export const KNIGHT_PARTS: Part[] = [
-  { chars: 'hHvD', kind: 'dome' },
-  { chars: 'pgPq', kind: 'dome' },
-  { chars: 'mn', kind: 'cylinder' },
-  { chars: 'ceC', kind: 'cylinder' },
-  { chars: 'lL', kind: 'cylinder' },
-  { chars: 'd', kind: 'cylinder' },
-  { chars: 'b', kind: 'dome' },
-  { chars: 's', kind: 'flat' },
+  { chars: 'hHvd', kind: 'dome' }, // helm
+  { chars: 'pPq', kind: 'dome' }, // pauldrons
+  { chars: 'mn', kind: 'cylinder' }, // mail coat
+  { chars: 'ceC', kind: 'cylinder' }, // cape
+  { chars: 'lLy', kind: 'cylinder' }, // belt, skirt, thighs
+  { chars: 'Aa', kind: 'cylinder' }, // vambraces
+  { chars: 'gG', kind: 'dome' }, // gauntlets
+  { chars: 'Kk', kind: 'dome' }, // knee cops
+  { chars: 'Iij', kind: 'cylinder' }, // greaves
+  { chars: 'bB', kind: 'dome' }, // boots
+  { chars: 'sStr', kind: 'flat' }, // sword
 ]
 export const DEER_PARTS: Part[] = [
-  { chars: 'b', kind: 'dome' },
-  { chars: 'hn', kind: 'dome' },
+  { chars: 'bu', kind: 'dome' },
+  { chars: 'hne', kind: 'dome' },
   { chars: 't', kind: 'flat' },
   { chars: 'l', kind: 'cylinder' },
 ]
-export const FROG_PARTS: Part[] = [{ chars: 'ge', kind: 'dome' }]
+export const FROG_PARTS: Part[] = [{ chars: 'geG', kind: 'dome' }]
 export const GLOWCAP_PARTS: Part[] = [
   { chars: 'c', kind: 'cap' },
   { chars: 's', kind: 'cylinder' },
@@ -181,110 +477,108 @@ export const MUSH_PAL: Palette = { r: hex('#8f4b3c'), w: hex('#e0b896'), u: hex(
 /** Elders fade: a greyer cap, paler spots. */
 export const MUSH_PAL_ELDER: Palette = { r: hex('#7d655c'), w: hex('#ece2d2'), u: hex('#4a3a34'), s: hex('#c9c2b4'), e: hex('#1a1410') }
 
+/** A stag: small antlers, white tail, thin legs. Faces right. */
 export const DEER = {
   walk: [
     [
-      '.........t.t.',
-      '.........ttt.',
-      '..........hh.',
-      '..........hhn',
-      '.bbbbbbbbbh..',
-      'bbbbbbbbbbb..',
-      'bbbbbbbbbb...',
-      '.bbbbbbbb....',
-      '.l.l....l.l..',
-      '.l.l....l.l..',
-      '.l.l....l.l..',
+      '................t.t..t.t..',
+      '.................t....t...',
+      '.................tt..tt...',
+      '..................hhhh....',
+      '.................hhhhhh...',
+      '.................hhhehhh..',
+      '..................hhhhhhn.',
+      '..................hhh.....',
+      '.................bbb......',
+      '................bbbb......',
+      '....bbbbbbbbbbbbbbbb......',
+      '.tbbbbbbbbbbbbbbbbbb......',
+      '.tbbbbbbbbbbbbbbbbbb......',
+      '..bbbbbbbbbbbbbbbbbb......',
+      '...ubbbbbbbbbbbbbbu.......',
+      '..uuuu.........uuuu.......',
+      '...l.l..........l.l.......',
+      '...l.l..........l.l.......',
+      '...l.l..........l.l.......',
+      '...l.l..........l.l.......',
+      '...l.l..........l.l.......',
+      '...n.n..........n.n.......',
     ],
     [
-      '.........t.t.',
-      '.........ttt.',
-      '..........hh.',
-      '..........hhn',
-      '.bbbbbbbbbh..',
-      'bbbbbbbbbbb..',
-      'bbbbbbbbbb...',
-      '.bbbbbbbb....',
-      '.l..l..l..l..',
-      'l...l.l...l..',
-      'l....l.....l.',
+      '................t.t..t.t..',
+      '.................t....t...',
+      '.................tt..tt...',
+      '..................hhhh....',
+      '.................hhhhhh...',
+      '.................hhhehhh..',
+      '..................hhhhhhn.',
+      '..................hhh.....',
+      '.................bbb......',
+      '................bbbb......',
+      '....bbbbbbbbbbbbbbbb......',
+      '.tbbbbbbbbbbbbbbbbbb......',
+      '.tbbbbbbbbbbbbbbbbbb......',
+      '..bbbbbbbbbbbbbbbbbb......',
+      '...ubbbbbbbbbbbbbbu.......',
+      '..uuuu.........uuuu.......',
+      '...l..l........l..l.......',
+      '..l...l........l...l......',
+      '..l....l......l....l......',
+      '.l.....l......l.....l.....',
+      '.l......l....l......l.....',
+      '.n......n....n......n.....',
     ],
   ] as Rows[],
+  /** Head down to the water. */
   drink: [
-    '.............',
-    '.............',
-    '.............',
-    '.............',
-    '.bbbbbbbbb...',
-    'bbbbbbbbbbbt.',
-    'bbbbbbbbbbhtt',
-    '.bbbbbbbb.hh.',
-    '.l.l....l.lhn',
-    '.l.l....l.l..',
-    '.l.l....l.l..',
+    '..........................',
+    '..........................',
+    '..........................',
+    '..........................',
+    '..........................',
+    '..........................',
+    '..........................',
+    '..........................',
+    '..........................',
+    '..........................',
+    '....bbbbbbbbbbbbbbbbb.....',
+    '.tbbbbbbbbbbbbbbbbbbbb....',
+    '.tbbbbbbbbbbbbbbbbbbbbb.t.',
+    '..bbbbbbbbbbbbbbbbbbbbbbt.',
+    '..ubbbbbbbbbbbbbbbbu.hhht.',
+    '..uuuu.........uuuuhhhhtt.',
+    '...l.l..........l.lhehhh..',
+    '...l.l..........l.l.hhhh..',
+    '...l.l..........l.l..hhhn.',
+    '...l.l..........l.l...hn..',
+    '...l.l..........l.l.......',
+    '...n.n..........n.n.......',
   ] as Rows,
 }
-export const DEER_PAL: Palette = { b: hex('#9a7a5c'), h: hex('#a8876a'), t: hex('#c9b9a0'), n: hex('#2a2018'), l: hex('#7a5f47') }
+export const DEER_PAL: Palette = {
+  b: hex('#9a7a5c'), // coat
+  u: hex('#7d6249'), // belly and haunch in shadow
+  h: hex('#a8876a'), // head
+  e: hex('#1a1410'), // eye
+  t: hex('#c9b9a0'), // antlers, tail
+  n: hex('#2a2018'), // nose, hooves
+  l: hex('#7a5f47'), // legs
+}
 
 /** A glowcap: grows where one of the shroomfolk returned to the soil. Its cap glows. */
-export const GLOWCAP: Rows = ['.ccc.', 'ccccc', '..s..', '..s..']
+export const GLOWCAP: Rows = ['...cccc...', '.cccccccc.', 'cccccccccc', '.cccccccc.', '....ss....', '....ss....', '....ss....', '...ssss...']
 export const GLOWCAP_PAL: Palette = { c: hex('#9ff5e4'), s: hex('#d8ccb4') }
 
+/** The frog, sitting (eyes up, feet tucked) and mid-hop (stretched out). Faces right. */
 export const FROG: Rows[] = [
-  ['.e.e', 'gggg'],
-  ['e.e.', '.gg.', 'gggg'],
+  ['.....e.e.', '...gggggg', '..ggggggg', '.gGgggggg', 'GG.G..GG.'],
+  ['.......e.e', '....gggggg', 'gggggggggG', 'G........G'],
 ]
-export const FROG_PAL: Palette = { e: hex('#c9d67a'), g: C.frog }
+export const FROG_PAL: Palette = { e: hex('#c9d67a'), g: C.frog, G: C.frogD }
 
+/** The crow: perched (facing right), wings up, wings down. 'b' is the beak. */
 export const CROW: Rows[] = [
-  ['.c..', 'cccc', '.c.c'], // perched
-  ['c..c', '.cc.', '....'], // wings up
-  ['....', '.cc.', 'c..c'], // wings down
+  ['....ccc.', '...ccccb', '.ccccccc', 'cccccccc', '.cccccc.', '..c..c..'], // perched
+  ['c........c', 'cc......cc', '.ccc..ccc.', '..cccccc..', '....ccb...'], // wings up
+  ['..........', '....ccb...', '..cccccc..', '.ccc..ccc.', 'cc......cc'], // wings down
 ]
-
-/**
- * Hand-drawn high-resolution art, used instead of the 1x art at #res=2 (keyed by the 1x
- * rows it replaces). Anything without an entry is drawn with each pixel doubled.
- */
-export const HIRES = new Map<Rows, Rows>()
-
-/**
- * The knight at #res=2: his 1x art doubled, then given the detail the extra pixels can hold.
- * Plate gets a lit top-left edge and a shaded bottom-right one, the visor narrows to a crisp
- * slit under a shadowed brow with breathing holes below, mail shows its rings, and the cape
- * gets folds and a lit edge.
- */
-function refineKnight(rows: Rows): Rows {
-  const g = rows.flatMap((row) => [0, 1].map(() => [...row].map((ch) => ch + ch).join('')))
-  const h = g.length
-  const w = g[0].length
-  const at = (r: number, c: number) => (r >= 0 && r < h && c >= 0 && c < w ? g[r][c] : '.')
-  const plate = (ch: string) => 'hHvd'.includes(ch)
-  const out = g.map((row) => [...row])
-  for (let r = 0; r < h; r++) {
-    for (let c = 0; c < w; c++) {
-      const ch = g[r][c]
-      const litEdge = (is: (x: string) => boolean) => !is(at(r - 1, c)) || !is(at(r, c - 1))
-      const darkEdge = (is: (x: string) => boolean) => !is(at(r + 1, c)) || !is(at(r, c + 1))
-      if (ch === 'v') {
-        if (at(r + 1, c) === 'v')
-          out[r][c] = 'D' // the brow shades the top half of the slit
-        else if (c % 3 === 0 && at(r + 3, c) === 'h') out[r + 3][c] = 'v' // breathing holes
-      } else if (ch === 'h') {
-        if (litEdge(plate)) out[r][c] = 'H'
-        else if (darkEdge(plate)) out[r][c] = 'D'
-      } else if (ch === 'p') {
-        const is = (x: string) => x === 'p'
-        if (litEdge(is)) out[r][c] = 'P'
-        else if (darkEdge(is)) out[r][c] = 'q'
-      } else if (ch === 'm') {
-        if (r % 2 === 0 && (c + (r >> 1)) % 2 === 0) out[r][c] = 'n'
-      } else if (ch === 'c') {
-        if (at(r, c - 1) === '.') out[r][c] = 'e'
-        else if (c % 4 === 1) out[r][c] = 'C'
-      } else if (ch === 'b' && at(r - 1, c) !== 'b') out[r][c] = 'L'
-    }
-  }
-  return out.map((row) => row.join(''))
-}
-for (const rows of [KNIGHT, KNIGHT_NOD, KNIGHT_KNEEL, ...KNIGHT_STAND]) HIRES.set(rows, refineKnight(rows))

@@ -7,11 +7,10 @@ import { clamp, hex, rngFrom, vnoise, type Color } from './util'
 
 // ---------- framebuffer + camera (low 3/4 "stage" view) ----------
 /**
- * Pixel density. 1 is the original 320x180; #res=2 is an experiment at 640x360
- * (read once at load, so switching needs a reload). The camera scales with it,
- * so world units are unchanged; hand-placed pixel sizes multiply by RES.
+ * Screen pixels per layout pixel. Positions and sizes in the code are laid out on a 320x180
+ * grid; the framebuffer and all art are drawn at twice that (640x360).
  */
-export const RES = typeof location !== 'undefined' && new URLSearchParams(location.hash.slice(1)).get('res') === '2' ? 2 : 1
+export const RES = 2
 export const W = 320 * RES
 export const H = 180 * RES
 export const N = W * H
