@@ -1,6 +1,6 @@
 /** Small critters with tiny machines: the frog in the pool and the crow on the trigon stone. */
 import { rand } from '../util'
-import { PADS, W, inPool, project } from '../world'
+import { PADS, RES, W, inPool, project } from '../world'
 import { fsm } from './fsm'
 import { isRaining, perchPos } from './helpers'
 import type { Crow, CrowState, Def, Frog, FrogState } from './types'
@@ -53,8 +53,8 @@ export const crowMachine: Def<Crow, CrowState> = {
     flying: {
       enter: (c) => {
         ;[c.x, c.y] = perchPos()
-        c.vx = 60
-        c.vy = -30
+        c.vx = 60 * RES
+        c.vy = -30 * RES
       },
       update: (c, _ctx, dt) => {
         c.x += c.vx * dt
@@ -69,7 +69,7 @@ export const crowMachine: Def<Crow, CrowState> = {
     returning: {
       enter: (c) => {
         c.x = W + 5
-        c.y = 10
+        c.y = 10 * RES
       },
       update: (c, _ctx, dt) => {
         const [px, py] = perchPos()

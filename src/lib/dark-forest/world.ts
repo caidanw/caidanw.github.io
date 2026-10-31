@@ -6,17 +6,24 @@
 import { clamp, hex, rngFrom, vnoise, type Color } from './util'
 
 // ---------- framebuffer + camera (low 3/4 "stage" view) ----------
-export const W = 320
-export const H = 180
+/**
+ * Pixel density. 1 is the original 320x180; #res=2 is an experiment at 640x360
+ * (read once at load, so switching needs a reload). The camera scales with it,
+ * so world units are unchanged; hand-placed pixel sizes multiply by RES.
+ */
+export const RES = typeof location !== 'undefined' && new URLSearchParams(location.hash.slice(1)).get('res') === '2' ? 2 : 1
+export const W = 320 * RES
+export const H = 180 * RES
 export const N = W * H
-export const HORIZON = 71
-const ZOOM = 1.35
-const CY = 124
+export const HORIZON = 71 * RES
+const ZOOM = 1.35 * RES
+const CY = 124 * RES
+const CX = 160 * RES
 
-/** World (x, y, z) -> screen (sx, sy) plus the perspective scale at that depth. */
+/** World (x, y, z) -> screen (sx, sy) plus the perspective scale at that depth (screen px per world unit). */
 export function project(x: number, y: number, z: number): [number, number, number] {
   const s = (1 + z * 0.0028) * ZOOM
-  return [160 + x * s, CY + z * 0.45 * ZOOM - y * s, s]
+  return [CX + x * s, CY + z * 0.45 * ZOOM - y * s, s]
 }
 
 /** Screen pixel -> point on the ground plane, or null above the horizon. */
@@ -24,7 +31,7 @@ export function unproject(sx: number, sy: number): [number, number] | null {
   if (sy <= HORIZON) return null
   const z = (sy - CY) / (0.45 * ZOOM)
   const s = (1 + z * 0.0028) * ZOOM
-  return [(sx - 160) / s, z]
+  return [(sx - CX) / s, z]
 }
 
 /** How much distance mist covers a world point at depth z. */
@@ -158,7 +165,7 @@ export const STONE_RING = Array.from({ length: 13 }, (_, i) => {
   return { x: Math.cos(a) * 9.5, z: Math.sin(a) * 6.5, w: 2 + ((r() * 2) | 0), h: 1 + ((r() * 2) | 0), seed: (r() * 1e6) | 0 }
 })
 
-/** Three old standing stones behind the fire; the middle one carries a carved spiral that warms with the flames. */
+/** Three old standing stones behind the fire; the tall one carries a carved antler crown that warms with the flames. */
 export const HEARTHSTONES = [
   { x: -27, z: -19, h: 13, w: 3, lean: -1, carved: false },
   { x: 14, z: -35, h: 18, w: 4, lean: 0, carved: true },

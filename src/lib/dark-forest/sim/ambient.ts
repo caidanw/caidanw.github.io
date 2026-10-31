@@ -3,7 +3,7 @@
  * decisions to make. They read entity state but don't need a machine.
  */
 import { clamp, rand, vnoise } from '../util'
-import { H, HORIZON, W, inPool, project } from '../world'
+import { H, HORIZON, RES, W, inPool, project } from '../world'
 import { burst, isRaining, lightRadius, stickSpot } from './helpers'
 import type { World } from './types'
 
@@ -54,7 +54,7 @@ export function stepAmbient(w: World, dt: number, isOpenWater: (sx: number, sy: 
 
   // a shooting star, now and then
   if ((w.nextShoot -= dt) <= 0 && !raining) {
-    w.shooting = { x: rand(20, 260), y: rand(4, 30), age: 0 }
+    w.shooting = { x: rand(20, 260) * RES, y: rand(4, 30) * RES, age: 0 }
     w.nextShoot = rand(25, 60)
   }
   if (w.shooting && (w.shooting.age += dt) > 0.9) w.shooting = null

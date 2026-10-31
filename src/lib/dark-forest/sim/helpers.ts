@@ -1,5 +1,5 @@
 import { rand } from '../util'
-import { GROVE_SPOTS, PROPS, inPool, nearProp, project } from '../world'
+import { GROVE_SPOTS, PROPS, RES, inPool, nearProp, project } from '../world'
 import type { Fsm } from './fsm'
 import { findPath, nav, walkable } from './nav'
 import type { MushState, Stick, Walker, World } from './types'
@@ -132,5 +132,5 @@ export function burst(w: World, n: number, power: number) {
 /** Where the crow sits: on top of the trigon stone (screen space). */
 export function perchPos(): [number, number] {
   const [bx, by, s] = project(PROPS.trigon.x, 0, PROPS.trigon.z)
-  return [bx + 2, by - Math.round(40 * s)]
+  return [bx + 2 * RES, by - Math.round(40 * s)]
 }

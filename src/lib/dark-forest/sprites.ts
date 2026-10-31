@@ -111,9 +111,16 @@ export const KNIGHT_PAL: Palette = {
   g: hex('#b0aba2'), // gauntlet
   b: hex('#2e2a29'), // boots
   s: hex('#d2cfc8'), // his sword
+  // the extra shades only the #res=2 art uses
+  D: hex('#53575e'), // plate edge in shadow
+  P: hex('#e4e2dc'), // pauldron catching light
+  q: hex('#77797c'), // pauldron in shadow
+  n: hex('#55585e'), // mail rings
+  e: hex('#7a3434'), // cape edge
+  C: hex('#431818'), // cape folds
 }
 /** How shiny each part of the knight is (specular strength): plate gleams, mail less, cloth not at all. */
-export const KNIGHT_SHINE: Record<string, number> = { H: 1, h: 1, p: 1, g: 1, s: 1, d: 0.7, m: 0.45 }
+export const KNIGHT_SHINE: Record<string, number> = { H: 1, h: 1, p: 1, P: 1, q: 0.8, g: 1, s: 1, d: 0.7, D: 0.7, m: 0.45, n: 0.35 }
 
 export const MUSH = {
   walk: [
@@ -149,10 +156,10 @@ export const MUSH_PARTS: Part[] = [
   { chars: 'h', kind: 'dome' },
 ]
 export const KNIGHT_PARTS: Part[] = [
-  { chars: 'hHv', kind: 'dome' },
-  { chars: 'pg', kind: 'dome' },
-  { chars: 'm', kind: 'cylinder' },
-  { chars: 'c', kind: 'cylinder' },
+  { chars: 'hHvD', kind: 'dome' },
+  { chars: 'pgPq', kind: 'dome' },
+  { chars: 'mn', kind: 'cylinder' },
+  { chars: 'ceC', kind: 'cylinder' },
   { chars: 'lL', kind: 'cylinder' },
   { chars: 'd', kind: 'cylinder' },
   { chars: 'b', kind: 'dome' },
@@ -234,3 +241,50 @@ export const CROW: Rows[] = [
   ['c..c', '.cc.', '....'], // wings up
   ['....', '.cc.', 'c..c'], // wings down
 ]
+
+/**
+ * Hand-drawn high-resolution art, used instead of the 1x art at #res=2 (keyed by the 1x
+ * rows it replaces). Anything without an entry is drawn with each pixel doubled.
+ */
+export const HIRES = new Map<Rows, Rows>()
+
+/**
+ * The knight at #res=2: his 1x art doubled, then given the detail the extra pixels can hold.
+ * Plate gets a lit top-left edge and a shaded bottom-right one, the visor narrows to a crisp
+ * slit under a shadowed brow with breathing holes below, mail shows its rings, and the cape
+ * gets folds and a lit edge.
+ */
+function refineKnight(rows: Rows): Rows {
+  const g = rows.flatMap((row) => [0, 1].map(() => [...row].map((ch) => ch + ch).join('')))
+  const h = g.length
+  const w = g[0].length
+  const at = (r: number, c: number) => (r >= 0 && r < h && c >= 0 && c < w ? g[r][c] : '.')
+  const plate = (ch: string) => 'hHvd'.includes(ch)
+  const out = g.map((row) => [...row])
+  for (let r = 0; r < h; r++) {
+    for (let c = 0; c < w; c++) {
+      const ch = g[r][c]
+      const litEdge = (is: (x: string) => boolean) => !is(at(r - 1, c)) || !is(at(r, c - 1))
+      const darkEdge = (is: (x: string) => boolean) => !is(at(r + 1, c)) || !is(at(r, c + 1))
+      if (ch === 'v') {
+        if (at(r + 1, c) === 'v')
+          out[r][c] = 'D' // the brow shades the top half of the slit
+        else if (c % 3 === 0 && at(r + 3, c) === 'h') out[r + 3][c] = 'v' // breathing holes
+      } else if (ch === 'h') {
+        if (litEdge(plate)) out[r][c] = 'H'
+        else if (darkEdge(plate)) out[r][c] = 'D'
+      } else if (ch === 'p') {
+        const is = (x: string) => x === 'p'
+        if (litEdge(is)) out[r][c] = 'P'
+        else if (darkEdge(is)) out[r][c] = 'q'
+      } else if (ch === 'm') {
+        if (r % 2 === 0 && (c + (r >> 1)) % 2 === 0) out[r][c] = 'n'
+      } else if (ch === 'c') {
+        if (at(r, c - 1) === '.') out[r][c] = 'e'
+        else if (c % 4 === 1) out[r][c] = 'C'
+      } else if (ch === 'b' && at(r - 1, c) !== 'b') out[r][c] = 'L'
+    }
+  }
+  return out.map((row) => row.join(''))
+}
+for (const rows of [KNIGHT, KNIGHT_NOD, KNIGHT_KNEEL, ...KNIGHT_STAND]) HIRES.set(rows, refineKnight(rows))

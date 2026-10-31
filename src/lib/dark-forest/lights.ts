@@ -15,6 +15,7 @@
  * the surroundings). Ambient moonlight is separate (see renderer).
  */
 import { vnoise, type Color } from './util'
+import { RES } from './world'
 
 export interface Light {
   x: number
@@ -142,7 +143,7 @@ export function gatherLight(
 
 /** World-anchored grain for ground dithering: a stable noise value per ground pixel. */
 export const groundGrain = (x: number, z: number): number => {
-  const h = Math.imul(Math.floor(x * 1.35) + 999, 374761393) + Math.imul(Math.floor(z * 0.6), 668265263)
+  const h = Math.imul(Math.floor(x * 1.35 * RES) + 999, 374761393) + Math.imul(Math.floor(z * 0.6 * RES), 668265263)
   const v = Math.imul(h ^ (h >>> 13), 1274126177)
   return ((v ^ (v >>> 16)) >>> 0) / 4294967296
 }

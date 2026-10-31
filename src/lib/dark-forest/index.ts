@@ -5,7 +5,7 @@
  */
 import { Renderer } from './renderer'
 import { createWorld, dropStick, isRaining, step, toggleRain, type World } from './sim'
-import { H, W, unproject, RELICS, type Relic } from './world'
+import { H, RES, W, unproject, RELICS, type Relic } from './world'
 
 export interface DarkForestOptions {
   glow?: boolean
@@ -97,8 +97,8 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
   const DROP_HEIGHT = 22
   const onDown = (e: PointerEvent) => {
     const { x, y } = toScreen(e)
-    let q = unproject(x, y + DROP_HEIGHT * 1.35)
-    for (let i = 0; i < 3 && q; i++) q = unproject(x, y + DROP_HEIGHT * (1 + q[1] * 0.0028) * 1.35) // refine for depth
+    let q = unproject(x, y + DROP_HEIGHT * 1.35 * RES)
+    for (let i = 0; i < 3 && q; i++) q = unproject(x, y + DROP_HEIGHT * (1 + q[1] * 0.0028) * 1.35 * RES) // refine for depth
     if (q) dropStick(world, { x: q[0], z: q[1] }, DROP_HEIGHT)
   }
   canvas.addEventListener('pointermove', onMove)

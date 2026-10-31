@@ -6,7 +6,7 @@
  * `agents()`. To add an interaction: add an event to `SimEvents`, emit it
  * from one machine, handle it in another.
  */
-import { H, HORIZON, PROPS, W, type Point } from '../world'
+import { H, HORIZON, PROPS, RES, W, type Point } from '../world'
 import { rand } from '../util'
 import { send, tick, type Fsm, type MachineDef } from './fsm'
 import { stepAmbient } from './ambient'
@@ -65,7 +65,7 @@ export function createWorld(): World {
     arrivalTimer: 90,
     story: [],
     embers: [],
-    drops: Array.from({ length: 220 }, () => ({ x: Math.random() * W, y: Math.random() * H, v: rand(170, 240), stop: rand(HORIZON, H) })),
+    drops: Array.from({ length: 220 }, () => ({ x: Math.random() * W, y: Math.random() * H, v: rand(170, 240) * RES, stop: rand(HORIZON, H) })),
     ripples: [],
     zs: [],
     puffs: [],

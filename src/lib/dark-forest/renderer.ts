@@ -17,6 +17,7 @@ import {
   H,
   HEARTHSTONES,
   HORIZON,
+  RES,
   KNIGHT_GRAVE,
   N,
   PADS,
@@ -46,6 +47,7 @@ import {
   GLOWCAP,
   GLOWCAP_PAL,
   GLOWCAP_PARTS,
+  HIRES,
   KEEPER_TRIM,
   KNIGHT,
   KNIGHT_KNEEL,
@@ -278,19 +280,16 @@ for (let r = 0; r < 12; r++) {
   }
 }
 
-/** A small carved spiral on the middle hearthstone (relative to its centre). */
-const SPIRAL_PX: [number, number][] = [
-  [0, 0],
-  [1, 0],
-  [1, 1],
-  [0, 1],
-  [-1, 1],
-  [-1, 0],
-  [-1, -1],
-  [0, -1],
-  [1, -1],
-  [2, -1],
-]
+/**
+ * The antler crown carved into the tall hearthstone: the same shape as the relic in the fire.
+ * Offsets from the carving's centre.
+ */
+const CROWN_PX: [number, number][] = (() => {
+  const rows = ['x.x.x', 'x.x.x', '.xxx.', '..x..', '..x..']
+  const out: [number, number][] = []
+  rows.forEach((row, r) => [...row].forEach((ch, c) => ch === 'x' && out.push([c - 2, r - 2])))
+  return out
+})()
 
 /**
  * The relic planted in the ashes, the bonfire's coiled sword reimagined.
@@ -385,6 +384,20 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
     } else line = next
   }
   if (line) out.push(line)
+  return out
+}
+
+/** Sprite art at the current resolution: hand-drawn high-res art if it exists, else each pixel drawn RES x RES. */
+const scaledArt = new WeakMap<Rows, Rows>()
+function artFor(rows: Rows): Rows {
+  if (RES === 1) return rows
+  const hi = HIRES.get(rows)
+  if (hi) return hi
+  let out = scaledArt.get(rows)
+  if (!out) {
+    out = rows.flatMap((row) => Array.from({ length: RES }, () => [...row].map((ch) => ch.repeat(RES)).join('')))
+    scaledArt.set(rows, out)
+  }
   return out
 }
 
@@ -559,6 +572,39 @@ export class Renderer {
   }
 
   /**
+   * Put one hand-placed design pixel: (k, r) are base-resolution offsets from the anchor
+   * (k right, r up), drawn as a RES x RES block. At RES 1 this is exactly put().
+   */
+  private putB(
+    B: Buf,
+    ax: number,
+    ay: number,
+    k: number,
+    r: number,
+    c: Color,
+    wx: number,
+    wz: number,
+    wy: number,
+    depth: number,
+    nrm?: [number, number, number],
+    mh = 0,
+    mw = 0,
+    noRefl = false,
+  ) {
+    for (let j = 0; j < RES; j++) for (let i = 0; i < RES; i++) this.put(B, ax + k * RES + i, ay - r * RES - j, c, wx, wz, wy, ay, depth, noRefl, nrm, mh, mw)
+  }
+
+  /** An emissive design cell at base offset (dx, dy) from an anchor, y growing down (carvings, relic art). */
+  private cellFx(ax: number, ay: number, dx: number, dy: number, c: Color, a: number, baseY?: number, depth?: number, bloom = 1) {
+    for (let j = 0; j < RES; j++) for (let i = 0; i < RES; i++) this.putFx(ax + dx * RES + i, ay + dy * RES + j, c, a, baseY, depth, bloom)
+  }
+
+  /** The emissive version of putB. */
+  private putFxB(ax: number, ay: number, k: number, r: number, c: Color, a: number, baseY?: number, depth?: number, bloom = 1) {
+    for (let j = 0; j < RES; j++) for (let i = 0; i < RES; i++) this.putFx(ax + k * RES + i, ay - r * RES - j, c, a, baseY, depth, bloom)
+  }
+
+  /**
    * Write an emissive pixel. Emissives that belong to something in the world
    * pass its `depth`, so whatever stands in front hides them (and their bloom).
    * `baseY` is the screen line to mirror about for pool reflections. `bloom` is how much the
@@ -610,9 +656,10 @@ export class Renderer {
       parts?: Part[]
     } = {},
   ) {
+    rows = artFor(rows)
     const [bx, by] = project(wx, 0, wz)
     const dep = opts.dep ?? wz + 0.5
-    const lift = opts.lift ?? 0
+    const lift = (opts.lift ?? 0) * RES
     const h = rows.length
     const w = rows[0].length
     const glow: [number, number][] = []
@@ -631,7 +678,7 @@ export class Renderer {
         if (filled(r - 1, c) || filled(r + 1, c) || filled(r, c - 1) || filled(r, c + 1)) {
           const py = by - h + r + 1 - lift
           if (py > clip) continue
-          this.put(B, bx - (w >> 1) + c, py, C.outline, wx, wz, h - r + lift, by, dep - 0.01)
+          this.put(B, bx - (w >> 1) + c, py, C.outline, wx, wz, (h - r + lift) / RES, by, dep - 0.01)
         }
       }
     }
@@ -644,7 +691,8 @@ export class Renderer {
         if (py > clip) continue
         const src = (r + 2) * nm.w + (flip ? w - 1 - c : c) + 2
         const nrm: [number, number, number] = [flip ? -nm.nx[src] : nm.nx[src], nm.ny[src], nm.nz[src]]
-        if (this.put(B, px, py, pal[ch], wx, wz, h - r + lift, by, dep, false, nrm, 0, 0, opts.shine?.[ch] ?? 0) && ch === opts.glowChar) glow.push([px, py])
+        if (this.put(B, px, py, pal[ch], wx, wz, (h - r + lift) / RES, by, dep, false, nrm, 0, 0, opts.shine?.[ch] ?? 0) && ch === opts.glowChar)
+          glow.push([px, py])
       }
     }
     this.tag = prevTag
@@ -765,30 +813,35 @@ export class Renderer {
    * a lip and a gilled underside. The doorway is drawn as interior *behind* the
    * walls (depth hut.z + HUT_PX.inside), so shroomfolk walking in are hidden by
    * the walls but stay visible through the open door. The door itself, the lit
-   * window and the interior glow are dynamic.
+   * window and the interior glow are dynamic. Laid out in base pixels; shaded
+   * and textured at full resolution.
    */
   private drawHut(B: Buf, hut: Point) {
     const [bx, by, s] = project(hut.x, 0, hut.z)
     const dep = hut.z
     // light each column at its own world x, so the side facing the fire is the lit one
-    const put = (k: number, r: number, c: Color, d: number, n: Normal, mh: number, mw: number) =>
-      this.put(B, bx + k, by - r, c, hut.x + k / s, hut.z, r, by, d, false, n, mh, mw)
+    const put = (px: number, py: number, c: Color, d: number, n: Normal, mh: number, mw: number) =>
+      this.put(B, px, py, c, hut.x + (px - bx) / s, hut.z, (by - py) / RES, by, d, false, n, mh, mw)
     this.region++
-    for (let r = 0; r < HUT_PX.stemH; r++) {
-      const flare = r < 2 ? 1 : 0
-      for (let k = -7 - flare; k <= 6 + flare; k++) {
-        const u = (k + 0.5) / (7 + flare)
-        if (isDoor(k, r)) {
-          put(k, r, C.hutInside, dep + HUT_PX.inside, shape.flat, 0, 0)
+    for (let r = 0; r < HUT_PX.stemH * RES; r++) {
+      const rb = Math.floor(r / RES)
+      const flare = rb < 2 ? 1 : 0
+      for (let k = (-7 - flare) * RES; k < (7 + flare) * RES; k++) {
+        const kb = Math.floor(k / RES)
+        const u = (k + 0.5) / ((7 + flare) * RES)
+        const px = bx + k
+        const py = by - r
+        if (isDoor(kb, rb)) {
+          put(px, py, C.hutInside, dep + HUT_PX.inside, shape.flat, 0, 0)
           continue
         }
-        let c = k >= 4 ? C.hutStemD : k <= -6 ? C.hutStemHi : C.hutStem
+        let c = kb >= 4 ? C.hutStemD : kb <= -6 ? C.hutStemHi : C.hutStem
         if (hash(k * 13, r * 5 + hut.x) < 0.12) c = C.hutStemD // fibres
-        if (isDoorFrame(k, r)) c = C.hutFrame
-        if (isWindow(k, r)) c = C.door
+        if (isDoorFrame(kb, rb)) c = C.hutFrame
+        if (isWindow(kb, rb)) c = C.door
         // the frame stands proud of the wall; the window is set in
-        const mh = isDoorFrame(k, r) ? 0.8 : isWindow(k, r) ? -0.8 : micro.fibre(bx + k, by - r, hut.x)
-        put(k, r, c, dep, shape.cylinder(u), mh, isDoorFrame(k, r) || isWindow(k, r) ? 0.8 : WEIGHT.stem)
+        const mh = isDoorFrame(kb, rb) ? 0.8 : isWindow(kb, rb) ? -0.8 : micro.fibre(px, py, hut.x)
+        put(px, py, c, dep, shape.cylinder(u), mh, isDoorFrame(kb, rb) || isWindow(kb, rb) ? 0.8 : WEIGHT.stem)
       }
     }
     // the cap: big pale spots, gills underneath, moonlit rim on the upper left
@@ -816,19 +869,20 @@ export class Renderer {
         this.put(B, px, py, c, hut.x + (px - bx) / s, hut.z, HUT_PX.capY - v * 4, by, dep + 0.01, false, shape.cap(u, v), mh, WEIGHT.cap)
       },
       bx,
-      by - HUT_PX.capY,
-      16,
-      8,
+      by - HUT_PX.capY * RES,
+      16 * RES,
+      8 * RES,
     )
     this.region++
-    for (let r = 25; r < 31; r++) {
-      for (let k = 9; k <= 10; k++) {
+    for (let r = 25 * RES; r < 31 * RES; r++) {
+      for (let k = 9 * RES; k < 11 * RES; k++) {
+        const left = k < 10 * RES
         put(
-          k,
-          r,
-          r === 30 ? C.stoneD : k === 9 ? C.stone : C.stoneD,
+          bx + k,
+          by - r,
+          r >= 30 * RES ? C.stoneD : left ? C.stone : C.stoneD,
           dep + 0.02,
-          shape.cylinder(k === 9 ? -0.5 : 0.5),
+          shape.cylinder(left ? -0.5 : 0.5),
           micro.stone(bx + k, by - r, 3),
           WEIGHT.stone,
         )
@@ -843,20 +897,26 @@ export class Renderer {
     this.region++
     for (let r = 0; r < 13; r++) {
       const lean = r > 8 ? 1 : 0
-      this.put(B, bx + lean, by - r, C.blade, p.x, p.z, r, by, dep, false, [-0.5, 0, 0.87], 0, WEIGHT.metal)
-      this.put(B, bx + 1 + lean, by - r, C.bladeD, p.x, p.z, r, by, dep, false, [0.5, 0, 0.87], 0, WEIGHT.metal)
+      this.putB(B, bx, by, lean, r, C.blade, p.x, p.z, r, dep, [-0.5, 0, 0.87], 0, WEIGHT.metal)
+      this.putB(B, bx, by, 1 + lean, r, C.bladeD, p.x, p.z, r, dep, [0.5, 0, 0.87], 0, WEIGHT.metal)
     }
-    for (let k = -2; k <= 3; k++) this.put(B, bx + 1 + k, by - 13, C.guard, p.x, p.z, 13, by, dep, false, [0, 0.5, 0.87])
-    for (let r = 14; r < 17; r++) this.put(B, bx + 1, by - r, C.grip, p.x, p.z, r, by, dep, false, shape.flat)
-    this.put(B, bx + 1, by - 17, C.pommel, p.x, p.z, 17, by, dep, false, [0, 0.7, 0.7])
+    for (let k = -2; k <= 3; k++) this.putB(B, bx, by, 1 + k, 13, C.guard, p.x, p.z, 13, dep, [0, 0.5, 0.87])
+    for (let r = 14; r < 17; r++) this.putB(B, bx, by, 1, r, C.grip, p.x, p.z, r, dep, shape.flat)
+    this.putB(B, bx, by, 1, 17, C.pommel, p.x, p.z, 17, dep, [0, 0.7, 0.7])
   }
 
   private drawPack(B: Buf, p: Point) {
     const [bx, by] = project(p.x, 0, p.z)
     this.region++
-    disc((px, py, u, v) => this.put(B, px, py, v < -0.3 ? C.packHi : C.pack, p.x, p.z, 2 - v * 2, by, p.z, false, shape.dome(u, v)), bx, by - 2, 3, 2)
-    this.put(B, bx - 3, by - 1, C.bedroll, p.x, p.z, 1, by, p.z, false, shape.cylinder(-0.6))
-    this.put(B, bx + 3, by - 1, C.bedroll, p.x, p.z, 1, by, p.z, false, shape.cylinder(0.6))
+    disc(
+      (px, py, u, v) => this.put(B, px, py, v < -0.3 ? C.packHi : C.pack, p.x, p.z, 2 - v * 2, by, p.z, false, shape.dome(u, v)),
+      bx,
+      by - 2 * RES,
+      3 * RES,
+      2 * RES,
+    )
+    this.putB(B, bx, by, -3, 1, C.bedroll, p.x, p.z, 1, p.z, shape.cylinder(-0.6))
+    this.putB(B, bx, by, 3, 1, C.bedroll, p.x, p.z, 1, p.z, shape.cylinder(0.6))
   }
 
   private drawGrave(B: Buf, g: Point & { helm?: boolean }, i: number) {
@@ -882,37 +942,34 @@ export class Renderer {
         ),
       bx,
       by,
-      3,
-      1,
+      3 * RES,
+      RES,
     )
     // a rusted sword, tilted differently on each grave
     const tilt = [-1, 0, 1][i % 3]
     this.region++
-    for (let r = 1; r < 11; r++) {
-      const px = bx + Math.round((tilt * r) / 8)
-      this.put(B, px, by - r, r % 4 === 0 ? C.rust : C.bladeD, g.x, g.z, r, by, dep + 0.1, false, shape.flat, r % 4 === 0 ? -0.5 : 0, 0.5)
-    }
-    const tx = bx + Math.round((tilt * 11) / 8)
-    for (let k = -2; k <= 2; k++) this.put(B, tx + k, by - 11, C.rust, g.x, g.z, 11, by, dep + 0.1, false, [0, 0.5, 0.87])
-    this.put(B, tx, by - 12, C.grip, g.x, g.z, 12, by, dep + 0.1, false, shape.flat)
-    this.put(B, tx, by - 13, C.grip, g.x, g.z, 13, by, dep + 0.1, false, shape.flat)
+    for (let r = 1; r < 11; r++)
+      this.putB(B, bx, by, Math.round((tilt * r) / 8), r, r % 4 === 0 ? C.rust : C.bladeD, g.x, g.z, r, dep + 0.1, shape.flat, r % 4 === 0 ? -0.5 : 0, 0.5)
+    const tk = Math.round((tilt * 11) / 8)
+    for (let k = -2; k <= 2; k++) this.putB(B, bx, by, tk + k, 11, C.rust, g.x, g.z, 11, dep + 0.1, [0, 0.5, 0.87])
+    this.putB(B, bx, by, tk, 12, C.grip, g.x, g.z, 12, dep + 0.1, shape.flat)
+    this.putB(B, bx, by, tk, 13, C.grip, g.x, g.z, 13, dep + 0.1, shape.flat)
     if (g.helm) {
       this.region++
       disc(
         (px, py, u, v) => this.put(B, px, py, v < 0 && u < 0 ? C.stoneHi : C.helm, g.x, g.z, 14 - v, by, dep + 0.2, false, shape.dome(u, v), 0, WEIGHT.metal),
-        tx,
-        by - 15,
-        2,
-        2,
+        bx + tk * RES,
+        by - 15 * RES,
+        2 * RES,
+        2 * RES,
       )
-      this.put(B, tx + 1, by - 15, C.door, g.x, g.z, 15, by, dep + 0.3, false, shape.flat)
+      this.putB(B, bx, by, tk + 1, 15, C.door, g.x, g.z, 15, dep + 0.3, shape.flat)
     }
   }
 
   private drawLanternPost(B: Buf, p: Point) {
     const [bx, by] = project(p.x, 0, p.z)
-    const put = (dx: number, r: number, c: Color, n: Normal = shape.flat, mh = 0, mw = 0) =>
-      this.put(B, bx + dx, by - r, c, p.x, p.z, r, by, p.z, false, n, mh, mw)
+    const put = (k: number, r: number, c: Color, n: Normal = shape.flat, mh = 0, mw = 0) => this.putB(B, bx, by, k, r, c, p.x, p.z, r, p.z, n, mh, mw)
     this.region++
     for (let r = 0; r < 22; r++) put(0, r, C.wood, shape.cylinder(0), micro.wood(bx, by - r, 1), WEIGHT.wood)
     for (let k = 0; k < 6; k++) put(k, 21, C.wood, [0, 0.6, 0.8], micro.wood(bx + k, by - 21, 2), WEIGHT.wood)
@@ -937,22 +994,24 @@ export class Renderer {
     const hgt = Math.round(40 * s)
     const wid = Math.round(7 * s)
     const hy = by - Math.round(hgt * 0.6)
-    const carved = new Set(trigonPx.map(([dx, dy]) => `${bx + dx},${hy + dy}`))
-    const inside = new Set(TRIGON_INSIDE.map(([dx, dy]) => `${bx + dx},${hy + dy}`))
+    const carved = new Set(trigonPx.map(([dx, dy]) => `${dx},${dy}`))
+    const inside = new Set(TRIGON_INSIDE.map(([dx, dy]) => `${dx},${dy}`))
     this.region++
     for (let r = 0; r < hgt; r++) {
-      const taper = r > hgt - 4 ? 1 : 0
+      const taper = r > hgt - 4 * RES ? RES : 0
       for (let k = -wid + taper; k <= wid - taper; k++) {
         const px = bx + k
         const py = by - r
-        let c = k < -wid + 2 ? C.stoneHi : k > wid - 2 ? C.stoneD : C.stone
+        let c = k < -wid + 2 * RES ? C.stoneHi : k > wid - 2 * RES ? C.stoneD : C.stone
         if (hash(k * 7, r * 3) < 0.08) c = C.stoneD
         if (hash(k, r) < 0.05 && r < hgt * 0.4) c = C.moss
         let mh = micro.stone(px, py, 17)
-        if (carved.has(`${px},${py}`)) {
+        // the carving is laid out in base pixels around its centre
+        const cell = `${Math.floor((px - bx) / RES)},${Math.floor((py - hy) / RES)}`
+        if (carved.has(cell)) {
           c = C.stoneD
           mh = -2.2 // the cut
-        } else if (inside.has(`${px},${py}`)) mh -= 0.5 // the face inside the triangle sits a little lower
+        } else if (inside.has(cell)) mh -= 0.5 // the face inside the triangle sits a little lower
         this.put(B, px, py, c, p.x + k / s, p.z, r / s, by, p.z, false, shape.slab(k, wid, r, hgt), mh, WEIGHT.carving)
       }
     }
@@ -985,9 +1044,9 @@ export class Renderer {
           )
         },
         sx,
-        sy - Math.floor(st.h / 2),
-        st.w,
-        Math.max(1, st.h),
+        sy - Math.floor((st.h * RES) / 2),
+        st.w * RES,
+        Math.max(1, st.h) * RES,
       )
     }
   }
@@ -1000,24 +1059,24 @@ export class Renderer {
       const [bx, by, s] = project(hs.x, 0, hs.z)
       const hgt = Math.round(hs.h * s * 0.75)
       const cy = by - Math.round(hgt * 0.55)
-      const spiral = new Set(SPIRAL_PX.map(([dx, dy]) => `${bx + dx},${cy + dy}`))
+      const carving = new Set(CROWN_PX.map(([dx, dy]) => `${dx},${dy}`))
       this.region++
       for (let r = 0; r < hgt; r++) {
-        const lean = Math.round((hs.lean * r) / hgt)
-        const half = r > hgt - 3 ? hs.w - 1 : hs.w
+        const lean = Math.round((hs.lean * RES * r) / hgt)
+        const half = (r > hgt - 3 * RES ? hs.w - 1 : hs.w) * RES
         for (let k = -half; k <= half - 1; k++) {
           const px = bx + k + lean
           const py = by - r
-          let c = k === -half ? C.menhirHi : k >= half - 1 ? C.menhirD : C.menhir
+          let c = k < -half + RES ? C.menhirHi : k >= half - RES ? C.menhirD : C.menhir
           if (hash(k * 5 + hs.x, r * 3) < 0.1) c = C.menhirD
           let mh = micro.stone(px, py, hs.x)
-          if (r < 3 && hash(k, r + hs.z) < 0.5) {
+          if (r < 3 * RES && hash(k, r + hs.z) < 0.5) {
             c = C.moss2
             mh += 0.6 // moss sits proud
           }
-          if (hs.carved && spiral.has(`${px},${py}`)) {
+          if (hs.carved && carving.has(`${Math.floor((px - bx) / RES)},${Math.floor((py - cy) / RES)}`)) {
             c = C.menhirD
-            mh = -2 // the carved spiral
+            mh = -2 // the carved crown
           }
           this.put(B, px, py, c, hs.x + k / s, hs.z, r / s, by, hs.z, false, shape.slab(k, half, r, hgt), mh, WEIGHT.stone)
         }
@@ -1041,28 +1100,28 @@ export class Renderer {
     }
     // sky, crescent moon, far ridge, distant tree silhouettes standing on the horizon
     for (let y = 0; y < H; y++) {
-      const t = clamp(y / 72)
+      const t = clamp(y / (72 * RES))
       const c = mix(hex('#04050a'), hex('#1b2535'), t * t)
       for (let x = 0; x < W; x++) setBg(x, y, c)
     }
-    disc((x, y) => setBg(x, y, hex('#e9e3d4')), 170, 16, 7, 7)
-    disc((x, y) => setBg(x, y, hex('#05070c')), 173, 14, 7, 7)
+    disc((x, y) => setBg(x, y, hex('#e9e3d4')), 170 * RES, 16 * RES, 7 * RES, 7 * RES)
+    disc((x, y) => setBg(x, y, hex('#05070c')), 173 * RES, 14 * RES, 7 * RES, 7 * RES)
     for (let x = 0; x < W; x++) {
-      const top = HORIZON - 6 - vnoise(x * 0.03, 4) * 16
-      for (let y = top | 0; y <= HORIZON; y++) setBg(x, y, mix(hex('#121a27'), hex('#1b2535'), (y - top) / 22))
+      const top = HORIZON - (6 + vnoise((x / RES) * 0.03, 4) * 16) * RES
+      for (let y = top | 0; y <= HORIZON; y++) setBg(x, y, mix(hex('#121a27'), hex('#1b2535'), (y - top) / (22 * RES)))
     }
     const r = rngFrom(3)
     for (let i = 0; i < 40; i++) {
       const x = (r() * W) | 0
-      const top = (r() * 40) | 0
-      const w = 1 + ((r() * 2) | 0)
+      const top = ((r() * 40) | 0) * RES
+      const w = (1 + ((r() * 2) | 0)) * RES
       const col = hex('#0e1522')
-      if (x > 126 && x < 194) continue
+      if (x > 126 * RES && x < 194 * RES) continue
       for (let y = top; y <= HORIZON; y++) for (let k = 0; k < w; k++) setBg(x + k, y, col)
       for (let j = 0; j < 4; j++) {
-        const cy = top + j * 7 + r() * 4
-        const rad = (2 + r() * 3) | 0
-        disc((px, py) => setBg(px, py, col), x, cy | 0, rad, rad + 1)
+        const cy = top + (j * 7 + r() * 4) * RES
+        const rad = ((2 + r() * 3) | 0) * RES
+        disc((px, py) => setBg(px, py, col), x, cy | 0, rad, rad + RES)
       }
     }
     // ground
@@ -1085,9 +1144,9 @@ export class Renderer {
     for (const [x, z] of PADS) {
       if (!inPool(x, z, lvl)) continue
       const [sx, sy] = project(x, 0, z)
-      for (let k = -2; k <= 2; k++) this.put(B, sx + k, sy, k === 2 ? C.frogD : C.pad, x, z, 0.2, sy, z - 0.3, true)
-      this.put(B, sx - 1, sy - 1, C.pad, x, z, 0.3, sy, z - 0.3, true)
-      this.put(B, sx, sy - 1, C.pad, x, z, 0.3, sy, z - 0.3, true)
+      for (let k = -2; k <= 2; k++) this.putB(B, sx, sy, k, 0, k === 2 ? C.frogD : C.pad, x, z, 0.2, z - 0.3, undefined, 0, 0, true)
+      this.putB(B, sx, sy, -1, 1, C.pad, x, z, 0.3, z - 0.3, undefined, 0, 0, true)
+      this.putB(B, sx, sy, 0, 1, C.pad, x, z, 0.3, z - 0.3, undefined, 0, 0, true)
     }
     // everything that stands up, back to front
     const statics: { z: number; draw: () => void }[] = [
@@ -1108,17 +1167,17 @@ export class Renderer {
       const [sx, sy] = project(t.x, 0, t.z)
       for (let k = 0; k < t.n; k++) {
         const hgt = 1 + (((t.s * 7 + k) % 3) | 0)
-        for (let j = 0; j < hgt; j++) this.put(B, sx + k * 2 - t.n, sy - j, C.tuft, t.x, t.z, j, sy, t.z)
+        for (let j = 0; j < hgt * RES; j++) this.put(B, sx + (k * 2 - t.n) * RES, sy - j, C.tuft, t.x, t.z, j / RES, sy, t.z)
       }
-      if (t.flower) this.put(B, sx, sy - 3, C.flower, t.x, t.z, 3, sy, t.z)
+      if (t.flower) this.putB(B, sx, sy, 0, 3, C.flower, t.x, t.z, 3, t.z)
     }
     for (const rd of REEDS) {
       if (inPool(rd.x, rd.z, lvl * 0.98)) continue
       const [sx, sy] = project(rd.x, 0, rd.z)
-      for (let j = 0; j < rd.h; j++) this.put(B, sx, sy - j, j === rd.h - 1 ? C.reedHi : C.reed, rd.x, rd.z, j, sy, rd.z)
+      for (let j = 0; j < rd.h * RES; j++) this.put(B, sx, sy - j, j >= (rd.h - 1) * RES ? C.reedHi : C.reed, rd.x, rd.z, j / RES, sy, rd.z)
       if (rd.s < 0.4) {
-        this.put(B, sx + 1, sy - rd.h + 1, C.cattail, rd.x, rd.z, rd.h, sy, rd.z)
-        this.put(B, sx + 1, sy - rd.h + 2, C.cattail, rd.x, rd.z, rd.h, sy, rd.z)
+        this.putB(B, sx, sy, 1, rd.h - 1, C.cattail, rd.x, rd.z, rd.h, rd.z)
+        this.putB(B, sx, sy, 1, rd.h - 2, C.cattail, rd.x, rd.z, rd.h, rd.z)
       }
     }
     // Normals for every static object. Most props were drawn from primitives that know their
@@ -1151,19 +1210,25 @@ export class Renderer {
     const [fx, fy] = project(0, 0, 0)
     const heat = w.fire.heat
     // the ash bed lies flat (no reflection, no normals)
-    disc((px, py) => this.put(B, px, py, hash(px * 7, py * 3) < 0.35 ? C.ashD : C.ash, (px - fx) / 1.35, (py - fy) / 0.6, 0.1, fy, -0.6, true), fx, fy, 7, 2)
+    disc(
+      (px, py) => this.put(B, px, py, hash(px * 7, py * 3) < 0.35 ? C.ashD : C.ash, (px - fx) / (1.35 * RES), (py - fy) / (0.6 * RES), 0.1, fy, -0.6, true),
+      fx,
+      fy,
+      7 * RES,
+      2 * RES,
+    )
     for (const [dx, dy] of [
       [-6, 0],
       [5, 1],
       [-3, 1],
       [6, -1],
     ])
-      this.put(B, fx + dx, fy + dy, C.bone, dx * 0.6, dy, 0.3, fy, -0.5, true)
+      this.putB(B, fx, fy, dx, -dy, C.bone, dx * 0.6, dy, 0.3, -0.5, undefined, 0, 0, true)
     // a little skull at the edge of the ashes
-    this.put(B, fx - 5, fy - 1, C.bone, -3.5, 0, 1, fy, -0.4)
-    this.put(B, fx - 4, fy - 1, C.bone, -3, 0, 1, fy, -0.4)
-    this.put(B, fx - 5, fy, C.boneD, -3.5, 0, 0.5, fy, -0.4)
-    this.put(B, fx - 4, fy, C.char, -3, 0, 0.5, fy, -0.4)
+    this.putB(B, fx, fy, -5, 1, C.bone, -3.5, 0, 1, -0.4)
+    this.putB(B, fx, fy, -4, 1, C.bone, -3, 0, 1, -0.4)
+    this.putB(B, fx, fy, -5, 0, C.boneD, -3.5, 0, 0.5, -0.4)
+    this.putB(B, fx, fy, -4, 0, C.char, -3, 0, 0.5, -0.4)
     // logs leaning into the middle, charred toward the heart of the fire
     const logs: [number, number, number, number][] = [
       [-7, 1, -1, -3],
@@ -1177,11 +1242,11 @@ export class Renderer {
         const t = i / steps
         const px = Math.round(x0 + (x1 - x0) * t)
         const py = Math.round(y0 + (y1 - y0) * t)
-        this.put(B, fx + px, fy + py, t > 0.6 ? C.char : t > 0.3 ? C.log : C.logLit, px * 0.6, 0.2, -py + 1, fy, 0.05)
-        if (t > 0.55 && hash(px, py + ((w.t * 3) | 0)) < 0.6) this.putFx(fx + px, fy + py, GLOW.ember, 0.4 + 0.6 * heat, fy, 0.06, 0.4)
+        this.putB(B, fx, fy, px, -py, t > 0.6 ? C.char : t > 0.3 ? C.log : C.logLit, px * 0.6, 0.2, -py + 1, 0.05)
+        if (t > 0.55 && hash(px, py + ((w.t * 3) | 0)) < 0.6) this.putFxB(fx, fy, px, -py, GLOW.ember, 0.4 + 0.6 * heat, fy, 0.06, 0.4)
       }
     }
-    return [fx, fy - 3]
+    return [fx, fy - 3 * RES]
   }
 
   private drawWoodpile(B: Buf, n: number) {
@@ -1201,8 +1266,8 @@ export class Renderer {
     for (let i = 0; i < n; i++) {
       const [ox, oy] = slots[i]
       for (let row = 0; row < 2; row++) {
-        for (let k = -2; k <= 1; k++) this.put(B, bx + ox + k, by - oy - row, C.log, p.x, p.z, oy + row, by, p.z)
-        this.put(B, bx + ox + 2, by - oy - row, C.logEnd, p.x, p.z, oy + row, by, p.z + 0.01)
+        for (let k = -2; k <= 1; k++) this.putB(B, bx, by, ox + k, oy + row, C.log, p.x, p.z, oy + row, p.z)
+        this.putB(B, bx, by, ox + 2, oy + row, C.logEnd, p.x, p.z, oy + row, p.z + 0.01)
       }
     }
   }
@@ -1215,7 +1280,9 @@ export class Renderer {
     const pts = STICK_POSES[Math.round(a / (Math.PI / 4)) % 4]
     pts.forEach(([dx, dy], i) => {
       const c = i === pts.length - 1 ? C.stickD : i === 1 ? C.logEnd : C.stick
-      this.put(B, bx + dx, by - lift + dy, c, wx, wz, height + lift - dy, gy, wz + 0.6, false, shape.cylinder(0))
+      for (let j = 0; j < RES; j++)
+        for (let q = 0; q < RES; q++)
+          this.put(B, bx + dx * RES + q, by + (dy - lift) * RES + j, c, wx, wz, height + lift - dy, gy, wz + 0.6, false, shape.cylinder(0))
     })
   }
 
@@ -1225,7 +1292,7 @@ export class Renderer {
     const [bx, by] = project(hut.x, 0, hut.z)
     for (const [k, r] of DOOR_PX) {
       const c = k === -3 && r === 4 ? C.pommel : k === -3 || r === 8 ? C.hutDoorD : C.hutDoor
-      this.put(B, bx + k, by - r, c, hut.x, hut.z, r, by, hut.z + 0.005)
+      this.putB(B, bx, by, k, r, c, hut.x, hut.z, r, hut.z + 0.005)
     }
   }
 
@@ -1294,7 +1361,12 @@ export class Renderer {
     this.say('trigon', 'the trigon stone', w.rune > 0.1 ? 'it hums in the rain' : 'cold and quiet')
     this.say('pack', 'his pack', w.knight.fsm.state === 'gone' ? 'left by the fire; nobody has moved it' : 'everything he still owns')
     this.say('hearth0', 'a hearthstone', 'older than the village', true)
-    this.say('hearth1', 'the carved hearthstone', w.fire.heat > 0.55 ? 'its spiral glows when the fire is high' : 'a spiral, worn smooth by hands', true)
+    this.say(
+      'hearth1',
+      'the carved hearthstone',
+      w.fire.heat > 0.55 ? 'its crown glows when the fire is high' : 'an antler crown, cut deep, like the one in the fire',
+      true,
+    )
     this.say('hearth2', 'a hearthstone', 'it leans, as if listening', true)
     {
       const companions = w.knight.fsm.state === 'gone' ? 'the knight and his companions' : "the knight's companions"
@@ -1321,8 +1393,8 @@ export class Renderer {
     this.tagged('grove', () =>
       PROPS.graves.forEach((g, i) => {
         const [gx, gy] = project(g.x + 3, 0, g.z + 1)
-        this.put(B, gx, gy, C.candle, g.x + 3, g.z + 1, 1, gy, g.z + 2)
-        if (w.candles[i].wax > 0.4) this.put(B, gx, gy - 1, C.candle, g.x + 3, g.z + 1, 2, gy, g.z + 2)
+        this.putB(B, gx, gy, 0, 0, C.candle, g.x + 3, g.z + 1, 1, g.z + 2)
+        if (w.candles[i].wax > 0.4) this.putB(B, gx, gy, 0, 1, C.candle, g.x + 3, g.z + 1, 2, g.z + 2)
       }),
     )
 
@@ -1367,10 +1439,10 @@ export class Renderer {
         shine: keeper ? { h: 1 } : undefined,
       })
       caps.push({ ...sp, elder, key })
-      if (m.carrying) this.tagged(key, () => this.drawStick(B, m.x, m.z, sp.h + 1 + hop))
-      if (st === 'departing') lanterns.push({ x: sp.bx + (m.flip ? -4 : 4), y: sp.by - 4, dep: sp.dep + 0.02, key })
+      if (m.carrying) this.tagged(key, () => this.drawStick(B, m.x, m.z, sp.h / RES + 1 + hop))
+      if (st === 'departing') lanterns.push({ x: sp.bx + (m.flip ? -4 : 4) * RES, y: sp.by - 4 * RES, dep: sp.dep + 0.02, key })
       // the keeper carries an ember from the fire, so you can always find them, even in the dark
-      if (keeper) keeperEmber = { x: sp.bx + (m.flip ? -4 : 4), y: sp.by - 3, dep: sp.dep + 0.02, key }
+      if (keeper) keeperEmber = { x: sp.bx + (m.flip ? -4 : 4) * RES, y: sp.by - 3 * RES, dep: sp.dep + 0.02, key }
     }
 
     // deer
@@ -1405,7 +1477,7 @@ export class Renderer {
       this.tagged('crow', () =>
         CROW[0].forEach((row, r) =>
           [...row].forEach((ch, c) => {
-            if (ch !== '.') this.put(B, px + (lookLeft ? 3 - c : c) - 2, py - 3 + r, C.crow, PROPS.trigon.x, PROPS.trigon.z, 40, py, PROPS.trigon.z + 1)
+            if (ch !== '.') this.putB(B, px, py, (lookLeft ? 3 - c : c) - 2, 3 - r, C.crow, PROPS.trigon.x, PROPS.trigon.z, 40, PROPS.trigon.z + 1)
           }),
         ),
       )
@@ -1420,24 +1492,24 @@ export class Renderer {
       })
     for (const l of lanterns)
       this.tagged(l.key, () => {
-        this.putFx(l.x, l.y, GLOW.lantern[0], 0.95, undefined, l.dep)
-        this.putFx(l.x, l.y + 1, GLOW.lantern[1], 0.8, undefined, l.dep)
+        this.putFxB(l.x, l.y, 0, 0, GLOW.lantern[0], 0.95, undefined, l.dep)
+        this.putFxB(l.x, l.y, 0, -1, GLOW.lantern[1], 0.8, undefined, l.dep)
       })
     if (keeperEmber) {
       const e: { x: number; y: number; dep: number; key: string } = keeperEmber
       const pulse = 0.75 + 0.25 * Math.sin(t * 3)
       this.tagged(e.key, () => {
-        this.putFx(e.x, e.y, GLOW.ember, pulse, undefined, e.dep)
-        this.putFx(e.x, e.y - 1, FLAME[2], 0.6 * pulse, undefined, e.dep, 0.6)
+        this.putFxB(e.x, e.y, 0, 0, GLOW.ember, pulse, undefined, e.dep)
+        this.putFxB(e.x, e.y, 0, 1, FLAME[2], 0.6 * pulse, undefined, e.dep, 0.6)
       })
     }
-    if (F.croak > 0) this.tagged('frog', () => this.putFx(frog.bx + 1, frog.by - 1, GLOW.croak, 0.8, undefined, frog.dep + 0.01))
+    if (F.croak > 0) this.tagged('frog', () => this.putFxB(frog.bx, frog.by, 1, 1, GLOW.croak, 0.8, undefined, frog.dep + 0.01))
     if (K.fsm.state === 'flying' || K.fsm.state === 'returning') {
       this.say('crow', 'a crow', 'off somewhere drier')
       this.tagged('crow', () =>
         CROW[1 + (((t * 8) % 2) | 0)].forEach((row, r) =>
           [...row].forEach((ch, c) => {
-            if (ch !== '.') this.putFx(K.x + c - 2, K.y + r - 1, C.crow, 1, undefined, undefined, 0)
+            if (ch !== '.') this.putFxB(K.x, K.y, c - 2, 1 - r, C.crow, 1, undefined, undefined, 0)
           }),
         ),
       )
@@ -1447,15 +1519,15 @@ export class Renderer {
         const [hx, hy] = project(hut.x, 0, hut.z)
         const asleep = hutOccupancy(w, i)
         if (asleep || doorOpen(w, i))
-          for (const [dk, dr] of DOOR_PX) this.putFx(hx + dk, hy - dr, GLOW.inside, asleep ? 0.45 : 0.25, undefined, hut.z + HUT_PX.inside + 0.1, 0.3)
-        if (asleep) for (const [dk, dr] of WINDOW_PX) this.putFx(hx + dk, hy - dr, GLOW.window, 0.95, undefined, hut.z + 0.05)
+          for (const [dk, dr] of DOOR_PX) this.putFxB(hx, hy, dk, dr, GLOW.inside, asleep ? 0.45 : 0.25, undefined, hut.z + HUT_PX.inside + 0.1, 0.3)
+        if (asleep) for (const [dk, dr] of WINDOW_PX) this.putFxB(hx, hy, dk, dr, GLOW.window, 0.95, undefined, hut.z + 0.05)
       }),
     )
     this.tagged('lantern', () => {
       const p = PROPS.lantern
       const [lx, ly] = project(p.x, 0, p.z)
       const fl = 0.75 + 0.25 * vnoise(t * 6, 7)
-      GLOW.lantern.forEach((c, i) => this.putFx(lx + 5, ly - 16 - i, c, fl * (i === 2 ? 0.8 : 1), ly, p.z + 0.05))
+      GLOW.lantern.forEach((c, i) => this.putFxB(lx, ly, 5, 16 + i, c, fl * (i === 2 ? 0.8 : 1), ly, p.z + 0.05))
     })
     if (w.rune > 0.02)
       this.tagged('trigon', () => {
@@ -1464,33 +1536,32 @@ export class Renderer {
         const hy = by - Math.round(Math.round(40 * sc) * 0.6)
         const pulse = w.rune * (0.7 + 0.3 * Math.sin(t * 2))
         // light sits in the cut, radiates faintly from the face inside it, and haloes the lip around it
-        for (const [dx, dy] of TRIGON_INSIDE) this.putFx(bx + dx, hy + dy, GLOW.rune, 0.22 * pulse, undefined, p.z + 0.2, 0.4)
-        for (const [dx, dy] of TRIGON_LIP) this.putFx(bx + dx, hy + dy, GLOW.rune, 0.18 * pulse, undefined, p.z + 0.2, 0.6)
-        for (const [dx, dy] of trigonPx) this.putFx(bx + dx, hy + dy, GLOW.rune, pulse, undefined, p.z + 0.2)
+        for (const [dx, dy] of TRIGON_INSIDE) this.cellFx(bx, hy, dx, dy, GLOW.rune, 0.22 * pulse, undefined, p.z + 0.2, 0.4)
+        for (const [dx, dy] of TRIGON_LIP) this.cellFx(bx, hy, dx, dy, GLOW.rune, 0.18 * pulse, undefined, p.z + 0.2, 0.6)
+        for (const [dx, dy] of trigonPx) this.cellFx(bx, hy, dx, dy, GLOW.rune, pulse, undefined, p.z + 0.2)
       })
     this.tagged('grove', () =>
       PROPS.graves.forEach((g, i) => {
         const [gx, gy] = project(g.x + 3, 0, g.z + 1)
         const c = w.candles[i]
-        if (c.lit) this.putFx(gx, gy - (c.wax > 0.4 ? 2 : 1), GLOW.candle, (0.7 + 0.3 * vnoise(t * 7 + g.x, 2)) * (0.6 + 0.4 * c.wax), gy, g.z + 2.05)
+        if (c.lit) this.putFxB(gx, gy, 0, c.wax > 0.4 ? 2 : 1, GLOW.candle, (0.7 + 0.3 * vnoise(t * 7 + g.x, 2)) * (0.6 + 0.4 * c.wax), gy, g.z + 2.05)
       }),
     )
-    // the carved spiral on the middle hearthstone warms with the fire
+    // the crown carved into the tall hearthstone warms with the fire
     this.tagged('hearth1', () => {
       const hs = HEARTHSTONES.find((h) => h.carved)!
       const [bx, by, s] = project(hs.x, 0, hs.z)
       const cy = by - Math.round(Math.round(hs.h * s * 0.75) * 0.55)
       const warm = clamp((heat - 0.35) * 1.6)
-      if (warm > 0.02)
-        for (const [dx, dy] of SPIRAL_PX) this.putFx(bx + dx, cy + dy, GLOW.carving, warm * (0.6 + 0.2 * Math.sin(t * 1.5)), undefined, hs.z + 0.1)
+      if (warm > 0.02) for (const [dx, dy] of CROWN_PX) this.cellFx(bx, cy, dx, dy, GLOW.carving, warm * (0.6 + 0.2 * Math.sin(t * 1.5)), undefined, hs.z + 0.1)
     })
     // foxfire: faint violet specks on rotten wood (ambient, just pretty)
     this.tagged('foxfire', () => {
       for (const s of SHROOMS) {
         const [sx, sy] = project(s.x, 0, s.z)
         const a = 0.4 + 0.25 * Math.sin(t * 0.8 + s.ph)
-        this.putFx(sx, sy, GLOW.foxfire, a, sy, s.z + 0.05, 0.6)
-        this.putFx(sx + 1, sy, GLOW.foxfireD, a * 0.7, sy, s.z + 0.05, 0.6)
+        this.putFxB(sx, sy, 0, 0, GLOW.foxfire, a, sy, s.z + 0.05, 0.6)
+        this.putFxB(sx, sy, 1, 0, GLOW.foxfireD, a * 0.7, sy, s.z + 0.05, 0.6)
       }
     })
     // glowcap caps (the mushrooms themselves are drawn with the objects)
@@ -1506,25 +1577,25 @@ export class Renderer {
       const a = 0.8 * clamp((d - R * 1.05) / 15)
       this.say(`eyes${i}`, 'something in the trees', 'watching the fire')
       this.tagged(`eyes${i}`, () => {
-        this.putFx(sx, sy, GLOW.eye, a, undefined, e.z)
-        this.putFx(sx + 2, sy, GLOW.eye, a, undefined, e.z)
-        this.putFx(sx + 1, sy, GLOW.eye, 0.01, undefined, e.z, 0) // invisible bridge, so the gap between them hovers too
+        this.putFxB(sx, sy, 0, 0, GLOW.eye, a, undefined, e.z)
+        this.putFxB(sx, sy, 2, 0, GLOW.eye, a, undefined, e.z)
+        this.putFxB(sx, sy, 1, 0, GLOW.eye, 0.01, undefined, e.z, 0) // invisible bridge, so the gap between them hovers too
       })
     })
 
     // the flame: its size follows the fire's heat, so a fresh log swells it gradually
-    const fh = 4 + 20 * heat
+    const fh = (4 + 20 * heat) * RES
     this.tagged('fire', () => {
       const coals = Math.round(3 + 3 * Math.min(1, heat))
-      for (let kk = -coals; kk <= coals; kk++) this.putFx(fireX + kk, fireY + 1, FLAME[hash(kk, (t * 8) | 0) < 0.5 ? 1 : 2], 1, groundY, 0.2, 0.3)
-      const half0 = 2.5 + 4.5 * heat
+      for (let kk = -coals; kk <= coals; kk++) this.putFxB(fireX, fireY, kk, -1, FLAME[hash(kk, (t * 8) | 0) < 0.5 ? 1 : 2], 1, groundY, 0.2, 0.3)
+      const half0 = (2.5 + 4.5 * heat) * RES
       for (let y = Math.floor(fireY - fh - 2); y <= fireY; y++) {
         const dy = (fireY - y) / fh
         if (dy > 1 || dy < 0) continue
-        const sway = Math.sin(t * 3 + dy * 4) * dy * 2.5
+        const sway = Math.sin(t * 3 + dy * 4) * dy * 2.5 * RES
         const half = half0 * Math.pow(1 - dy, 0.7) + 0.5
-        for (let x = fireX - 10; x <= fireX + 10; x++) {
-          const n = vnoise(x * 0.42, y * 0.38 + t * 7)
+        for (let x = fireX - 10 * RES; x <= fireX + 10 * RES; x++) {
+          const n = vnoise((x / RES) * 0.42, (y / RES) * 0.38 + t * 7)
           const v = (1 - Math.abs(x - fireX - sway) / half) * (1 - dy * 0.6) + (n - 0.5) * 0.9 - dy * 0.35
           if (v < 0.12) continue
           this.putFx(x, y, FLAME[v > 0.8 ? 3 : v > 0.52 ? 2 : v > 0.3 ? 1 : 0], 1, groundY, 0.2, 0.22)
@@ -1541,13 +1612,13 @@ export class Renderer {
       art.rows.forEach((row, r) =>
         [...row].forEach((ch, c) => {
           if (ch === '.') return
-          const px = fireX - (wd >> 1) + c
-          const py = groundY - h + r
+          const px = fireX + (c - (wd >> 1)) * RES
+          const py = groundY + (r - h) * RES
           const inFlame = this.fx.a[py * W + px] > 0.5
           const lit: Color = [art.pal[ch][0] * (0.5 + 1.3 * heat), art.pal[ch][1] * (0.4 + 0.8 * heat), art.pal[ch][2] * (0.35 + 0.45 * heat)]
           const base = inFlame ? mix(art.pal[ch], C.char, 0.8) : lit
           const col = ch === 'g' ? mix(base, GLOW.carving, warm * (0.6 + 0.3 * vnoise(t * 3, c + r))) : base
-          this.putFx(px, py, col, 1, groundY, 0.31, ch === 'g' ? 0.5 * warm : 0) // the bone/wood itself doesn't glow
+          this.cellFx(fireX, groundY, c - (wd >> 1), r - h, col, 1, groundY, 0.31, ch === 'g' ? 0.5 * warm : 0) // the bone/wood itself doesn't glow
         }),
       )
     })
@@ -1556,20 +1627,20 @@ export class Renderer {
     if (smoky > 0.02) {
       for (let i = 0; i < 10; i++) {
         const age = (t * 0.35 + i / 10) % 1
-        const sx = fireX + (vnoise(i * 3.1, t * 0.4) - 0.5) * 8 * age + Math.sin(t + i) * age * 3
-        const sy = fireY - 6 - age * 34
+        const sx = fireX + ((vnoise(i * 3.1, t * 0.4) - 0.5) * 8 * age + Math.sin(t + i) * age * 3) * RES
+        const sy = fireY - (6 + age * 34) * RES
         this.putFx(sx, sy, GLOW.smoke, smoky * 0.22 * (1 - age), undefined, undefined, 0)
       }
     }
     for (const e of w.embers) {
       const life = 1 - e.age / e.life
-      this.putFx(fireX + e.ox, groundY - e.oy, [1, (120 + life * 100) / 255, 60 / 255], life, groundY, 0.2, 0.6)
+      this.putFx(fireX + e.ox * RES, groundY - e.oy * RES, [1, (120 + life * 100) / 255, 60 / 255], life, groundY, 0.2, 0.6)
     }
     for (const z of w.zs) {
       const hut = PROPS.huts[z.hut]
       const [hx, hy] = project(hut.x, 0, hut.z)
       const [cx, cy] = HUT_PX.chimney
-      this.putFx(hx + cx + z.age * 3, hy - cy - z.age * 6, GLOW.zzz, 0.7 * (1 - z.age / 1.8), undefined, hut.z + 0.05)
+      this.putFx(hx + (cx + z.age * 3) * RES, hy - (cy + z.age * 6) * RES, GLOW.zzz, 0.7 * (1 - z.age / 1.8), undefined, hut.z + 0.05)
     }
     for (const f of w.flies) {
       if (f.a <= 0.02) continue
@@ -1579,8 +1650,8 @@ export class Renderer {
     if (w.shooting) {
       const s = w.shooting
       for (let i = 0; i < 8; i++) {
-        const x = s.x + s.age * 120 - i * 2
-        const y = s.y + s.age * 40 - i * 0.66
+        const x = s.x + (s.age * 120 - i * 2) * RES
+        const y = s.y + (s.age * 40 - i * 0.66) * RES
         if (x > 0 && x < W && y > 0 && y < HORIZON && !B.a[(y | 0) * W + (x | 0)]) this.putFx(x, y, GLOW.star, (1 - i / 8) * (1 - s.age / 0.9))
       }
     }
@@ -1591,14 +1662,14 @@ export class Renderer {
       const a = ((s.angle % Math.PI) + Math.PI) % Math.PI
       this.tagged(`stick${i}`, () => {
         for (const [dx, dy] of STICK_POSES[Math.round(a / (Math.PI / 4)) % 4])
-          this.putFx(bx + dx, by + dy, GLOW.glint, 0.55 * s.glint, undefined, s.z + 0.65, 0.25)
+          this.cellFx(bx, by, dx, dy, GLOW.glint, 0.55 * s.glint, undefined, s.z + 0.65, 0.25)
       })
     })
     // falling sticks cast a small shadow that tightens as they near the ground; landings kick up dust
     for (const s of w.sticks) {
       if (s.landed) continue
       const [gx, gy] = project(s.x, 0, s.z)
-      const spread = Math.max(1, Math.round(3 - s.y / 10))
+      const spread = Math.max(1, Math.round(3 - s.y / 10)) * RES
       for (let dx = -spread; dx <= spread; dx++) this.putFx(gx + dx, gy, C.char, 0.45 * (1 - s.y / 30), undefined, s.z - 0.1, 0)
     }
     for (const p of w.puffs) {
@@ -1606,15 +1677,15 @@ export class Renderer {
       const k = p.age / 0.9
       const [gx, gy] = project(p.x, 0, p.z)
       for (let i = 0; i < 4; i++) {
-        const ox = (hash(p.seed, i) - 0.5) * 9 * (0.3 + k)
-        const oy = -k * 4 - hash(i, p.seed) * 2
+        const ox = (hash(p.seed, i) - 0.5) * 9 * (0.3 + k) * RES
+        const oy = (-k * 4 - hash(i, p.seed) * 2) * RES
         this.putFx(gx + ox, gy + oy, GLOW.dust, 0.55 * (1 - k), undefined, p.z + 1, 0)
       }
     }
     for (const r of w.ripples) {
       if (r.age < 0) continue
       const a = r.age / 0.7
-      const hw = (1 + a * 4) | 0
+      const hw = ((1 + a * 4) | 0) * RES
       for (let dx = -hw; dx <= hw; dx++) this.putFx(r.x + dx, r.y, GLOW.ripple, 0.55 * (1 - a), undefined, undefined, 0.2)
     }
   }
@@ -1765,7 +1836,7 @@ export class Renderer {
           b = B.b[i] * Lc[2]
           if (B.pool[i] && !B.obj[i]) {
             // open water: dark surface + the mirrored world + mirrored emissives, gently rippled
-            const ox = Math.round(Math.sin(y * 1.7 + t * 2.4) * 0.7)
+            const ox = Math.round(Math.sin((y / RES) * 1.7 + t * 2.4) * 0.7 * RES)
             const j = y * W + Math.max(0, Math.min(W - 1, x + ox))
             if (B.ra[j]) {
               light(-1, B.rkx[j], B.rkz[j], B.rky[j], false)
@@ -1786,7 +1857,7 @@ export class Renderer {
           }
           let m = mistAt(B.kz[i])
           if (m > 0) {
-            m = Math.min(0.95, m * (0.75 + 0.35 * vnoise(x * 0.025 + t * 0.06, y * 0.06)))
+            m = Math.min(0.95, m * (0.75 + 0.35 * vnoise((x / RES) * 0.025 + t * 0.06, (y / RES) * 0.06)))
             r = r * (1 - m) + C.mist[0] * m
             g = g * (1 - m) + C.mist[1] * m
             b = b * (1 - m) + C.mist[2] * m
@@ -1849,10 +1920,10 @@ export class Renderer {
       const heat = Math.min(1.2, w.fire.heat)
       ctx.globalCompositeOperation = 'lighter'
       ctx.imageSmoothingEnabled = true
-      ctx.filter = `blur(${3 * S}px)`
+      ctx.filter = `blur(${3 * S * RES}px)`
       ctx.globalAlpha = 0.85 * (0.45 + 0.55 * heat)
       ctx.drawImage(this.fxC, 0, 0, DW, DH)
-      ctx.filter = `blur(${9 * S}px)`
+      ctx.filter = `blur(${9 * S * RES}px)`
       ctx.globalAlpha = 0.55 * (0.3 + 0.7 * heat)
       ctx.drawImage(this.fxC, 0, 0, DW, DH)
       ctx.filter = 'none'
@@ -1861,7 +1932,7 @@ export class Renderer {
       const fl = heat * (0.85 + 0.15 * vnoise(w.t * 9, 1))
       ctx.translate(fsx * S, fsy * S)
       ctx.scale(1, 0.6)
-      const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, lightRadius(w) * 1.5 * S)
+      const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, lightRadius(w) * 1.5 * S * RES)
       gr.addColorStop(0, `rgba(255,140,60,${0.07 * fl})`)
       gr.addColorStop(0.4, `rgba(255,110,40,${0.025 * fl})`)
       gr.addColorStop(1, 'rgba(255,100,30,0)')
@@ -1924,7 +1995,7 @@ export class Renderer {
     let y0 = H
     let y1 = 0
     const pool = id === tagId('pool')
-    const near = 28
+    const near = 28 * RES
     for (let y = 0; y < H; y++) {
       for (let x = Math.max(0, px - near); x < Math.min(W, px + near); x++) {
         const i = y * W + x
@@ -1937,49 +2008,51 @@ export class Renderer {
     }
     if (x1 < x0) return
     const { ctx, scale: S } = this
+    const U = S * RES // output pixels per base pixel: text keeps its size at any resolution
     ctx.save()
     ctx.textAlign = 'center'
-    const nameFont = `${3.25 * S}px ${FONT}`
-    const subFont = `${2.75 * S}px ${FONT}`
+    const nameFont = `${3.25 * U}px ${FONT}`
+    const subFont = `${2.75 * U}px ${FONT}`
     ctx.font = subFont
-    const lines = wrapText(ctx, label[1], 84 * S)
+    const lines = wrapText(ctx, label[1], 84 * U)
     ctx.font = nameFont
     const widest = Math.max(ctx.measureText(label[0]).width, ...lines.map((l) => ((ctx.font = subFont), ctx.measureText(l).width)))
-    const half = widest / 2 + 3 * S
+    const half = widest / 2 + 3 * U
     const x = Math.max(half, Math.min(W * S - half, ((x0 + x1) / 2) * S))
-    const height = (4 + lines.length * 4) * S
-    const below = !label[2] && (y1 + 6.5) * S + height < H * S - 2 * S
-    const y = below ? (y1 + 6.5) * S : (y0 - 3) * S - height + 3.25 * S
+    const height = (4 + lines.length * 4) * U
+    const below = !label[2] && y1 * S + 6.5 * U + height < H * S - 2 * U
+    const y = below ? y1 * S + 6.5 * U : y0 * S - 3 * U - height + 3.25 * U
     ctx.font = nameFont
     ctx.fillStyle = 'rgba(233,227,212,0.95)'
     ctx.fillText(label[0], x, y)
     ctx.font = subFont
     ctx.fillStyle = 'rgba(154,151,140,0.95)'
-    lines.forEach((l, k) => ctx.fillText(l, x, y + (4 + k * 3.6) * S))
+    lines.forEach((l, k) => ctx.fillText(l, x, y + (4 + k * 3.6) * U))
     ctx.restore()
   }
 
   private drawDebug(w: World) {
     const { ctx, scale: S } = this
     ctx.save()
-    ctx.font = `${3 * S}px ${FONT}`
+    const U = S * RES
+    ctx.font = `${3 * U}px ${FONT}`
     ctx.textAlign = 'center'
     const tag = (txt: string, x: number, y: number, col: string) => {
       const m = ctx.measureText(txt).width
       const left = ctx.textAlign === 'left' ? x : x - m / 2
       ctx.fillStyle = 'rgba(0,0,0,0.6)'
-      ctx.fillRect(left - S, y - 2.75 * S, m + 2 * S, 3.75 * S)
+      ctx.fillRect(left - U, y - 2.75 * U, m + 2 * U, 3.75 * U)
       ctx.fillStyle = col
       ctx.fillText(txt, x, y)
     }
     for (const m of w.mush) {
       if (m.fsm.state === 'asleep') continue
       const [sx, sy] = project(m.x, 0, m.z)
-      tag(`${m.name} · ${m.fsm.state} · e ${m.energy.toFixed(2)} · age ${Math.round((m.age / m.lifespan) * 100)}%`, sx * S, (sy - 11) * S, '#9ff5e4')
+      tag(`${m.name} · ${m.fsm.state} · e ${m.energy.toFixed(2)} · age ${Math.round((m.age / m.lifespan) * 100)}%`, sx * S, sy * S - 11 * U, '#9ff5e4')
     }
     const D = w.deer
     const [dx, dy] = project(D.x, 0, D.z)
-    tag(`${D.fsm.state} · thirst ${D.thirst.toFixed(2)}`, dx * S, (dy - 14) * S, '#e8c29a')
+    tag(`${D.fsm.state} · thirst ${D.thirst.toFixed(2)}`, dx * S, dy * S - 14 * U, '#e8c29a')
     ctx.textAlign = 'left'
     const wx = w.weather
     const asleep = PROPS.huts.map((_, i) => hutOccupancy(w, i)).reduce((a, b) => a + b, 0)
@@ -1988,7 +2061,7 @@ export class Renderer {
       `fire ${w.fire.fsm.state} · fuel ${w.fire.fuel.toFixed(2)} · heat ${w.fire.heat.toFixed(2)}   pile ${w.pile}   sticks ${w.sticks.length}`,
       `knight ${w.knight.fsm.state} · vigil ${Math.round((w.knight.vigil / w.knight.vigilLength) * 100)}%   frog ${w.frog.fsm.state}   crow ${w.crow.fsm.state}   village ${w.mush.length}   asleep ${asleep}   glowcaps ${w.memorials.length}`,
     ]
-    lines.forEach((l, i) => tag(l, 4 * S, (6 + i * 4.5) * S, '#f08a3c'))
+    lines.forEach((l, i) => tag(l, 4 * U, (6 + i * 4.5) * U, '#f08a3c'))
     ctx.restore()
   }
 }
