@@ -8,6 +8,7 @@ import type { DarkForest } from '../index'
 import { LIGHT_KINDS, VIEWS, defaultLightTune, resetSettings, settings, type LightTune, type View } from '../settings'
 import { DATA, FILES, applyData, changed, snapshot, type DataFile } from '../art'
 import { RELICS, type Relic } from '../world'
+import { createArtEditor } from './art-editor'
 import { applyStaged, changedPaths, discardStaged, loadStaged, stage as stageFile, stagingAvailable } from './staging'
 import { CSS } from './style'
 
@@ -76,6 +77,16 @@ export function mountEditor(): Editor {
   const refreshers: (() => void)[] = []
   const live = <T extends { refresh(): void }>(x: T) => (refreshers.push(() => x.refresh()), x)
 
+  // ---------------------------------------------------------------- modes: the scene, or the art
+  const modeBtns = (['scene', 'art'] as const).map((m) =>
+    h(
+      'button',
+      { 'data-mode': m, title: m === 'scene' ? 'the live scene, its layers and lights' : 'edit sprites and props pixel by pixel', onclick: () => setMode(m) },
+      m,
+    ),
+  )
+  const modeSeg = h('div', { class: 'group seg' }, ...modeBtns)
+
   // ---------------------------------------------------------------- header: the sim
   const pauseBtn = h('button', { onclick: () => forest?.togglePause() }, 'pause')
   const stepBtn = h('button', { title: 'advance one frame', onclick: () => forest?.stepFrame() }, 'step')
@@ -112,6 +123,7 @@ export function mountEditor(): Editor {
     'header',
     { class: 'dfe-head' },
     h('strong', {}, 'dark forest'),
+    modeSeg,
     h('span', { class: 'dim' }, 'editor'),
     h('div', { class: 'group' }, pauseBtn, stepBtn, speed),
     h('div', { class: 'group seg' }, ...toolBtns),
@@ -214,7 +226,7 @@ export function mountEditor(): Editor {
   )
 
   // ---------------------------------------------------------------- right: inspect, lights
-  const tabs = { inspect: h('div', { class: 'tab' }), lights: h('div', { class: 'tab' }), changes: h('div', { class: 'tab' }) }
+  const tabs = { inspect: h('div', { class: 'tab' }), lights: h('div', { class: 'tab' }), art: h('div', { class: 'tab' }), changes: h('div', { class: 'tab' }) }
   const tabBtns = (Object.keys(tabs) as (keyof typeof tabs)[]).map((k) => h('button', { 'data-tab': k, onclick: () => showTab(k) }, k))
   const showTab = (k: keyof typeof tabs) => {
     for (const [name, el] of Object.entries(tabs)) el.hidden = name !== k
@@ -440,6 +452,7 @@ export function mountEditor(): Editor {
                 onclick: () =>
                   discardStaged(f, baseline[f]).then(() => {
                     if (f === 'lights') resetSettings('lights')
+                    art.refresh()
                     renderChanges()
                     refreshAll()
                   }),
@@ -458,7 +471,7 @@ export function mountEditor(): Editor {
     renderChanges()
   }
   tabs.changes.append(changesBody)
-  const right = h('aside', { class: 'dfe-right' }, h('nav', { class: 'tabs seg' }, ...tabBtns), tabs.inspect, tabs.lights, tabs.changes)
+  const right = h('aside', { class: 'dfe-right' }, h('nav', { class: 'tabs seg' }, ...tabBtns), tabs.inspect, tabs.lights, tabs.art, tabs.changes)
 
   // ---------------------------------------------------------------- footer: stats, village, story
   const stats = h('div', { class: 'stats' })
@@ -473,10 +486,28 @@ export function mountEditor(): Editor {
   )
 
   const stage = h('div', { class: 'dfe-stage', 'data-crisp': true })
-  const root = h('div', { class: 'dfe' }, head, left, stage, right, foot)
+  const centerArea = h('div', { class: 'dfe-center' }, stage)
+  // the art editor: assets on the left, the board in the middle (the scene shrinks to a corner)
+  const art = createArtEditor((file) => edited(file))
+  const leftArt = h('aside', { class: 'dfe-left', hidden: true }, art.left)
+  tabs.art.append(art.right)
+  const setMode = (m: 'scene' | 'art') => {
+    for (const b of modeBtns) b.setAttribute('aria-pressed', String(b.dataset.mode === m))
+    const isArt = m === 'art'
+    left.hidden = isArt
+    leftArt.hidden = !isArt
+    if (isArt) {
+      art.pip.append(stage)
+      centerArea.replaceChildren(art.center)
+      art.refresh()
+    } else centerArea.replaceChildren(stage)
+    for (const b of tabBtns) b.hidden = isArt ? b.dataset.tab === 'inspect' || b.dataset.tab === 'lights' : b.dataset.tab === 'art'
+    showTab(isArt ? 'art' : 'inspect')
+  }
+  const root = h('div', { class: 'dfe' }, head, left, leftArt, centerArea, right, foot)
   document.body.append(root)
   setTool(settings.tool)
-  showTab('inspect')
+  setMode('scene')
 
   const refreshAll = () => {
     if (!forest) return
