@@ -182,7 +182,7 @@ export interface SpriteNormals {
   ny: Float32Array
   nz: Float32Array
 }
-const spriteCache = new WeakMap<readonly string[], SpriteNormals>()
+let spriteCache = new WeakMap<readonly string[], SpriteNormals>()
 
 export function spriteNormals(rows: readonly string[], colorOf: (ch: string) => [number, number, number]): SpriteNormals {
   const hit = spriteCache.get(rows)
@@ -219,7 +219,7 @@ export interface Part {
   chars: string
   kind: PartKind
 }
-const partCache = new WeakMap<readonly string[], SpriteNormals>()
+let partCache = new WeakMap<readonly string[], SpriteNormals>()
 
 export function partNormals(rows: readonly string[], parts: Part[]): SpriteNormals {
   const hit = partCache.get(rows)
@@ -300,4 +300,10 @@ export function partNormals(rows: readonly string[], parts: Part[]): SpriteNorma
   }
   partCache.set(rows, out)
   return out
+}
+
+/** Forget every cached sprite normal map (after the art or its parts change). */
+export function forgetNormals() {
+  spriteCache = new WeakMap()
+  partCache = new WeakMap()
 }

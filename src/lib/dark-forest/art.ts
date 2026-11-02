@@ -83,3 +83,97 @@ export const SPRITES: Record<string, SpriteAsset> = Object.fromEntries(
     },
   ]),
 )
+
+/** A prop's art: rows, the column its anchor sits on, palette, parts, and per-char shine. */
+export interface PropArt {
+  rows: Rows
+  anchor: number
+  pal: Palette
+  parts: Part[]
+  shine?: Record<string, number>
+}
+
+/** Every prop's art, by name: the objects the renderer draws, kept in step with the data. */
+export const PROP_ART: Record<string, PropArt> = {}
+/** The relics' art. */
+export const RELIC_ART = {} as Record<'antler' | 'crook' | 'key', { rows: Rows; pal: Palette }>
+
+function syncProps() {
+  for (const [k, d] of Object.entries(DATA.props)) {
+    if (k === 'relics') continue
+    const p = d as PropData
+    const a = (PROP_ART[k] ??= { rows: p.rows, anchor: p.anchor, pal: {}, parts: p.parts as Part[], shine: p.shine })
+    a.rows = p.rows
+    a.anchor = p.anchor
+    a.parts = p.parts as Part[]
+    a.shine = p.shine
+    resolvePalette(p.palette, a.pal)
+  }
+  for (const [k, r] of Object.entries(DATA.props.relics)) {
+    const a = (RELIC_ART[k as keyof typeof RELIC_ART] ??= { rows: r.rows, pal: {} })
+    a.rows = r.rows
+    resolvePalette(r.palette, a.pal)
+  }
+}
+syncProps()
+
+// ---------------------------------------------------------------- editing
+
+/** The data files the editor can edit and save (data/<file>.json). */
+export const FILES = ['sprites', 'props', 'palette', 'lights'] as const
+export type DataFile = (typeof FILES)[number]
+
+const listeners = new Set<(file: DataFile) => void>()
+/** Be told when a data file changes (to rebuild what's derived from it). */
+export function onArtChange(fn: (file: DataFile) => void) {
+  listeners.add(fn)
+  return () => listeners.delete(fn)
+}
+
+/** A deep copy of one data file as it is now. */
+export const snapshot = (file: DataFile): unknown => structuredClone(DATA[file])
+
+/** Replace the contents of `into` with `from`, keeping `into` (and its arrays) the same objects. */
+function replaceInPlace(into: Record<string, unknown>, from: Record<string, unknown>) {
+  for (const k of Object.keys(into)) if (!(k in from)) delete into[k]
+  for (const [k, v] of Object.entries(from)) {
+    const cur = into[k]
+    if (Array.isArray(v) && Array.isArray(cur)) cur.splice(0, cur.length, ...structuredClone(v))
+    else if (v && typeof v === 'object' && cur && typeof cur === 'object' && !Array.isArray(cur))
+      replaceInPlace(cur as Record<string, unknown>, v as Record<string, unknown>)
+    else into[k] = structuredClone(v)
+  }
+}
+
+/**
+ * Put new contents into a data file, live: everything holding its objects sees the change.
+ * World colours change in place, so palettes linked to them follow.
+ */
+export function applyData(file: DataFile, data: unknown) {
+  replaceInPlace(DATA[file] as Record<string, unknown>, data as Record<string, unknown>)
+  changed(file)
+}
+
+/** Re-derive everything from the data after it was edited in place, and tell listeners. */
+export function changed(file: DataFile) {
+  if (file === 'palette') {
+    for (const [k, v] of Object.entries(DATA.palette)) {
+      const c = hex(v)
+      const w = ((WORLD as Record<string, Color>)[k] ??= c)
+      w[0] = c[0]
+      w[1] = c[1]
+      w[2] = c[2]
+    }
+  }
+  // palettes and prop views (also after a world colour changed, for any new "$" links)
+  for (const [name, d] of Object.entries(DATA.sprites)) {
+    const a = SPRITES[name]
+    if (!a) continue
+    a.frames = d.frames
+    a.parts = asParts(d.parts)
+    a.shine = d.shine
+    for (const [k, p] of Object.entries(d.palettes)) resolvePalette(p, (a.palettes[k] ??= {}))
+  }
+  syncProps()
+  for (const fn of listeners) fn(file)
+}

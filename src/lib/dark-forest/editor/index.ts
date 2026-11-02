@@ -6,7 +6,9 @@
  */
 import type { DarkForest } from '../index'
 import { LIGHT_KINDS, VIEWS, defaultLightTune, resetSettings, settings, type LightTune, type View } from '../settings'
+import { DATA, FILES, applyData, changed, snapshot, type DataFile } from '../art'
 import { RELICS, type Relic } from '../world'
+import { applyStaged, changedPaths, discardStaged, loadStaged, stage as stageFile, stagingAvailable } from './staging'
 import { CSS } from './style'
 
 type Child = Node | string | null | undefined | false
@@ -62,6 +64,8 @@ export interface Editor {
   attach(forest: DarkForest): void
   story(line: string): void
   refresh(): void
+  /** A data file was edited live: re-derive, stage and list it. */
+  edited(file: DataFile): void
 }
 
 export function mountEditor(): Editor {
@@ -210,7 +214,7 @@ export function mountEditor(): Editor {
   )
 
   // ---------------------------------------------------------------- right: inspect, lights
-  const tabs = { inspect: h('div', { class: 'tab' }), lights: h('div', { class: 'tab' }) }
+  const tabs = { inspect: h('div', { class: 'tab' }), lights: h('div', { class: 'tab' }), changes: h('div', { class: 'tab' }) }
   const tabBtns = (Object.keys(tabs) as (keyof typeof tabs)[]).map((k) => h('button', { 'data-tab': k, onclick: () => showTab(k) }, k))
   const showTab = (k: keyof typeof tabs) => {
     for (const [name, el] of Object.entries(tabs)) el.hidden = name !== k
@@ -377,8 +381,84 @@ export function mountEditor(): Editor {
       },
     }
   })
-  tabs.lights.append(h('p', { class: 'dim' }, 'Tuning applies to every light of a kind. Open one to highlight it in the scene.'), ...lightRows.map((r) => r.el))
-  const right = h('aside', { class: 'dfe-right' }, h('nav', { class: 'tabs seg' }, ...tabBtns), tabs.inspect, tabs.lights)
+  tabs.lights.append(
+    h('p', { class: 'dim' }, 'Tuning applies to every light of a kind. Open one to highlight it in the scene.'),
+    h(
+      'button',
+      {
+        title: 'stage the current tuning as the defaults (data/lights.json)',
+        onclick: () => {
+          DATA.lights = structuredClone(settings.lights) as unknown as typeof DATA.lights
+          edited('lights')
+        },
+      },
+      'save tuning as defaults',
+    ),
+    ...lightRows.map((r) => r.el),
+  )
+
+  // ---------------------------------------------------------------- changes: staged edits
+  // what's on disk, from when the editor opened: what staged edits are compared against
+  const baseline = Object.fromEntries(FILES.map((f) => [f, snapshot(f)])) as Record<DataFile, unknown>
+  let canSave = false
+  const changesBody = h('div', {})
+  const changedFiles = () => FILES.filter((f) => changedPaths(baseline[f], DATA[f]).length)
+  const renderChanges = () => {
+    const files = changedFiles()
+    const tab = tabBtns.find((b) => b.dataset.tab === 'changes')!
+    tab.textContent = files.length ? `changes (${files.length})` : 'changes'
+    if (!canSave) {
+      changesBody.replaceChildren(h('p', { class: 'dim' }, "Saving needs the dev server (npm run dev). Edits still show live; they just can't be kept."))
+      return
+    }
+    if (!files.length) {
+      changesBody.replaceChildren(
+        h('p', { class: 'dim' }, 'Nothing staged. Edits you make are staged here first; nothing is written to the data files until you apply it.'),
+      )
+      return
+    }
+    changesBody.replaceChildren(
+      ...files.map((f) => {
+        const paths = changedPaths(baseline[f], DATA[f])
+        return h(
+          'div',
+          { class: 'change' },
+          h('div', { class: 'title' }, h('b', {}, `data/${f}.json`), h('span', { class: 'dim' }, ` ${paths.length} change${paths.length === 1 ? '' : 's'}`)),
+          h('ul', {}, ...paths.slice(0, 14).map((p) => h('li', {}, p)), paths.length > 14 && h('li', { class: 'dim' }, `and ${paths.length - 14} more`)),
+          h(
+            'div',
+            { class: 'group' },
+            h(
+              'button',
+              { title: 'write this file into data/ (the page reloads with it)', onclick: () => applyStaged(f).then(() => location.reload()) },
+              'apply',
+            ),
+            h(
+              'button',
+              {
+                title: 'drop these edits and go back to what is on disk',
+                onclick: () =>
+                  discardStaged(f, baseline[f]).then(() => {
+                    if (f === 'lights') resetSettings('lights')
+                    renderChanges()
+                    refreshAll()
+                  }),
+              },
+              'discard',
+            ),
+          ),
+        )
+      }),
+    )
+  }
+  /** Something in a data file was edited live: re-derive it, stage it, list it. */
+  const edited = (file: DataFile) => {
+    changed(file)
+    if (canSave) stageFile(file, renderChanges)
+    renderChanges()
+  }
+  tabs.changes.append(changesBody)
+  const right = h('aside', { class: 'dfe-right' }, h('nav', { class: 'tabs seg' }, ...tabBtns), tabs.inspect, tabs.lights, tabs.changes)
 
   // ---------------------------------------------------------------- footer: stats, village, story
   const stats = h('div', { class: 'stats' })
@@ -439,7 +519,14 @@ export function mountEditor(): Editor {
       forest = f
       refreshAll()
       window.setInterval(refreshAll, 250)
+      // pick up edits staged in an earlier session
+      stagingAvailable().then(async (ok) => {
+        canSave = ok
+        if (ok) for (const [file, st] of Object.entries(await loadStaged())) applyData(file as DataFile, st.staged)
+        renderChanges()
+      })
     },
+    edited,
     story(line) {
       storyLog.prepend(h('li', {}, line))
       while (storyLog.children.length > 40) storyLog.lastElementChild!.remove()

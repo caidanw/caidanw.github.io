@@ -4,7 +4,9 @@
  * is letterboxed to 16:9 and rendered at an integer multiple of 640x360.
  */
 import { Renderer, type PixelInfo, type Timings } from './renderer'
-import { settings } from './settings'
+import { onArtChange } from './art'
+import { forgetNormals } from './normals'
+import { resetSettings, settings } from './settings'
 import { createWorld, dropStick, isRaining, step, toggleRain, type World } from './sim'
 import { createMush } from './sim/shroomfolk'
 import { H, RES, W, unproject, RELICS, type Relic } from './world'
@@ -109,6 +111,13 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
     const scale = Math.max(1, Math.min(MAX_SCALE, Math.ceil((cssW * devicePixelRatio) / W)))
     if (canvas.width !== W * scale) renderer.setScale(scale)
   }
+  // the art changed (the editor): forget cached normals and rebuild the static layer
+  const offArt = onArtChange((file) => {
+    forgetNormals()
+    renderer.rebuildStatic()
+    if (file === 'lights') resetSettings('lights')
+  })
+
   const ro = new ResizeObserver(fit)
   ro.observe(canvas.parentElement!)
   fit()
@@ -201,6 +210,7 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
     lights: () => renderer.lastLights,
     destroy() {
       cancelAnimationFrame(raf)
+      offArt()
       ro.disconnect()
       canvas.removeEventListener('pointermove', onMove)
       canvas.removeEventListener('pointerleave', onLeave)

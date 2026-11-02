@@ -1,6 +1,8 @@
 // @ts-check
 import { defineConfig } from 'astro/config'
 import sitemap from '@astrojs/sitemap'
+import { fileURLToPath } from 'node:url'
+import { forestStaging } from './src/lib/dark-forest/editor/staging-plugin.mjs'
 
 const selectedTheme = 'vitesse-dark'
 // import selectedTheme from './src/themes/neo-tokyo.js'
@@ -16,6 +18,8 @@ export default defineConfig({
     // Lab pages are unlisted (noindex); drafts are never emitted as routes.
     sitemap({ filter: (page) => !new URL(page).pathname.startsWith('/lab/') }),
   ],
+  // the Dark Forest editor's staged saves (dev server only)
+  vite: { plugins: [forestStaging({ root: fileURLToPath(new URL('.', import.meta.url)) })] },
   markdown: {
     shikiConfig: {
       theme: selectedTheme,

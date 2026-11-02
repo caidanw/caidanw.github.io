@@ -70,6 +70,9 @@ html.dfe-on, html.dfe-on body { overflow: hidden; }
 .dfe .light .body { padding: 2px 8px 8px; display: grid; gap: 4px; }
 .dfe .instances { margin: 4px 0 0; padding: 0; list-style: none; max-height: 120px; overflow: auto; }
 
+.dfe .change { border: 1px solid var(--line); border-radius: 3px; padding: 6px 8px; margin-bottom: 6px; }
+.dfe .change ul { margin: 4px 0 6px; padding-left: 14px; color: var(--dim); }
+.dfe .change .group { display: flex; gap: 6px; }
 .dfe-foot {
   grid-area: foot; display: grid; grid-template-columns: 220px 1fr 1.2fr; gap: 16px;
   padding: 8px 12px; border-top: 1px solid var(--line); background: var(--panel); min-height: 0;

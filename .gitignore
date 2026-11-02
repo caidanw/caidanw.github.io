@@ -24,3 +24,6 @@ pnpm-debug.log*
 .idea/
 .collaborator
 /.terminalgraph
+
+# the Dark Forest editor's staged (not yet applied) edits
+.forest-staging/
