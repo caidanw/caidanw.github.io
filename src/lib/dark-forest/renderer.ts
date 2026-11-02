@@ -9,6 +9,27 @@
  * Output is nearest-neighbour upscaled ("Sworcery" pixels). The ground gets
  * banded, noise-dithered firelight with shadows cast away from the fire;
  * objects get smooth light shaped by their normals.
+ *
+ * Depth and layering. Every pixel has a depth: the world z of the thing it belongs
+ * to (where it stands on the ground; larger is nearer the camera), plus small
+ * offsets to order the parts of one thing (a hut's cap +0.01 over its stem). The
+ * sky is SKY_DEPTH and the bare ground GROUND_DEPTH.
+ * The rules, so things never show through what stands in front of them:
+ *
+ *   1. Everything a pixel knows (colour, world position, normal, material,
+ *      hover tag, glint...) is a channel of the Buf, and only put() writes
+ *      objects and only putFx() writes emissives. Nothing keeps per-pixel
+ *      state on the side.
+ *   2. put() and putFx() depth-test first. A pixel that wins takes over the
+ *      whole pixel: put() resets every channel the caller didn't give.
+ *   3. putFx() always takes a depth: an ember says how far off it is, a ripple
+ *      says GROUND_DEPTH, a shooting star SKY_DEPTH (so any object hides it).
+ *      Only rain and labels draw over everything, and they do it after
+ *      compositing, outside the buffer.
+ *   4. Reflections in the pool are depth-tested the same way (rdep), so the
+ *      nearest thing's reflection wins, not the last one drawn.
+ *
+ * Static scenery is also drawn back to front, which only decides ties.
  */
 import { clamp, hash, hex, mix, rngFrom, vnoise, type Color } from './util'
 import {
@@ -144,6 +165,11 @@ const TRIGON_AT = (() => {
   return [x, y - Math.round(40 * s)]
 })()
 
+/** Depth of the empty sky: behind everything. */
+const SKY_DEPTH = -1e9
+/** Depth of the bare ground: anything standing on it is in front. */
+const GROUND_DEPTH = -1e8
+
 /** Light-culling tiles: 32x32 pixels. */
 const TILE_BITS = 5
 const TILES_X = Math.ceil(W / (1 << TILE_BITS))
@@ -217,6 +243,8 @@ function makeBuf() {
     mw: f(),
     // specular strength (metal gleams)
     sp: f(),
+    // how much the pixel glints in the moonlight (foliage speckles)
+    gl: f(),
     // which hoverable thing this pixel belongs to (0 = nothing)
     hv: new Int32Array(N),
     // planar reflection (what the pool mirrors at this pixel)
@@ -227,6 +255,7 @@ function makeBuf() {
     rkx: f(),
     rkz: f(),
     rky: f(),
+    rdep: f(), // depth of whatever the reflection shows
     // unlit background (sky)
     bgr: f(),
     bgg: f(),
@@ -463,8 +492,6 @@ export class Renderer {
   private ctx: CanvasRenderingContext2D
   private scale = 4
   private tileBoxes = new Float32Array(TILES * 6)
-  /** Foliage speckles: how strongly each static pixel glints in the moonlight (0 = not at all). */
-  private glint = new Float32Array(N)
   private st = makeBuf() // static layer (ground, trees, props), rebuilt only when the pool level moves
   private fb = makeBuf() // per-frame layer
   private fx = {
@@ -479,6 +506,7 @@ export class Renderer {
     // how much each emissive pixel feeds the bloom (0 = none)
     bw: new Float32Array(N),
     rbw: new Float32Array(N),
+    rdep: new Float32Array(N),
   }
   private out = { r: new Float32Array(N), g: new Float32Array(N), b: new Float32Array(N) }
   private outC = document.createElement('canvas')
@@ -554,6 +582,7 @@ export class Renderer {
     mh = 0,
     mw = 0,
     spec = 0,
+    glint = 0,
   ): boolean {
     px = Math.round(px)
     py = Math.round(py)
@@ -576,13 +605,15 @@ export class Renderer {
     B.mh[i] = mh
     B.mw[i] = mw
     B.sp[i] = spec
+    B.gl[i] = glint
     B.hv[i] = this.tag
     if (noRefl) return true
     // mirror the pixel about its base line into the pool
     const ry = Math.round(2 * baseY - py)
     if (ry < 0 || ry >= H) return true
     const j = ry * W + px
-    if (B.pool[j] && !B.obj[j]) {
+    if (B.pool[j] && !B.obj[j] && depth >= B.rdep[j]) {
+      B.rdep[j] = depth
       B.rr[j] = c[0]
       B.rg[j] = c[1]
       B.rb[j] = c[2]
@@ -601,13 +632,13 @@ export class Renderer {
    * pixel feeds the glow: 1 for small lights, less for big bright areas, 0 for things that
    * merely sit in the emissive layer (smoke, silhouettes, rain ripples...).
    */
-  private putFx(px: number, py: number, c: Color, a: number, baseY?: number, depth?: number, bloom = 1) {
+  private putFx(px: number, py: number, c: Color, a: number, baseY: number | undefined, depth: number, bloom = 1) {
     const fx = this.fx
     px = Math.round(px)
     py = Math.round(py)
     if (px < 0 || px >= W || py < 0 || py >= H) return
     const i = py * W + px
-    if (depth !== undefined && depth < this.fb.dep[i]) return
+    if (depth < this.fb.dep[i]) return
     if (this.tag) this.fb.hv[i] = this.tag
     fx.r[i] = c[0]
     fx.g[i] = c[1]
@@ -618,7 +649,8 @@ export class Renderer {
     const ry = Math.round(2 * baseY - py)
     if (ry < 0 || ry >= H) return
     const j = ry * W + px
-    if (this.fb.pool[j] && !this.fb.obj[j]) {
+    if (this.fb.pool[j] && !this.fb.obj[j] && depth >= fx.rdep[j]) {
+      fx.rdep[j] = depth
       fx.rr[j] = c[0]
       fx.rg[j] = c[1]
       fx.rb[j] = c[2]
@@ -811,12 +843,26 @@ export class Renderer {
           else if (f.arcs && v < 0 && edge >= 4.5 && edge < 5.5 && n < 0.45) c = f.dim
           else if (edge > 1 && n < 0.012 + 0.11 * top) c = hash(py, px * 3 + f.seed) < 0.4 ? f.speck : f.dim
         }
-        if (c === f.speck) this.glint[py * W + px] = 1
-        else if (c === f.dim) this.glint[py * W + px] = 0.4
         const d = shape.dome(u, v)
         const l = Math.hypot(d[0] * 0.45, d[1] * 0.45 + 0.12, 1)
         const nrm: Normal = [(d[0] * 0.45) / l, (d[1] * 0.45 + 0.12) / l, 1 / l]
-        this.put(B, px, py, c, f.x + (px - f.bx) / f.s, f.z, f.heightAt(py), f.by, f.dep + li * 0.0004, false, nrm)
+        this.put(
+          B,
+          px,
+          py,
+          c,
+          f.x + (px - f.bx) / f.s,
+          f.z,
+          f.heightAt(py),
+          f.by,
+          f.dep + li * 0.0004,
+          false,
+          nrm,
+          0,
+          0,
+          0,
+          c === f.speck ? 1 : c === f.dim ? 0.4 : 0,
+        )
       }
     }
   }
@@ -1183,8 +1229,8 @@ export class Renderer {
     const B = this.st
     this.bakedLevel = lvl
     for (const k in B) (B[k as keyof Buf] as Float32Array).fill(0)
-    B.dep.fill(-1e9)
-    this.glint.fill(0)
+    B.dep.fill(SKY_DEPTH)
+    B.rdep.fill(SKY_DEPTH)
     this.region = 0
     const setBg = (x: number, y: number, c: Color) => {
       if (x < 0 || x >= W || y < 0 || y >= H) return
@@ -1232,6 +1278,7 @@ export class Renderer {
         B.kx[i] = gx
         B.kz[i] = gz
         B.ky[i] = 0
+        B.dep[i] = GROUND_DEPTH
         if (inPool(gx, gz, lvl)) B.pool[i] = 1
       }
     }
@@ -1457,6 +1504,7 @@ export class Renderer {
     const B = this.fb
     copyBuf(B, this.st)
     for (const k in this.fx) this.fx[k as keyof typeof this.fx].fill(0)
+    this.fx.rdep.fill(SKY_DEPTH)
     this.labels.clear()
     this.tag = 0
     this.region = 0
@@ -1625,7 +1673,7 @@ export class Renderer {
       this.tagged('crow', () =>
         CROW[1 + (((t * 8) % 2) | 0)].forEach((row, r) =>
           [...row].forEach((ch, c) => {
-            if (ch !== '.') this.putFx(K.x + c - 5, K.y + r - 2, ch === 'b' ? C.iron : C.crow, 1, undefined, undefined, 0)
+            if (ch !== '.') this.putFx(K.x + c - 5, K.y + r - 2, ch === 'b' ? C.iron : C.crow, 1, undefined, PROPS.trigon.z + 1, 0) // it flies about as far off as the trigon
           }),
         ),
       )
@@ -1759,7 +1807,7 @@ export class Renderer {
         const sx = fireX + ((vnoise(i * 3.1, t * 0.4) - 0.5) * 8 * age + Math.sin(t + i) * age * 3) * RES
         const sy = fireY - (6 + age * 34) * RES
         const rad = 1 + Math.round(age * 2)
-        disc((px, py) => this.putFx(px, py, GLOW.smoke, smoky * 0.12 * (1 - age), undefined, undefined, 0), Math.round(sx), Math.round(sy), rad, rad)
+        disc((px, py) => this.putFx(px, py, GLOW.smoke, smoky * 0.12 * (1 - age), undefined, 0.3, 0), Math.round(sx), Math.round(sy), rad, rad)
       }
     }
     for (const e of w.embers) {
@@ -1784,7 +1832,7 @@ export class Renderer {
       for (let i = 0; i < 8; i++) {
         const x = s.x + (s.age * 120 - i * 2) * RES
         const y = s.y + (s.age * 40 - i * 0.66) * RES
-        if (x > 0 && x < W && y > 0 && y < HORIZON && !B.a[(y | 0) * W + (x | 0)]) this.putFx(x, y, GLOW.star, (1 - i / 8) * (1 - s.age / 0.9))
+        if (y < HORIZON) this.putFx(x, y, GLOW.star, (1 - i / 8) * (1 - s.age / 0.9), undefined, SKY_DEPTH)
       }
     }
     // a stick you just dropped carries a soft highlight, so you can see where it went
@@ -1816,7 +1864,7 @@ export class Renderer {
       if (r.age < 0) continue
       const a = r.age / 0.7
       const hw = ((1 + a * 4) | 0) * RES
-      for (let dx = -hw; dx <= hw; dx++) this.putFx(r.x + dx, r.y, GLOW.ripple, 0.55 * (1 - a), undefined, undefined, 0.2)
+      for (let dx = -hw; dx <= hw; dx++) this.putFx(r.x + dx, r.y, GLOW.ripple, 0.55 * (1 - a), undefined, GROUND_DEPTH, 0.2)
     }
   }
 
@@ -2022,9 +2070,9 @@ export class Renderer {
             g = g * (1 - m) + C.mist[1] * m
             b = b * (1 - m) + C.mist[2] * m
           }
-          // moonlit speckles on the leaves, twinkling slowly; hidden by anything that moves in front
-          const gl = this.glint[i]
-          if (gl > 0 && B.dep[i] === this.st.dep[i]) {
+          // moonlit speckles on the leaves, twinkling slowly
+          const gl = B.gl[i]
+          if (gl > 0) {
             const k = gl * 0.26 * amb * (1 - m) * (0.55 + 0.45 * Math.sin(t * 0.8 + x * 0.37 + y * 0.71))
             r += 0.5 * k
             g += 0.68 * k
