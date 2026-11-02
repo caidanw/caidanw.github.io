@@ -100,7 +100,8 @@ import { LANTERN_POST, LOG, PACK, RELIC_ART, SKULL, SWORD, type PropArt } from '
 import { WEIGHT, micro, shape, type Normal } from './materials'
 import { settings, type View } from './settings'
 import { walkable } from './sim/nav'
-import { cullLights, gatherLight, groundGrain, prepareLights, type Caster, type Light, type Prepared } from './lights'
+import { cullLights, gatherLight, groundGrain, prepareLights, type Light, type Prepared } from './lights'
+import { BUDGET, ShadowMaps, SilhouetteRecorder, shadowAt } from './shadows'
 import { WALKING, doorOpen, hutOccupancy, isElder, isMoving, isRaining, lightRadius, perchPos, type Mush, type World } from './sim'
 
 /** What the bushes are called on hover. */
@@ -581,6 +582,10 @@ export class Renderer {
   private ctx: CanvasRenderingContext2D
   private scale = 4
   private tileBoxes = new Float32Array(TILES * 6)
+  /** Every shadow caster's silhouette, and each light's shadow map (shadows.ts). */
+  readonly shadows = new ShadowMaps()
+  /** The caster being drawn right now: put() records its pixels. */
+  private recorder: SilhouetteRecorder | null = null
   private prepared: Prepared[] = []
   private st = makeBuf() // static layer (ground, trees, props), rebuilt only when the pool level moves
   private fb = makeBuf() // per-frame layer
@@ -694,6 +699,7 @@ export class Renderer {
   ): boolean {
     px = Math.round(px)
     py = Math.round(py)
+    if (this.recorder) this.recorder.add(px, py)
     if (px < 0 || px >= W || py < 0 || py >= H) return false
     const i = py * W + px
     if (depth < B.dep[i]) return false
@@ -783,6 +789,10 @@ export class Renderer {
    * Each column is lit at its own world x; normals come from the art's parts.
    */
   private drawArt(B: Buf, art: PropArt, wx: number, wz: number, opts: { dep?: number; at?: [number, number]; noRefl?: boolean } = {}) {
+    this.casting(B, wx, wz, () => this.drawArtNow(B, art, wx, wz, opts))
+  }
+
+  private drawArtNow(B: Buf, art: PropArt, wx: number, wz: number, opts: { dep?: number; at?: [number, number]; noRefl?: boolean }) {
     const [px0, py0, s] = project(wx, 0, wz)
     const [bx, by] = opts.at ?? [px0, py0]
     const h = art.rows.length
@@ -800,7 +810,29 @@ export class Renderer {
     )
   }
 
-  private sprite(
+  /**
+   * Everything `fn` draws is one shadow caster standing at world (x, z): its pixels become the
+   * caster's silhouette (shadows.ts). Nested calls join the outer caster.
+   */
+  private casting<T>(B: Buf, x: number, z: number, fn: () => T): T {
+    if (this.recorder) return fn()
+    const [bx, by, s] = project(x, 0, z)
+    this.recorder = new SilhouetteRecorder(x, z, bx, by, s, B === this.st ? 2 : 4)
+    try {
+      return fn()
+    } finally {
+      const sil = this.recorder.done()
+      this.recorder = null
+      if (sil) (B === this.st ? this.shadows.statics : this.shadows.dynamics).push(sil)
+    }
+  }
+
+  private sprite(...args: Parameters<Renderer['spriteNow']>) {
+    const [B, , wx, wz] = args
+    return this.casting(B, wx, wz, () => this.spriteNow(...args))
+  }
+
+  private spriteNow(
     B: Buf,
     rows: Rows,
     wx: number,
@@ -1277,41 +1309,46 @@ export class Renderer {
 
   /** A ring of stones around the fire: grainy domes. */
   private drawStoneRing(B: Buf) {
-    for (const st of STONE_RING) {
-      const [sx, sy, s] = project(st.x, 0, st.z)
-      this.region++
-      disc(
-        (px, py, u, v) => {
-          let c = hash(px * 3 + st.seed, py) < 0.3 ? C.stoneD : C.stone
-          if (v < -0.2 && u < 0.2) c = C.stoneHi
-          if (v > 0.5) c = C.stoneD
-          this.put(
-            B,
-            px,
-            py,
-            c,
-            st.x + (px - sx) / s,
-            st.z,
-            (sy - py) / s + 0.5,
-            sy,
-            st.z,
-            false,
-            shape.dome(u, v),
-            micro.stone(px, py, st.seed),
-            WEIGHT.stone * 0.7,
-          )
-        },
-        sx,
-        sy - Math.floor((st.h * RES) / 2),
-        st.w * RES,
-        Math.max(1, st.h) * RES,
-      )
-    }
+    for (const st of STONE_RING)
+      this.casting(B, st.x, st.z, () => {
+        const [sx, sy, s] = project(st.x, 0, st.z)
+        this.region++
+        disc(
+          (px, py, u, v) => {
+            let c = hash(px * 3 + st.seed, py) < 0.3 ? C.stoneD : C.stone
+            if (v < -0.2 && u < 0.2) c = C.stoneHi
+            if (v > 0.5) c = C.stoneD
+            this.put(
+              B,
+              px,
+              py,
+              c,
+              st.x + (px - sx) / s,
+              st.z,
+              (sy - py) / s + 0.5,
+              sy,
+              st.z,
+              false,
+              shape.dome(u, v),
+              micro.stone(px, py, st.seed),
+              WEIGHT.stone * 0.7,
+            )
+          },
+          sx,
+          sy - Math.floor((st.h * RES) / 2),
+          st.w * RES,
+          Math.max(1, st.h) * RES,
+        )
+      })
   }
 
   /** Three old standing stones behind the fire: bevelled, pitted, mossy at the foot. */
   private drawHearthstones(B: Buf) {
-    HEARTHSTONES.forEach((hs, idx) => {
+    HEARTHSTONES.forEach((hs, idx) => this.casting(B, hs.x, hs.z, () => this.drawHearthstone(B, hs, idx)))
+  }
+
+  private drawHearthstone(B: Buf, hs: (typeof HEARTHSTONES)[number], idx: number) {
+    {
       const prevTag = this.tag
       this.tag = tagId(`hearth${idx}`)
       const [bx, by, s] = project(hs.x, 0, hs.z)
@@ -1340,7 +1377,7 @@ export class Renderer {
         }
       }
       this.tag = prevTag
-    })
+    }
   }
 
   private buildStatic(lvl: number) {
@@ -1349,6 +1386,8 @@ export class Renderer {
     for (const k in B) (B[k as keyof Buf] as Float32Array).fill(0)
     B.dep.fill(SKY_DEPTH)
     B.rdep.fill(SKY_DEPTH)
+    this.shadows.statics = []
+    this.shadows.version++
     this.region = 0
     const setBg = (x: number, y: number, c: Color) => {
       if (x < 0 || x >= W || y < 0 || y >= H) return
@@ -1417,12 +1456,12 @@ export class Renderer {
     }
     // everything that stands up, back to front
     const statics: { z: number; draw: () => void }[] = [
-      ...TREES.map((t) => ({ z: t.z, draw: () => this.drawTree(B, t) })),
-      ...BUSHES.map((b, i) => ({ z: b.z, draw: () => this.tagged(`bush${i}`, () => this.drawBush(B, b)) })),
-      ...PROPS.huts.map((h, i) => ({ z: h.z, draw: () => this.tagged(`hut${i}`, () => this.drawHut(B, h)) })),
-      ...PROPS.graves.map((g, i) => ({ z: g.z, draw: () => this.tagged('grove', () => this.drawGrave(B, g, i)) })),
+      ...TREES.map((t) => ({ z: t.z, draw: () => this.casting(B, t.x, t.z, () => this.drawTree(B, t)) })),
+      ...BUSHES.map((b, i) => ({ z: b.z, draw: () => this.tagged(`bush${i}`, () => this.casting(B, b.x, b.z, () => this.drawBush(B, b))) })),
+      ...PROPS.huts.map((h, i) => ({ z: h.z, draw: () => this.tagged(`hut${i}`, () => this.casting(B, h.x, h.z, () => this.drawHut(B, h))) })),
+      ...PROPS.graves.map((g, i) => ({ z: g.z, draw: () => this.tagged('grove', () => this.casting(B, g.x, g.z, () => this.drawGrave(B, g, i))) })),
       { z: PROPS.lantern.z, draw: () => this.tagged('lantern', () => this.drawLanternPost(B, PROPS.lantern)) },
-      { z: PROPS.trigon.z, draw: () => this.tagged('trigon', () => this.drawTrigon(B, PROPS.trigon)) },
+      { z: PROPS.trigon.z, draw: () => this.tagged('trigon', () => this.casting(B, PROPS.trigon.x, PROPS.trigon.z, () => this.drawTrigon(B, PROPS.trigon))) },
       { z: PROPS.pack.z, draw: () => this.tagged('pack', () => this.drawPack(B, PROPS.pack)) },
       { z: -13, draw: () => this.drawHearthstones(B) },
       { z: 0, draw: () => this.tagged('fire', () => this.drawStoneRing(B)) },
@@ -1621,6 +1660,7 @@ export class Renderer {
     const t = w.t
     const B = this.fb
     copyBuf(B, this.st)
+    this.shadows.dynamics = []
     for (const k in this.fx) this.fx[k as keyof typeof this.fx].fill(0)
     this.fx.dep.fill(SKY_DEPTH)
     this.fx.rdep.fill(SKY_DEPTH)
@@ -2016,27 +2056,6 @@ export class Renderer {
 
   // ---------------------------------------------------------------- lighting
 
-  /** Things standing on the ground that can cast shadows from a light. */
-  private casters(w: World): Caster[] {
-    const out: Caster[] = [
-      ...(w.knight.fsm.state === 'gone' ? [] : [{ x: w.knight.x, z: w.knight.z, r: 3, h: w.knight.fsm.state === 'walking' ? 15 : 11 }]),
-      { x: w.deer.x, z: w.deer.z, r: 3.5, h: 8 },
-      { x: PROPS.woodpile.x, z: PROPS.woodpile.z, r: 4, h: 3 },
-      ...(w.knight.sword === 'planted' ? [{ x: PROPS.sword.x, z: PROPS.sword.z, r: 0.7, h: 13 }] : []),
-      ...(w.knight.sword === 'laid' ? [{ x: KNIGHT_GRAVE.x, z: KNIGHT_GRAVE.z, r: 1, h: 10 }] : []),
-      { x: PROPS.pack.x, z: PROPS.pack.z, r: 2.5, h: 3 },
-      ...PROPS.huts.map((h) => ({ x: h.x, z: h.z, r: 5.5, h: 16 })),
-      ...PROPS.graves.map((g) => ({ x: g.x, z: g.z, r: 1, h: 9 })),
-      { x: PROPS.lantern.x, z: PROPS.lantern.z, r: 0.6, h: 16 },
-      ...HEARTHSTONES.map((h) => ({ x: h.x, z: h.z, r: h.w * 0.7, h: h.h * 0.8 })),
-      ...STONE_RING.map((s) => ({ x: s.x, z: s.z, r: s.w * 0.6, h: 1.5 })),
-      ...TREES.map((t) => ({ x: t.x, z: t.z, r: 1.1 * t.w, h: 60 })),
-      ...BUSHES.map((b) => ({ x: b.x, z: b.z, r: b.w * 0.8, h: b.h })),
-    ]
-    for (const m of w.mush) if (m.fsm.state !== 'asleep') out.push({ x: m.x, z: m.z, r: 2.2 * Math.max(0.4, m.size), h: 6 * Math.max(0.3, m.size) })
-    return out
-  }
-
   /**
    * Every light in the scene this frame, all in the same model (see lights.ts).
    * Colours include brightness; flames wobble and spill, steady glows don't.
@@ -2235,7 +2254,15 @@ export class Renderer {
     const view = settings.view
     const raw = this.lights(w)
     this.lastLights = raw
-    const lights = prepareLights(raw, this.casters(w), t)
+    // the strongest few shadow-casting lights get shadow maps this frame
+    const strength = (l: Light) => (l.color[0] + l.color[1] + l.color[2]) * l.radius
+    const casting = new Set(
+      raw
+        .filter((l) => l.shadows && settings.layers.shadows)
+        .sort((a, b) => strength(b) - strength(a))
+        .slice(0, BUDGET),
+    )
+    const lights = prepareLights(raw, t, (l) => (casting.has(l) ? this.shadows.mapFor(l) : null))
     this.prepared = lights
     const nrm: [number, number, number] = [0, 0, 0]
     // Light culling: most lights (caps, candles, fireflies) only reach a small patch, so each
@@ -2413,6 +2440,15 @@ export class Renderer {
           else if (B.a[i]) [r, g, b] = [0.05, 0.08, 0.2]
           break
         }
+        case 'shadows': {
+          // how shadowed the ground is, from every light that casts shadows (darker = more)
+          if (B.a[i] && !B.obj[i]) {
+            let occ = 0
+            for (const l of this.prepared) if (l.shadow) occ = Math.max(occ, shadowAt(l.shadow, B.kx[i], B.kz[i]))
+            r = g = b = 0.85 - occ * 0.75
+          } else if (B.a[i]) [r, g, b] = [0.25, 0.18, 0.12]
+          break
+        }
         case 'emissive':
           ;[r, g, b] = [fx.r[i] * fx.a[i], fx.g[i] * fx.a[i], fx.b[i] * fx.a[i]]
           break
@@ -2523,7 +2559,16 @@ export class Renderer {
         ctx.stroke()
       }
     }
-    if (O.casters) for (const c of this.casters(w)) ellipse(c.x, c.z, c.r, 'rgba(255,200,80,0.7)')
+    if (O.casters) {
+      // every caster's silhouette, as recorded when it was drawn, and its foot
+      for (const sil of [...this.shadows.statics, ...this.shadows.dynamics]) {
+        const [bx, by] = project(sil.x, 0, sil.z)
+        ctx.fillStyle = 'rgba(255,200,80,0.35)'
+        for (let k = 0; k < sil.runs.length; k += 3)
+          ctx.fillRect((bx + sil.runs[k]) * S, (by - sil.runs[k + 2]) * S, S, (sil.runs[k + 2] - sil.runs[k + 1]) * S)
+        ellipse(sil.x, sil.z, 0.6, 'rgba(255,120,60,0.9)')
+      }
+    }
     if (O.lights || sel) {
       for (const l of this.lastLights) {
         const on = l.kind === sel

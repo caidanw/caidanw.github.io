@@ -134,6 +134,7 @@ export function mountEditor(): Editor {
     ['stars', 'stars', 'twinkling stars'],
     ['rain', 'rain streaks', 'drawn rain (the weather still happens)'],
     ['labels', 'hover labels', 'names under the pointer'],
+    ['shadows', 'shadows', 'lights cast shadows from everything standing in them'],
   ]
   const layers = layerRows.map(([k, label, hint]) =>
     live(
@@ -154,7 +155,7 @@ export function mountEditor(): Editor {
   const O = settings.overlays
   const overlayRows: [keyof typeof O, string, string][] = [
     ['lights', 'lights', 'where each light is and how far it reaches'],
-    ['casters', 'shadow casters', 'what casts a shadow, and how wide'],
+    ['casters', 'shadow casters', 'every silhouette that casts a shadow, and its foot'],
     ['nav', 'walkable grid', 'cells nobody can walk through'],
     ['paths', 'paths', 'where the shroomfolk are walking'],
     ['states', 'state labels', 'states and needs over everyone'],

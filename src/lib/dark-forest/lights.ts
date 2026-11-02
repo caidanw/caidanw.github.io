@@ -7,7 +7,7 @@
  *
  *   ground   quadratic falloff in 6 bands, dithered with world-anchored grain
  *            (texture, not a grid) and blended with the smooth falloff;
- *            optionally darkened by soft shadows cast away from the light
+ *            darkened by the light's shadow map if it casts shadows (shadows.ts)
  *   objects  smooth falloff shaped by the surface normal (wrap lambert)
  *
  * On top of the core, `wobble` makes the edge breathe and wander (flames),
@@ -17,6 +17,7 @@
 import { vnoise, type Color } from './util'
 import { RES } from './world'
 import type { LightKind } from './settings'
+import { DARKNESS, shadowAt, type ShadowMap } from './shadows'
 
 export interface Light {
   x: number
@@ -40,32 +41,10 @@ export interface Light {
   owner?: number
 }
 
-/** Something standing on the ground that can cast a shadow: base, half-width, height. */
-export interface Caster {
-  x: number
-  z: number
-  r: number
-  h: number
-}
-
-/** A caster's shadow from one light, with the world-space box it can fall in. */
-interface Blocker {
-  x: number
-  z: number
-  ux: number
-  uz: number
-  d: number
-  L: number
-  r: number
-  x0: number
-  x1: number
-  z0: number
-  z1: number
-}
-
 export interface Prepared extends Light {
   reach2: number
-  blockers: Blocker[]
+  /** This light's shadow map this frame (see shadows.ts), or null. */
+  shadow: ShadowMap | null
   /** This frame's edge wobble by angle around the light (WOBBLE_BINS bins), for flames. */
   wob: Float32Array | null
 }
@@ -96,48 +75,16 @@ const wanderAt = (g: Float32Array, x: number, z: number): number => {
 const BANDS = 6
 const TAIL_REACH = 2.4 // the spill fades out at this many radii
 
-/** Prepare a frame's lights: bounds, and shadow casters relative to each shadowing light. */
-export function prepareLights(lights: Light[], casters: Caster[], t: number): Prepared[] {
+/** Prepare a frame's lights: bounds, flicker tables, and shadow maps (from `shadowFor`). */
+export function prepareLights(lights: Light[], t: number, shadowFor: (l: Light) => ShadowMap | null): Prepared[] {
   return lights.map((l) => {
     const reach = l.radius * (l.tail > 0 ? TAIL_REACH : 1.2)
-    const blockers = l.shadows
-      ? casters.flatMap((c) => {
-          const dx = c.x - l.x
-          const dz = c.z - l.z
-          const d = Math.hypot(dx, dz)
-          if (d < 2.5 || d > l.radius * 1.15) return []
-          // a caster of height h, lit from height y, throws a shadow roughly h * d / y long
-          const ux = dx / d
-          const uz = dz / d
-          const L = Math.min(70, (c.h * d) / Math.max(1, l.y))
-          const pad = c.r * (1 + (L / d) * 0.9) + 1.5 // the widest the shadow gets
-          const ex = c.x + ux * L
-          const ez = c.z + uz * L
-          const bx = c.x - ux * c.r
-          const bz = c.z - uz * c.r
-          return [
-            {
-              x: c.x,
-              z: c.z,
-              ux,
-              uz,
-              d,
-              L,
-              r: c.r,
-              x0: Math.min(bx, ex) - pad,
-              x1: Math.max(bx, ex) + pad,
-              z0: Math.min(bz, ez) - pad,
-              z1: Math.max(bz, ez) + pad,
-            },
-          ]
-        })
-      : []
     let wob: Float32Array | null = null
     if (l.wobble > 0) {
       wob = new Float32Array(WOBBLE_BINS)
       for (let k = 0; k < WOBBLE_BINS; k++) wob[k] = vnoise(((k / WOBBLE_BINS) * 2 - 1) * Math.PI * 2.4 + l.seed, t * 0.7)
     }
-    return { ...l, reach2: reach * reach, blockers, wob }
+    return { ...l, reach2: reach * reach, shadow: l.shadows ? shadowFor(l) : null, wob }
   })
 }
 
@@ -156,35 +103,12 @@ export function cullLights(lights: Prepared[], boxes: Float32Array, tiles: numbe
         const dx = Math.max(boxes[o] - l.x, 0, l.x - boxes[o + 3])
         const dy = Math.max(boxes[o + 1] - l.y, 0, l.y - boxes[o + 4])
         const dz = Math.max(boxes[o + 2] - l.z, 0, l.z - boxes[o + 5])
-        if (dx * dx + dy * dy + dz * dz >= l.reach2) continue
-        // and only the shadows that can fall in this tile
-        if (l.blockers.length) {
-          const b = l.blockers.filter((c) => c.x1 >= boxes[o] && c.x0 <= boxes[o + 3] && c.z1 >= boxes[o + 2] && c.z0 <= boxes[o + 5])
-          list.push(b.length === l.blockers.length ? l : { ...l, blockers: b })
-        } else list.push(l)
+        if (dx * dx + dy * dy + dz * dz < l.reach2) list.push(l)
       }
     }
     out.push(list)
   }
   return out
-}
-
-/** How much of light `l` reaches ground point (x, z): 1 = fully lit. */
-function shadowAt(l: Prepared, x: number, z: number): number {
-  let s = 0
-  for (const c of l.blockers) {
-    const vx = x - c.x
-    const vz = z - c.z
-    const along = vx * c.ux + vz * c.uz
-    if (along < -c.r || along > c.L) continue
-    const perp = Math.abs(vx * c.uz - vz * c.ux)
-    const rr = c.r * (1 + (Math.max(0, along) / c.d) * 0.9) // the penumbra widens with distance
-    if (perp > rr + 1.5) continue
-    const edge = 1 - Math.min(1, Math.max(0, (perp - rr + 0.6) / 2.1))
-    const fade = Math.pow(1 - Math.max(0, along) / c.L, 0.6)
-    s = Math.max(s, edge * fade * 0.85)
-  }
-  return 1 - s
 }
 
 /**
@@ -220,10 +144,13 @@ export function gatherLight(
     f = f > 0 ? f * f : 0
     let tail = l.tail > 0 ? (l.tail * Math.max(0, 1 - d / (l.radius * TAIL_REACH))) / (1 + (d / l.radius) ** 2 * 5) : 0
     if (ground) {
+      // the shadow darkens the light before it's banded, so shadow edges get the same dithered steps
+      const occ = l.shadow ? shadowAt(l.shadow, x, z) * DARKNESS : 0
+      tail *= 1 - occ * 0.7
       if (f > 0) {
+        f *= 1 - occ
         const banded = Math.floor(f * BANDS + grain) / BANDS
         f = 0.55 * banded + 0.45 * f
-        if (l.blockers.length) f *= shadowAt(l, x, z)
       }
     } else if (normal) {
       const ln = Math.hypot(dx, dy, dz) || 1

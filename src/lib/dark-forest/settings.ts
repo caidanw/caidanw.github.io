@@ -4,7 +4,7 @@
  */
 
 /** What the scene shows: the final image, or one of the buffers behind it. */
-export type View = 'final' | 'albedo' | 'normals' | 'depth' | 'light' | 'emissive' | 'hover' | 'tiles'
+export type View = 'final' | 'albedo' | 'normals' | 'depth' | 'light' | 'shadows' | 'emissive' | 'hover' | 'tiles'
 
 export const VIEWS: { view: View; label: string; hint: string }[] = [
   { view: 'final', label: 'final', hint: 'the finished frame' },
@@ -12,6 +12,7 @@ export const VIEWS: { view: View; label: string; hint: string }[] = [
   { view: 'normals', label: 'normals', hint: 'surface direction: red right, green up, blue toward you' },
   { view: 'depth', label: 'depth', hint: 'nearer is brighter; ground blue, sky black' },
   { view: 'light', label: 'light only', hint: 'the light arriving at each pixel, shadows included' },
+  { view: 'shadows', label: 'shadow maps', hint: 'how shadowed the ground is from every shadow-casting light; objects brown' },
   { view: 'emissive', label: 'emissive', hint: 'the glow layer: fire, caps, embers, glints' },
   { view: 'hover', label: 'hover tags', hint: 'which named thing each pixel belongs to' },
   { view: 'tiles', label: 'light tiles', hint: 'how many lights each 32px tile gathers' },
@@ -63,6 +64,7 @@ function defaults() {
       stars: true,
       rain: true,
       labels: true,
+      shadows: true,
     },
     view: 'final' as View,
     overlays: {
