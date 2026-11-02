@@ -2075,7 +2075,7 @@ export class Renderer {
     const out = this.out
     const amb = isRaining(w) ? 0.8 : 1
     const useNormals = opts.normals
-    const lights = prepareLights(this.lights(w), this.casters(w))
+    const lights = prepareLights(this.lights(w), this.casters(w), t)
     const nrm: [number, number, number] = [0, 0, 0]
     // Light culling: most lights (caps, candles, fireflies) only reach a small patch, so each
     // 32x32 tile of the screen gathers only the lights that can reach what it shows.
@@ -2121,7 +2121,7 @@ export class Renderer {
       Lc[0] = 0.15 * amb * moon
       Lc[1] = 0.18 * amb * moon
       Lc[2] = 0.27 * amb * moon
-      gatherLight(here, t, x, y, z, ground, ground ? groundGrain(x, z) : 0.5, normal, Lc, tag)
+      gatherLight(here, x, y, z, ground, ground ? groundGrain(x, z) : 0.5, normal, Lc, tag)
       if (normal && spec > 0) {
         // metal: a tight warm glint where the surface faces the fire, a cool rim toward the moon
         const fire = lights[0]

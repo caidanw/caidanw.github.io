@@ -44,16 +44,56 @@ export interface Caster {
   h: number
 }
 
+/** A caster's shadow from one light, with the world-space box it can fall in. */
+interface Blocker {
+  x: number
+  z: number
+  ux: number
+  uz: number
+  d: number
+  L: number
+  r: number
+  x0: number
+  x1: number
+  z0: number
+  z1: number
+}
+
 export interface Prepared extends Light {
   reach2: number
-  blockers: { x: number; z: number; ux: number; uz: number; d: number; L: number; r: number }[]
+  blockers: Blocker[]
+  /** This frame's edge wobble by angle around the light (WOBBLE_BINS bins), for flames. */
+  wob: Float32Array | null
+}
+
+const WOBBLE_BINS = 96
+/** The slow positional part of the wobble is static: sampled once on a coarse world grid. */
+const GRID = 2
+const GX0 = -220
+const GZ0 = -140
+const GW = 440 / GRID
+const GH = 280 / GRID
+const wanderCache = new Map<number, Float32Array>()
+function wander(seed: number): Float32Array {
+  let g = wanderCache.get(seed)
+  if (!g) {
+    g = new Float32Array(GW * GH)
+    for (let j = 0; j < GH; j++) for (let i = 0; i < GW; i++) g[j * GW + i] = vnoise((GX0 + i * GRID) * 0.06 + seed, (GZ0 + j * GRID) * 0.06)
+    wanderCache.set(seed, g)
+  }
+  return g
+}
+const wanderAt = (g: Float32Array, x: number, z: number): number => {
+  const i = Math.max(0, Math.min(GW - 1, Math.round((x - GX0) / GRID)))
+  const j = Math.max(0, Math.min(GH - 1, Math.round((z - GZ0) / GRID)))
+  return g[j * GW + i]
 }
 
 const BANDS = 6
 const TAIL_REACH = 2.4 // the spill fades out at this many radii
 
 /** Prepare a frame's lights: bounds, and shadow casters relative to each shadowing light. */
-export function prepareLights(lights: Light[], casters: Caster[]): Prepared[] {
+export function prepareLights(lights: Light[], casters: Caster[], t: number): Prepared[] {
   return lights.map((l) => {
     const reach = l.radius * (l.tail > 0 ? TAIL_REACH : 1.2)
     const blockers = l.shadows
@@ -63,10 +103,37 @@ export function prepareLights(lights: Light[], casters: Caster[]): Prepared[] {
           const d = Math.hypot(dx, dz)
           if (d < 2.5 || d > l.radius * 1.15) return []
           // a caster of height h, lit from height y, throws a shadow roughly h * d / y long
-          return [{ x: c.x, z: c.z, ux: dx / d, uz: dz / d, d, L: Math.min(70, (c.h * d) / Math.max(1, l.y)), r: c.r }]
+          const ux = dx / d
+          const uz = dz / d
+          const L = Math.min(70, (c.h * d) / Math.max(1, l.y))
+          const pad = c.r * (1 + (L / d) * 0.9) + 1.5 // the widest the shadow gets
+          const ex = c.x + ux * L
+          const ez = c.z + uz * L
+          const bx = c.x - ux * c.r
+          const bz = c.z - uz * c.r
+          return [
+            {
+              x: c.x,
+              z: c.z,
+              ux,
+              uz,
+              d,
+              L,
+              r: c.r,
+              x0: Math.min(bx, ex) - pad,
+              x1: Math.max(bx, ex) + pad,
+              z0: Math.min(bz, ez) - pad,
+              z1: Math.max(bz, ez) + pad,
+            },
+          ]
         })
       : []
-    return { ...l, reach2: reach * reach, blockers }
+    let wob: Float32Array | null = null
+    if (l.wobble > 0) {
+      wob = new Float32Array(WOBBLE_BINS)
+      for (let k = 0; k < WOBBLE_BINS; k++) wob[k] = vnoise(((k / WOBBLE_BINS) * 2 - 1) * Math.PI * 2.4 + l.seed, t * 0.7)
+    }
+    return { ...l, reach2: reach * reach, blockers, wob }
   })
 }
 
@@ -85,7 +152,12 @@ export function cullLights(lights: Prepared[], boxes: Float32Array, tiles: numbe
         const dx = Math.max(boxes[o] - l.x, 0, l.x - boxes[o + 3])
         const dy = Math.max(boxes[o + 1] - l.y, 0, l.y - boxes[o + 4])
         const dz = Math.max(boxes[o + 2] - l.z, 0, l.z - boxes[o + 5])
-        if (dx * dx + dy * dy + dz * dz < l.reach2) list.push(l)
+        if (dx * dx + dy * dy + dz * dz >= l.reach2) continue
+        // and only the shadows that can fall in this tile
+        if (l.blockers.length) {
+          const b = l.blockers.filter((c) => c.x1 >= boxes[o] && c.x0 <= boxes[o + 3] && c.z1 >= boxes[o + 2] && c.z0 <= boxes[o + 5])
+          list.push(b.length === l.blockers.length ? l : { ...l, blockers: b })
+        } else list.push(l)
       }
     }
     out.push(list)
@@ -118,7 +190,6 @@ function shadowAt(l: Prepared, x: number, z: number): number {
  */
 export function gatherLight(
   lights: Prepared[],
-  t: number,
   x: number,
   y: number,
   z: number,
@@ -137,8 +208,9 @@ export function gatherLight(
     if (dd >= l.reach2) continue
     const d = Math.sqrt(dd)
     let R = l.radius
-    if (l.wobble > 0 && d < R * 1.3) {
-      R *= 1 + l.wobble * (0.16 * (vnoise(Math.atan2(dz, dx) * 2.4 + l.seed, t * 0.7) - 0.5) + 0.08 * (vnoise(x * 0.06 + l.seed, z * 0.06) - 0.5))
+    if (l.wob && d < R * 1.3) {
+      const bin = Math.min(WOBBLE_BINS - 1, (((Math.atan2(dz, dx) / Math.PI + 1) / 2) * WOBBLE_BINS) | 0)
+      R *= 1 + l.wobble * (0.16 * (l.wob[bin] - 0.5) + 0.08 * (wanderAt(wander(l.seed), x, z) - 0.5))
     }
     let f = 1 - d / R
     f = f > 0 ? f * f : 0
