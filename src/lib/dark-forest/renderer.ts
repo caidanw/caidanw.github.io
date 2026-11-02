@@ -27,7 +27,15 @@
  *      Only rain and labels draw over everything, and they do it after
  *      compositing, outside the buffer.
  *   4. Reflections in the pool are depth-tested the same way (rdep), so the
- *      nearest thing's reflection wins, not the last one drawn.
+ *      nearest thing's reflection wins, not the last one drawn. They carry a
+ *      normal, specular and tag too, so they are lit like what they mirror.
+ *   5. Emissives have their own depth (fx.dep), and whether one shows is
+ *      decided after everything is drawn (resolveFx), not when it's drawn: an
+ *      ember drawn with the campfire is still hidden by someone who walks in
+ *      front of the fire later. Their hover tags are resolved the same way.
+ *   6. Objects are opaque. Emissives may be translucent (smoke, glows); a
+ *      translucent emissive composites "over" by depth with what's already
+ *      in its pixel (in front: over it; behind: under it), never replacing it.
  *
  * Static scenery is also drawn back to front, which only decides ties.
  */
@@ -165,6 +173,48 @@ const TRIGON_AT = (() => {
   return [x, y - Math.round(40 * s)]
 })()
 
+/**
+ * Composite an emissive into one pixel of a layer (straight alpha), over or under what's
+ * there by depth. The pixel keeps the nearer depth.
+ */
+function over(
+  R: Float32Array,
+  G: Float32Array,
+  Bl: Float32Array,
+  A: Float32Array,
+  BW: Float32Array,
+  D: Float32Array,
+  i: number,
+  c: Color,
+  a: number,
+  bloom: number,
+  depth: number,
+) {
+  const ea = A[i]
+  if (ea <= 0) {
+    R[i] = c[0]
+    G[i] = c[1]
+    Bl[i] = c[2]
+    A[i] = a
+    BW[i] = bloom
+    D[i] = depth
+    return
+  }
+  const front = depth >= D[i]
+  const ta = front ? a : ea
+  const ba = front ? ea : a
+  const out = ta + ba * (1 - ta)
+  if (out <= 0) return
+  const wt = ta / out
+  const wb = 1 - wt
+  R[i] = front ? c[0] * wt + R[i] * wb : R[i] * wt + c[0] * wb
+  G[i] = front ? c[1] * wt + G[i] * wb : G[i] * wt + c[1] * wb
+  Bl[i] = front ? c[2] * wt + Bl[i] * wb : Bl[i] * wt + c[2] * wb
+  BW[i] = front ? bloom * wt + BW[i] * wb : BW[i] * wt + bloom * wb
+  A[i] = out
+  if (front) D[i] = depth
+}
+
 /** Depth of the empty sky: behind everything. */
 const SKY_DEPTH = -1e9
 /** Depth of the bare ground: anything standing on it is in front. */
@@ -256,6 +306,11 @@ function makeBuf() {
     rkz: f(),
     rky: f(),
     rdep: f(), // depth of whatever the reflection shows
+    rnx: f(),
+    rny: f(),
+    rnz: f(),
+    rsp: f(),
+    rhv: new Int32Array(N),
     // unlit background (sky)
     bgr: f(),
     bgg: f(),
@@ -506,7 +561,9 @@ export class Renderer {
     // how much each emissive pixel feeds the bloom (0 = none)
     bw: new Float32Array(N),
     rbw: new Float32Array(N),
+    dep: new Float32Array(N),
     rdep: new Float32Array(N),
+    hv: new Int32Array(N),
   }
   private out = { r: new Float32Array(N), g: new Float32Array(N), b: new Float32Array(N) }
   private outC = document.createElement('canvas')
@@ -560,6 +617,7 @@ export class Renderer {
   render(w: World, opts: RenderOptions) {
     if (Math.abs(w.poolLevel - this.bakedLevel) > 0.035) this.buildStatic(w.poolLevel)
     this.drawDynamic(w)
+    this.resolveFx()
     this.compose(w, opts)
     this.present(w, opts)
   }
@@ -621,16 +679,20 @@ export class Renderer {
       B.rkx[j] = wx
       B.rkz[j] = wz
       B.rky[j] = wy
+      // the mirror flips the normal's vertical component
+      B.rnx[j] = nrm ? nrm[0] : 0
+      B.rny[j] = nrm ? -nrm[1] : 0
+      B.rnz[j] = nrm ? nrm[2] : 0
+      B.rsp[j] = spec
+      B.rhv[j] = this.tag
     }
     return true
   }
 
   /**
-   * Write an emissive pixel. Emissives that belong to something in the world
-   * pass its `depth`, so whatever stands in front hides them (and their bloom).
-   * `baseY` is the screen line to mirror about for pool reflections. `bloom` is how much the
-   * pixel feeds the glow: 1 for small lights, less for big bright areas, 0 for things that
-   * merely sit in the emissive layer (smoke, silhouettes, rain ripples...).
+   * Write an emissive pixel (rules 3, 5, 6 at the top of the file). It's dropped if an
+   * object already drawn is nearer; otherwise it composites over or under what's in the
+   * emissive layer by depth. Whether it finally shows is settled in resolveFx().
    */
   private putFx(px: number, py: number, c: Color, a: number, baseY: number | undefined, depth: number, bloom = 1) {
     const fx = this.fx
@@ -639,23 +701,29 @@ export class Renderer {
     if (px < 0 || px >= W || py < 0 || py >= H) return
     const i = py * W + px
     if (depth < this.fb.dep[i]) return
-    if (this.tag) this.fb.hv[i] = this.tag
-    fx.r[i] = c[0]
-    fx.g[i] = c[1]
-    fx.b[i] = c[2]
-    fx.a[i] = a
-    fx.bw[i] = bloom
+    if (depth >= fx.dep[i] && this.tag) fx.hv[i] = this.tag
+    over(fx.r, fx.g, fx.b, fx.a, fx.bw, fx.dep, i, c, a, bloom, depth)
     if (baseY === undefined) return
     const ry = Math.round(2 * baseY - py)
     if (ry < 0 || ry >= H) return
     const j = ry * W + px
-    if (this.fb.pool[j] && !this.fb.obj[j] && depth >= fx.rdep[j]) {
-      fx.rdep[j] = depth
-      fx.rr[j] = c[0]
-      fx.rg[j] = c[1]
-      fx.rb[j] = c[2]
-      fx.ra[j] = a
-      fx.rbw[j] = bloom
+    if (this.fb.pool[j] && !this.fb.obj[j]) over(fx.rr, fx.rg, fx.rb, fx.ra, fx.rbw, fx.rdep, j, c, a, bloom, depth)
+  }
+
+  /**
+   * Settle the emissive layer once everything is drawn (rule 5): an emissive behind the
+   * object in its pixel is hidden, and so is a reflected one behind the reflected object
+   * (or under something standing in the water). Visible emissives own the pixel's hover tag.
+   */
+  private resolveFx() {
+    const B = this.fb
+    const fx = this.fx
+    for (let i = 0; i < N; i++) {
+      if (fx.a[i] > 0) {
+        if (fx.dep[i] < B.dep[i]) fx.a[i] = 0
+        else if (fx.hv[i]) B.hv[i] = fx.hv[i]
+      }
+      if (fx.ra[i] > 0 && (B.obj[i] || (B.ra[i] && fx.rdep[i] < B.rdep[i]))) fx.ra[i] = 0
     }
   }
 
@@ -1504,6 +1572,7 @@ export class Renderer {
     const B = this.fb
     copyBuf(B, this.st)
     for (const k in this.fx) this.fx[k as keyof typeof this.fx].fill(0)
+    this.fx.dep.fill(SKY_DEPTH)
     this.fx.rdep.fill(SKY_DEPTH)
     this.labels.clear()
     this.tag = 0
@@ -1998,21 +2067,21 @@ export class Renderer {
 
     // Ambient moonlight (with a rim on surfaces that face the moon), plus every light source.
     const Lc: Color = [0, 0, 0]
-    const light = (i: number, x: number, z: number, y: number, ground: boolean) => {
+    const light = (x: number, z: number, y: number, ground: boolean, nx: number, ny: number, nz: number, spec: number, tag: number) => {
       let moon = 1
       let normal: [number, number, number] | null = null
-      if (!ground && useNormals && i >= 0 && B.nz[i] > 0) {
-        nrm[0] = B.nx[i]
-        nrm[1] = B.ny[i]
-        nrm[2] = B.nz[i]
+      if (!ground && useNormals && nz > 0) {
+        nrm[0] = nx
+        nrm[1] = ny
+        nrm[2] = nz
         normal = nrm
         moon = 0.5 + 1.3 * Math.max(0, nrm[0] * MOON[0] + nrm[1] * MOON[1] + nrm[2] * MOON[2])
       }
       Lc[0] = 0.15 * amb * moon
       Lc[1] = 0.18 * amb * moon
       Lc[2] = 0.27 * amb * moon
-      gatherLight(here, t, x, y, z, ground, ground ? groundGrain(x, z) : 0.5, normal, Lc, i >= 0 ? B.hv[i] : 0)
-      if (normal && B.sp[i] > 0) {
+      gatherLight(here, t, x, y, z, ground, ground ? groundGrain(x, z) : 0.5, normal, Lc, tag)
+      if (normal && spec > 0) {
         // metal: a tight warm glint where the surface faces the fire, a cool rim toward the moon
         const fire = lights[0]
         let lx = fire.x - x
@@ -2024,8 +2093,8 @@ export class Renderer {
         lz /= d
         const reach = Math.max(0, 1 - d / (fire.radius * 1.2))
         const hl = Math.hypot(lx, ly + VIEW[1], lz + VIEW[2]) || 1
-        const fs = Math.pow(Math.max(0, (normal[0] * lx + normal[1] * (ly + VIEW[1]) + normal[2] * (lz + VIEW[2])) / hl), 9) * reach * 2.2 * B.sp[i]
-        const ms = Math.pow(Math.max(0, normal[0] * MOON_H[0] + normal[1] * MOON_H[1] + normal[2] * MOON_H[2]), 7) * 0.45 * amb * B.sp[i]
+        const fs = Math.pow(Math.max(0, (normal[0] * lx + normal[1] * (ly + VIEW[1]) + normal[2] * (lz + VIEW[2])) / hl), 9) * reach * 2.2 * spec
+        const ms = Math.pow(Math.max(0, normal[0] * MOON_H[0] + normal[1] * MOON_H[1] + normal[2] * MOON_H[2]), 7) * 0.45 * amb * spec
         Lc[0] += fs * fire.color[0] + ms * 0.55
         Lc[1] += fs * fire.color[1] + ms * 0.65
         Lc[2] += fs * fire.color[2] + ms * 0.85
@@ -2038,7 +2107,7 @@ export class Renderer {
         here = tileLights[(y >> TILE_BITS) * TILES_X + (x >> TILE_BITS)]
         let r: number, g: number, b: number
         if (B.a[i]) {
-          light(i, B.kx[i], B.kz[i], B.ky[i], B.obj[i] === 0)
+          light(B.kx[i], B.kz[i], B.ky[i], B.obj[i] === 0, B.nx[i], B.ny[i], B.nz[i], B.sp[i], B.hv[i])
           r = B.r[i] * Lc[0]
           g = B.g[i] * Lc[1]
           b = B.b[i] * Lc[2]
@@ -2047,7 +2116,7 @@ export class Renderer {
             const ox = Math.round(Math.sin((y / RES) * 1.7 + t * 2.4) * 0.7 * RES)
             const j = y * W + Math.max(0, Math.min(W - 1, x + ox))
             if (B.ra[j]) {
-              light(-1, B.rkx[j], B.rkz[j], B.rky[j], false)
+              light(B.rkx[j], B.rkz[j], B.rky[j], false, B.rnx[j], B.rny[j], B.rnz[j], B.rsp[j], B.rhv[j])
               r += B.rr[j] * Lc[0] * 0.55
               g += B.rg[j] * Lc[1] * 0.55
               b += B.rb[j] * Lc[2] * 0.55
