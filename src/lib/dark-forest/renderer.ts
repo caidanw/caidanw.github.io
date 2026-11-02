@@ -2071,6 +2071,7 @@ export class Renderer {
       name: 'campfire',
       x: 0,
       y: FIRE_Y,
+      shadowY: FIRE_Y + 8,
       z: 0,
       radius: lightRadius(w),
       color: [1.7 * fi, 0.95 * fi, 0.42 * fi],
@@ -2232,6 +2233,7 @@ export class Renderer {
         {
           ...l,
           y: l.y + k.height,
+          shadowY: l.shadowY === undefined ? undefined : l.shadowY + k.height,
           radius: l.radius * k.radius,
           color: [l.color[0] * k.gain, l.color[1] * k.gain, l.color[2] * k.gain] as Color,
           wobble: l.wobble * k.wobble,

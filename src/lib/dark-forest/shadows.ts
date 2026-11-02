@@ -24,6 +24,8 @@ export interface Silhouette {
   x: number
   z: number
   s: number
+  /** Where the base really is, in screen pixels right of the (rounded) pixel the runs are measured from. */
+  ox: number
   /**
    * The silhouette as vertical runs, [dx, y0, y1] triples in screen pixels from the base:
    * a column dx px right of the base, filled from y0 up to y1 px above it.
@@ -48,14 +50,23 @@ export const DARKNESS = 0.85
 export class SilhouetteRecorder {
   private cells = new Set<number>()
   /** Columns are `col` pixels wide (finer for static things, coarser for moving ones). */
+  // runs are measured from the rounded base pixel, so a creature drifting by a fraction of a
+  // pixel doesn't reshuffle its columns; the fraction is kept to place them exactly
+  private bx: number
+  private by: number
+  private ox: number
   constructor(
     readonly x: number,
     readonly z: number,
-    readonly bx: number,
-    readonly by: number,
+    bx: number,
+    by: number,
     readonly s: number,
     readonly col = 2,
-  ) {}
+  ) {
+    this.bx = Math.round(bx)
+    this.by = Math.round(by)
+    this.ox = this.bx - bx
+  }
   add(px: number, py: number) {
     const cx = Math.floor((px - this.bx) / this.col)
     const cy = (this.by - py) >> 1
@@ -82,7 +93,7 @@ export class SilhouetteRecorder {
       }
     }
     flush()
-    return { x: this.x, z: this.z, s: this.s, runs: Int16Array.from(runs) }
+    return { x: this.x, z: this.z, s: this.s, ox: this.ox, runs: Int16Array.from(runs) }
   }
 }
 
@@ -95,12 +106,12 @@ function splat(map: ShadowMap, l: Light, sil: Silhouette) {
   // the silhouette turned to face the light: its width runs across the light's direction
   const px = -dz / d
   const pz = dx / d
-  const ly = Math.max(0.5, l.y)
+  const ly = Math.max(0.5, l.shadowY ?? l.y)
   const half = (map.n * map.cell) / 2
   const runs = sil.runs
   const colR = 1 / sil.s // half a column's width, in world units
   for (let k = 0; k < runs.length; k += 3) {
-    const u = runs[k] / sil.s
+    const u = (runs[k] + sil.ox) / sil.s
     const yBot = runs[k + 1] / sil.s
     const yTop = Math.min(runs[k + 2] / sil.s, ly * (1 - 1 / MAX_STRETCH)) // nothing past the stretch limit
     if (yBot >= yTop) continue
@@ -135,6 +146,11 @@ const MAX_STRETCH = 6
 function dab(map: ShadowMap, gx: number, gz: number, rad: number, v: number) {
   if (v <= 0) return
   const inv = 1 / map.cell
+  // at least a cell wide, with a soft rim a cell wide: thin strokes slide smoothly across the
+  // grid instead of popping from cell to cell
+  rad = Math.max(rad, map.cell * 0.9)
+  const soft = Math.max(map.cell, rad * 0.45)
+  const core = rad - soft
   const r2 = rad * rad
   const cx = (gx - map.x0) * inv
   const cz = (gz - map.z0) * inv
@@ -150,7 +166,7 @@ function dab(map: ShadowMap, gx: number, gz: number, rad: number, v: number) {
       const e2 = ex * ex + ez * ez
       if (e2 >= r2) continue
       const o = j * map.n + i
-      const a = v * Math.min(1, (1 - e2 / r2) * 2.2)
+      const a = v * Math.min(1, (rad - Math.sqrt(e2)) / (rad - core))
       if (a > map.occ[o]) map.occ[o] = a
     }
   }
@@ -185,7 +201,7 @@ export class ShadowMaps {
     const half = Math.min(120, Math.ceil((l.radius * 1.2) / 16) * 16)
     const cell = Math.max(0.5, (2 * half) / 220)
     const n = Math.ceil((2 * half) / cell)
-    const key = `${this.version}|${l.x.toFixed(1)}|${l.y.toFixed(1)}|${l.z.toFixed(1)}|${half}`
+    const key = `${this.version}|${l.x.toFixed(1)}|${(l.shadowY ?? l.y).toFixed(1)}|${l.z.toFixed(1)}|${half}`
     const name = l.name ?? `${l.x},${l.z}`
     let c = this.cache.get(name)
     if (!c || c.key !== key) {

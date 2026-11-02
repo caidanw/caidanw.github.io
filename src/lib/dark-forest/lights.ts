@@ -32,6 +32,11 @@ export interface Light {
   tail: number
   /** Cast soft ground shadows from casters standing in this light. */
   shadows: boolean
+  /**
+   * The height shadows are cast from, if not y. A big flame lights from low down but casts
+   * from higher up: its light is centred low, its shadows come from the whole flame.
+   */
+  shadowY?: number
   /** Varies the wobble pattern between lights. */
   seed: number
   /** What kind of light this is (for tuning) and which one (for the editor). */
