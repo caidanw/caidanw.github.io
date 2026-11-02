@@ -17,7 +17,7 @@
 import { vnoise, type Color } from './util'
 import { RES } from './world'
 import type { LightKind } from './settings'
-import { DARKNESS, shadowAt, type ShadowMap } from './shadows'
+import { DARKNESS, OBJECT_DARKNESS, shadowAt, shadowOnObject, type ShadowMap } from './shadows'
 
 export interface Light {
   x: number
@@ -157,7 +157,15 @@ export function gatherLight(
         const banded = Math.floor(f * BANDS + grain) / BANDS
         f = 0.55 * banded + 0.45 * f
       }
-    } else if (normal) {
+    } else {
+      // standing in someone else's shadow
+      if (l.shadow) {
+        const so = shadowOnObject(l.shadow, x, z, y, tag) * DARKNESS * OBJECT_DARKNESS
+        f *= 1 - so
+        tail *= 1 - so * 0.7
+      }
+    }
+    if (!ground && normal) {
       const ln = Math.hypot(dx, dy, dz) || 1
       const ndl = -(normal[0] * dx + normal[1] * dy + normal[2] * dz) / ln
       const lam = Math.min(1, Math.max(0, (ndl + 0.15) / 1.15))

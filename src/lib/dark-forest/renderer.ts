@@ -817,10 +817,10 @@ export class Renderer {
    * Everything `fn` draws is one shadow caster standing at world (x, z): its pixels become the
    * caster's silhouette (shadows.ts). Nested calls join the outer caster.
    */
-  private casting<T>(B: Buf, x: number, z: number, fn: () => T): T {
+  private casting<T>(B: Buf, x: number, z: number, fn: () => T, tag = this.tag): T {
     if (this.recorder) return fn()
     const [bx, by, s] = project(x, 0, z)
-    this.recorder = new SilhouetteRecorder(x, z, bx, by, s, B === this.st ? 2 : 4)
+    this.recorder = new SilhouetteRecorder(x, z, bx, by, s, B === this.st ? 2 : 4, tag)
     try {
       return fn()
     } finally {
@@ -831,8 +831,8 @@ export class Renderer {
   }
 
   private sprite(...args: Parameters<Renderer['spriteNow']>) {
-    const [B, , wx, wz] = args
-    return this.casting(B, wx, wz, () => this.spriteNow(...args))
+    const [B, , wx, wz, , , opts] = args
+    return this.casting(B, wx, wz, () => this.spriteNow(...args), opts?.hover ? tagId(opts.hover.key) : this.tag)
   }
 
   private spriteNow(
