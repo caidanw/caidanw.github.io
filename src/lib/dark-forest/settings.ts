@@ -1,3 +1,5 @@
+import { DATA } from './art'
+
 /**
  * Everything the renderer can be told, in one live object. The page's toggles and the editor
  * write here; the renderer reads it every frame, so changes show on the next frame.
@@ -50,7 +52,17 @@ export interface LightTune {
   shadows: 'default' | 'on' | 'off'
 }
 
-const tune = (): LightTune => ({ on: true, gain: 1, radius: 1, height: 0, wobble: 1, tail: 1, shadows: 'default' })
+/** A kind's tuning as saved in data/lights.json (the editor's 'save as defaults'). */
+const tune = (kind: LightKind): LightTune => ({
+  on: true,
+  gain: 1,
+  radius: 1,
+  height: 0,
+  wobble: 1,
+  tail: 1,
+  shadows: 'default',
+  ...(DATA.lights[kind] as Partial<LightTune>),
+})
 
 function defaults() {
   return {
@@ -87,7 +99,7 @@ function defaults() {
       /** Bloom multiplier. */
       bloom: 1,
     },
-    lights: Object.fromEntries(LIGHT_KINDS.map(({ kind }) => [kind, tune()])) as Record<LightKind, LightTune>,
+    lights: Object.fromEntries(LIGHT_KINDS.map(({ kind }) => [kind, tune(kind)])) as Record<LightKind, LightTune>,
     /** Highlight this kind of light in the overlay. */
     selectedLight: null as LightKind | null,
     /** Clicking the scene: play (drop a stick) or inspect a pixel. */

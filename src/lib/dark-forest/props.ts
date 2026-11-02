@@ -1,11 +1,9 @@
 /**
- * Character-grid art for the props (see sprites.ts for the format), with palettes and the
- * parts their normals are built from. Drawn at the full resolution, without an outline.
+ * Prop art (see sprites.ts for the format), drawn at the full resolution without an outline.
+ * The art is data (data/props.json); these are live views onto it (art.ts).
  */
-import { C } from './world'
-import { hex } from './util'
+import { DATA, resolvePalette, type Palette, type Rows } from './art'
 import type { Part } from './normals'
-import type { Palette, Rows } from './sprites'
 
 /** A prop's art: rows, the column its anchor sits on, palette, parts, and per-char shine. */
 export interface PropArt {
@@ -16,281 +14,31 @@ export interface PropArt {
   shine?: Record<string, number>
 }
 
+/** Every prop's art, by name: the same objects the renderer draws, kept in step with the data. */
+export const PROP_ART: Record<string, PropArt> = Object.fromEntries(
+  Object.entries(DATA.props)
+    .filter(([k]) => k !== 'relics')
+    .map(([k, d]) => {
+      const p = d as (typeof DATA.props)[string]
+      return [k, { rows: p.rows, anchor: p.anchor, pal: resolvePalette(p.palette), parts: p.parts as Part[], shine: p.shine }]
+    }),
+)
+
 /** The knight's own sword, planted point-down: round pommel, wrapped grip, a bevelled blade. */
-export const SWORD: PropArt = {
-  rows: [
-    '....ooo....',
-    '...oOOOo...',
-    '....ooo....',
-    '....rRr....',
-    '....Rrr....',
-    '....rRr....',
-    '....Rrr....',
-    '....rRr....',
-    '.gggggggggg',
-    '..GGGGGGG..',
-    '....sSd....',
-    '....sSd....',
-    '....sSd....',
-    '....sSd....',
-    '....sSd....',
-    '....sSd....',
-    '....sSd....',
-    '....sSd....',
-    '....sSd....',
-    '....sSd....',
-    '....sSd....',
-    '....sSd....',
-    '....sSd....',
-    '....sSd....',
-    '....sSd....',
-    '....sSd....',
-    '....sSd....',
-    '....sSd....',
-    '....sSd....',
-    '....sSd....',
-    '....sSd....',
-    '....sSd....',
-    '....sSd....',
-    '....sSd....',
-    '....sSd....',
-    '....sSd....',
-    '....sSd....',
-    '....sSd....',
-  ],
-  anchor: 5,
-  pal: { o: C.pommel, O: hex('#e8c978'), r: C.grip, R: hex('#2a1d14'), g: C.guard, G: hex('#4f4430'), s: C.blade, S: hex('#94918b'), d: C.bladeD },
-  parts: [
-    { chars: 'oO', kind: 'dome' },
-    { chars: 'rR', kind: 'cylinder' },
-    { chars: 'gG', kind: 'cylinder' },
-    { chars: 'sSd', kind: 'cylinder' },
-  ],
-  shine: { o: 1, O: 1, g: 0.8, s: 1, S: 1, d: 0.8 },
-}
-
+export const SWORD = PROP_ART.sword
 /** His pack: a leather knapsack with a flap and a brass buckle, a bedroll strapped on top. */
-export const PACK: PropArt = {
-  rows: [
-    '..eeeeeeeeeeE.',
-    '.eeeeeeeeeeEEE',
-    '..eeeeeeeeeeE.',
-    '..pppppppppp..',
-    '.pPpppppppppp.',
-    '.pPffffffffpp.',
-    '.pPffffffffpp.',
-    '.pPppppypppp..',
-    '.pPpppppppppp.',
-    '.ppppppppppppp',
-    '..pppppppppp..',
-  ],
-  anchor: 7,
-  pal: { e: C.bedroll, E: hex('#3a3a38'), p: C.pack, P: C.packHi, f: hex('#2e251c'), y: hex('#c9a45a') },
-  parts: [
-    { chars: 'eE', kind: 'dome' },
-    { chars: 'pPfy', kind: 'dome' },
-  ],
-  shine: { y: 0.8 },
-}
-
+export const PACK = PROP_ART.pack
 /** One split log, end grain to the right. */
-export const LOG: PropArt = {
-  rows: ['lllllllE.', 'llllllEyE', 'LLLLLLEyE', 'LLLLLLLE.'],
-  anchor: 4,
-  pal: { l: C.log, L: hex('#5e4430'), E: C.logEnd, y: hex('#e0bd8c') },
-  parts: [
-    { chars: 'lL', kind: 'dome' },
-    { chars: 'Ey', kind: 'flat' },
-  ],
-}
-
+export const LOG = PROP_ART.log
 /** A little skull at the edge of the ashes. */
-export const SKULL: PropArt = {
-  rows: ['.bbb.', 'bkbkb', 'bbbbB', '.B.B.'],
-  anchor: 2,
-  pal: { b: C.bone, B: C.boneD, k: C.char },
-  parts: [{ chars: 'bBk', kind: 'dome' }],
-}
-
+export const SKULL = PROP_ART.skull
 /** The road out: a post with a lantern hung from its arm and an arrow sign pointing away. */
-export const LANTERN_POST: PropArt = {
-  rows: [
-    '..........................',
-    '..........................',
-    '...........wwwwwwwwwwwww..',
-    '...........WWWWWWWWWWWWW..',
-    '............wW.....W.i....',
-    '............wW....W.iii...',
-    '............wW...W.iiiii..',
-    '............wW..W..iGGGi..',
-    '............wW.W...iGggi..',
-    '............wWW....iGgGi..',
-    '............wW.....iGGGi..',
-    '............wW.....iiiii..',
-    '............wW......iii...',
-    '............wW............',
-    '............wW............',
-    '............wW............',
-    '............wW............',
-    '............wW............',
-    '............wW............',
-    '............wW............',
-    '...n.......nwW............',
-    '..sssssssssssW............',
-    '.sssssssssssSW............',
-    'sssssssssssSSW............',
-    '.SSSSSSSSSSSSW............',
-    '..ssssssssssSW............',
-    '............wW............',
-    '............wW............',
-    '............wW............',
-    '............wW............',
-    '............wW............',
-    '............wW............',
-    '............wW............',
-    '............wW............',
-    '............wW............',
-    '............wW............',
-    '............wW............',
-    '............wW............',
-    '............wW............',
-    '............wW............',
-    '............wW............',
-    '............wW............',
-    '............wW............',
-    '............wW............',
-    '............wW............',
-    '............wW............',
-  ],
-  anchor: 12,
-  pal: { w: C.wood, W: hex('#36291d'), i: C.iron, G: C.door, g: C.door, s: C.sign, S: C.signD, n: C.iron },
-  parts: [
-    { chars: 'wW', kind: 'cylinder' },
-    { chars: 'iGg', kind: 'cylinder' },
-    { chars: 'sSn', kind: 'flat' },
-  ],
-  shine: { i: 0.6 },
-}
+export const LANTERN_POST = PROP_ART.lanternPost
 
 /**
  * The relic planted in the ashes, the bonfire's coiled sword reimagined. Bottom row is the
  * ash line; 'g' pixels are metal (or bone tips) that warm with the fire and glow.
  */
-export const RELIC_ART = {
-  antler: {
-    rows: [
-      '.gg..............gg',
-      '..bb...gg..gg...bb.',
-      '..bb...bb..bb...bb.',
-      '..bb..bb....bb..bb.',
-      '...bb.bb....bb.bb..',
-      '....bbbb....bbbb...',
-      '....bbb......bbb...',
-      '.....bb......bbb...',
-      '.....bb......bb....',
-      '......bb.....bb....',
-      '......bb....bb.....',
-      '.......bb...bb.....',
-      '.......bb..bb......',
-      '........bb.bb......',
-      '........bbbb.......',
-      '....gg...bbb.......',
-      '.....bb..bb........',
-      '......bb.bb........',
-      '.......bbbb........',
-      '........bbb........',
-      '.........bb........',
-      '.........bb........',
-      '.........bb........',
-      '.........bb........',
-      '.........bb........',
-      '.........bb........',
-      '.........bb........',
-    ] as Rows,
-    pal: { b: C.bone, g: C.bone } as Palette,
-  },
-  crook: {
-    rows: [
-      '................',
-      '................',
-      '......wwwwwww...',
-      '....www....wwww.',
-      '....ww.......ww.',
-      '...www........ww',
-      '...ww.........ww',
-      '...ww...ggg.....',
-      '...www.gggw.....',
-      '....ww...ww...ww',
-      '.....wwwww....ww',
-      '.............ww.',
-      '.............ww.',
-      '.............ww.',
-      '.............ww.',
-      '............ww..',
-      '...........www..',
-      '...........ww...',
-      '...........ww...',
-      '...........ww...',
-      '...........ii...',
-      '...........ii...',
-      '...........ww...',
-      '...........ww...',
-      '...........ww...',
-      '...........ww...',
-      '...........ww...',
-      '...........ww...',
-      '............ww..',
-      '............ww..',
-      '...........iiw..',
-      '...........iiw..',
-      '............ww..',
-      '............ww..',
-      '............ww..',
-      '............ww..',
-      '............ww..',
-      '............ww..',
-      '............ww..',
-      '............ww..',
-    ] as Rows,
-    pal: { w: C.relicWood, i: C.relicIronHi, g: C.relicIron } as Palette,
-  },
-  key: {
-    rows: [
-      '.....gggg.....',
-      '...gggggggg...',
-      '..ggg....ggg..',
-      '.ggg......ggg.',
-      '.gg........gg.',
-      'gg..........gg',
-      'gg..........gg',
-      'gg..........gg',
-      'gg..........gg',
-      '.gg........gg.',
-      '.ggg......ggg.',
-      '..ggg....ggg..',
-      '...gggggggg...',
-      '.....gkkg.....',
-      '......kk......',
-      '......kk......',
-      '......kk......',
-      '......kk......',
-      '......kk......',
-      '......kk......',
-      '......kk......',
-      '......kk......',
-      '......kk......',
-      '......kk......',
-      '......kkkkkkk.',
-      '......kkkkkkk.',
-      '......kk...kk.',
-      '......kk...kk.',
-      '......kkkkkkk.',
-      '......kkkkkkk.',
-      '......kk......',
-      '......kk......',
-      '......kk......',
-      '......kk......',
-    ] as Rows,
-    pal: { g: C.relicIron, k: C.relicIronHi } as Palette,
-  },
-}
+export const RELIC_ART = Object.fromEntries(
+  Object.entries(DATA.props.relics).map(([k, r]) => [k, { rows: r.rows as Rows, pal: resolvePalette(r.palette) }]),
+) as Record<'antler' | 'crook' | 'key', { rows: Rows; pal: Palette }>

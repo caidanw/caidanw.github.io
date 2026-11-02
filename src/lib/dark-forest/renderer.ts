@@ -79,7 +79,10 @@ import {
   GLOWCAP,
   GLOWCAP_PAL,
   GLOWCAP_PARTS,
-  KEEPER_TRIM,
+  KEEPER_PAL,
+  KEEPER_PAL_ELDER,
+  KEEPER_SHINE,
+  CROW_PAL,
   KNIGHT,
   KNIGHT_KNEEL,
   KNIGHT_NOD,
@@ -1747,14 +1750,14 @@ export class Renderer {
       const elder = isElder(m)
       const [, by] = project(m.x, 0, m.z)
       const sink = st === 'wilting' ? Math.round(m.sink * 9) : 0
-      const pal = keeper ? { ...(elder ? MUSH_PAL_ELDER : MUSH_PAL), ...KEEPER_TRIM } : elder ? MUSH_PAL_ELDER : MUSH_PAL
+      const pal = keeper ? (elder ? KEEPER_PAL_ELDER : KEEPER_PAL) : elder ? MUSH_PAL_ELDER : MUSH_PAL
       const sp = this.sprite(B, this.mushFrame(m, w, keeper), m.x, m.z, pal, m.flip, {
         glowChar: 'w',
         lift: hop - sink,
         sinkTo: sink ? by : undefined,
         hover,
         parts: MUSH_PARTS,
-        shine: keeper ? { h: 1 } : undefined,
+        shine: keeper ? KEEPER_SHINE : undefined,
       })
       caps.push({ ...sp, elder, key })
       if (m.carrying) this.tagged(key, () => this.drawStick(B, m.x, m.z, sp.h / RES + 1 + hop))
@@ -1796,7 +1799,7 @@ export class Renderer {
         CROW[0].forEach((row, r) =>
           [...row].forEach((ch, c) => {
             if (ch !== '.')
-              this.put(B, px + (lookLeft ? 7 - c : c) - 4, py - 7 + r, ch === 'b' ? C.iron : C.crow, PROPS.trigon.x, PROPS.trigon.z, 40, py, PROPS.trigon.z + 1)
+              this.put(B, px + (lookLeft ? 7 - c : c) - 4, py - 7 + r, CROW_PAL[ch] ?? C.crow, PROPS.trigon.x, PROPS.trigon.z, 40, py, PROPS.trigon.z + 1)
           }),
         ),
       )
@@ -1832,7 +1835,7 @@ export class Renderer {
       this.tagged('crow', () =>
         CROW[1 + (((t * 8) % 2) | 0)].forEach((row, r) =>
           [...row].forEach((ch, c) => {
-            if (ch !== '.') this.putFx(K.x + c - 5, K.y + r - 2, ch === 'b' ? C.iron : C.crow, 1, undefined, PROPS.trigon.z + 1, 0) // it flies about as far off as the trigon
+            if (ch !== '.') this.putFx(K.x + c - 5, K.y + r - 2, CROW_PAL[ch] ?? C.crow, 1, undefined, PROPS.trigon.z + 1, 0) // it flies about as far off as the trigon
           }),
         ),
       )

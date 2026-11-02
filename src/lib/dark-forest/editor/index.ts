@@ -322,7 +322,7 @@ export function mountEditor(): Editor {
         'button',
         {
           onclick: () => {
-            settings.lights[kind] = defaultLightTune()
+            settings.lights[kind] = defaultLightTune(kind)
             refreshAll()
           },
         },

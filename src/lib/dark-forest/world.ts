@@ -3,7 +3,8 @@
  * World space is a ground plane (x right, z toward the camera, y up) with the
  * campfire at the origin.
  */
-import { clamp, hex, rngFrom, vnoise, type Color } from './util'
+import { WORLD } from './art'
+import { clamp, rngFrom, vnoise } from './util'
 
 // ---------- framebuffer + camera (low 3/4 "stage" view) ----------
 /**
@@ -37,85 +38,8 @@ export function unproject(sx: number, sy: number): [number, number] | null {
 export const mistAt = (z: number): number => clamp((-z - 28) / 58) * 0.88
 
 // ---------- palette ----------
-export const C = {
-  grassA: hex('#283830'),
-  grassB: hex('#334438'),
-  moss: hex('#3c4e3a'),
-  dirt: hex('#4d4236'),
-  path: hex('#43392e'),
-  shore: hex('#3b3a31'),
-  water: hex('#0a1520'),
-  mist: hex('#1c2737'),
-  trunk: hex('#25221e'),
-  trunkRim: hex('#4c4d44'),
-  canopy: hex('#1c2a2a'),
-  canopyD: hex('#141f20'),
-  canopyHi: hex('#36504b'),
-  canopyRim: hex('#5f817a'),
-  bush: hex('#16231f'),
-  tuft: hex('#3e5a3e'),
-  reed: hex('#2f4a34'),
-  reedHi: hex('#4f6e4a'),
-  cattail: hex('#5a3a22'),
-  pad: hex('#3d6a42'),
-  flower: hex('#c9c6a0'),
-  iron: hex('#4b433d'),
-  ironHi: hex('#8a7c70'),
-  ironRim: hex('#b8a896'),
-  ironD: hex('#2a2522'),
-  blade: hex('#b9b6b0'),
-  bladeD: hex('#6f6c68'),
-  guard: hex('#7a6a4a'),
-  grip: hex('#3b2a1e'),
-  pommel: hex('#c9a24a'),
-  stick: hex('#6b4f33'),
-  stickD: hex('#4a3624'),
-  log: hex('#7a5a3a'),
-  logEnd: hex('#c9a070'),
-  stone: hex('#6a655a'),
-  stoneD: hex('#4a463e'),
-  stoneHi: hex('#8a8476'),
-  hutCap: hex('#8f4b3c'),
-  hutCapHi: hex('#b2705a'),
-  hutGill: hex('#5a3028'),
-  hutStemHi: hex('#e2d8c0'),
-  hutFrame: hex('#7a5f45'),
-  hutInside: hex('#140d08'),
-  hutDoor: hex('#4a3424'),
-  hutDoorD: hex('#33241a'),
-  hutCapD: hex('#6e382d'),
-  hutSpot: hex('#d9c7b0'),
-  hutStem: hex('#cfc2a6'),
-  hutStemD: hex('#a89c84'),
-  door: hex('#1a1410'),
-  helm: hex('#8d887c'),
-  rust: hex('#6b4a32'),
-  wood: hex('#4a3a2a'),
-  sign: hex('#5a4630'),
-  signD: hex('#3a2c20'),
-  packHi: hex('#5a4a3a'),
-  pack: hex('#3e3226'),
-  bedroll: hex('#2a2a2a'),
-  candle: hex('#d9d0bd'),
-  frog: hex('#5f8a4a'),
-  frogD: hex('#3e5e30'),
-  crow: hex('#0b0b0e'),
-  outline: hex('#0c0a09'),
-  ash: hex('#8f887b'),
-  ashD: hex('#5f594f'),
-  bone: hex('#ddd4c1'),
-  boneD: hex('#9c937f'),
-  char: hex('#1d1814'),
-  logLit: hex('#8a6440'),
-  moss2: hex('#4a5e3c'),
-  menhir: hex('#4a4740'),
-  menhirHi: hex('#6a665c'),
-  menhirD: hex('#302e2a'),
-  relicWood: hex('#5e4632'),
-  relicWoodHi: hex('#8a6c4e'),
-  relicIron: hex('#7c7468'),
-  relicIronHi: hex('#b0a694'),
-} satisfies Record<string, Color>
+/** The world palette (data/palette.json, edited in the editor): every named colour in the scene. */
+export const C = WORLD
 
 // ---------- layout ----------
 export interface Point {

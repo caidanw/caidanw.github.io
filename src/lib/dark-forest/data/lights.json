@@ -1,0 +1,101 @@
+{
+  "fire": {
+    "on": true,
+    "gain": 1,
+    "radius": 1,
+    "height": 0,
+    "wobble": 1,
+    "tail": 1,
+    "shadows": "default"
+  },
+  "lantern": {
+    "on": true,
+    "gain": 1,
+    "radius": 1,
+    "height": 0,
+    "wobble": 1,
+    "tail": 1,
+    "shadows": "default"
+  },
+  "candle": {
+    "on": true,
+    "gain": 1,
+    "radius": 1,
+    "height": 0,
+    "wobble": 1,
+    "tail": 1,
+    "shadows": "default"
+  },
+  "window": {
+    "on": true,
+    "gain": 1,
+    "radius": 1,
+    "height": 0,
+    "wobble": 1,
+    "tail": 1,
+    "shadows": "default"
+  },
+  "rune": {
+    "on": true,
+    "gain": 1,
+    "radius": 1,
+    "height": 0,
+    "wobble": 1,
+    "tail": 1,
+    "shadows": "default"
+  },
+  "cap": {
+    "on": true,
+    "gain": 1,
+    "radius": 1,
+    "height": 0,
+    "wobble": 1,
+    "tail": 1,
+    "shadows": "default"
+  },
+  "ember": {
+    "on": true,
+    "gain": 1,
+    "radius": 1,
+    "height": 0,
+    "wobble": 1,
+    "tail": 1,
+    "shadows": "default"
+  },
+  "carried": {
+    "on": true,
+    "gain": 1,
+    "radius": 1,
+    "height": 0,
+    "wobble": 1,
+    "tail": 1,
+    "shadows": "default"
+  },
+  "foxfire": {
+    "on": true,
+    "gain": 1,
+    "radius": 1,
+    "height": 0,
+    "wobble": 1,
+    "tail": 1,
+    "shadows": "default"
+  },
+  "glowcap": {
+    "on": true,
+    "gain": 1,
+    "radius": 1,
+    "height": 0,
+    "wobble": 1,
+    "tail": 1,
+    "shadows": "default"
+  },
+  "firefly": {
+    "on": true,
+    "gain": 1,
+    "radius": 1,
+    "height": 0,
+    "wobble": 1,
+    "tail": 1,
+    "shadows": "default"
+  }
+}
