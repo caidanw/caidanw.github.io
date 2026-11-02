@@ -36,6 +36,7 @@
  *   6. Objects are opaque. Emissives may be translucent (smoke, glows); a
  *      translucent emissive composites "over" by depth with what's already
  *      in its pixel (in front: over it; behind: under it), never replacing it.
+ *      Light that should pile up (the front sheet of the flame) adds instead.
  *
  * Static scenery is also drawn back to front, which only decides ties.
  */
@@ -175,7 +176,8 @@ const TRIGON_AT = (() => {
 
 /**
  * Composite an emissive into one pixel of a layer (straight alpha), over or under what's
- * there by depth. The pixel keeps the nearer depth.
+ * there by depth, or (`add`, for light like flames) added to it. The pixel keeps the nearer
+ * depth. Colours may go above 1 where light piles up; the output clamps.
  */
 function over(
   R: Float32Array,
@@ -189,8 +191,20 @@ function over(
   a: number,
   bloom: number,
   depth: number,
+  add = false,
 ) {
   const ea = A[i]
+  if (add && ea > 0) {
+    // light adds up: overlapping flames get hotter, whatever order they're drawn in
+    const oa = Math.min(1, ea + a * (1 - ea))
+    R[i] = (R[i] * ea + c[0] * a) / oa
+    G[i] = (G[i] * ea + c[1] * a) / oa
+    Bl[i] = (Bl[i] * ea + c[2] * a) / oa
+    BW[i] = Math.max(BW[i], bloom)
+    A[i] = oa
+    if (depth > D[i]) D[i] = depth
+    return
+  }
   if (ea <= 0) {
     R[i] = c[0]
     G[i] = c[1]
@@ -694,7 +708,7 @@ export class Renderer {
    * object already drawn is nearer; otherwise it composites over or under what's in the
    * emissive layer by depth. Whether it finally shows is settled in resolveFx().
    */
-  private putFx(px: number, py: number, c: Color, a: number, baseY: number | undefined, depth: number, bloom = 1) {
+  private putFx(px: number, py: number, c: Color, a: number, baseY: number | undefined, depth: number, bloom = 1, add = false) {
     const fx = this.fx
     px = Math.round(px)
     py = Math.round(py)
@@ -702,12 +716,12 @@ export class Renderer {
     const i = py * W + px
     if (depth < this.fb.dep[i]) return
     if (depth >= fx.dep[i] && this.tag) fx.hv[i] = this.tag
-    over(fx.r, fx.g, fx.b, fx.a, fx.bw, fx.dep, i, c, a, bloom, depth)
+    over(fx.r, fx.g, fx.b, fx.a, fx.bw, fx.dep, i, c, a, bloom, depth, add)
     if (baseY === undefined) return
     const ry = Math.round(2 * baseY - py)
     if (ry < 0 || ry >= H) return
     const j = ry * W + px
-    if (this.fb.pool[j] && !this.fb.obj[j]) over(fx.rr, fx.rg, fx.rb, fx.ra, fx.rbw, fx.rdep, j, c, a, bloom, depth)
+    if (this.fb.pool[j] && !this.fb.obj[j]) over(fx.rr, fx.rg, fx.rb, fx.ra, fx.rbw, fx.rdep, j, c, a, bloom, depth, add)
   }
 
   /**
@@ -1828,28 +1842,54 @@ export class Renderer {
       })
     })
 
-    // the flame: its size follows the fire's heat, so a fresh log swells it gradually
-    const fh = (4 + 20 * heat) * RES
-    this.tagged('fire', () => {
-      const coals = Math.round(3 + 3 * Math.min(1, heat))
-      for (let kk = -coals * RES; kk <= coals * RES + 1; kk++)
-        for (let j = 1; j <= 2; j++) this.putFx(fireX + kk, fireY + j, FLAME[hash(kk, j + ((t * 8) | 0)) < 0.5 ? 1 : 2], 1, groundY, 0.2, 0.3)
-      const half0 = (2.5 + 4.5 * heat) * RES
-      for (let y = Math.floor(fireY - fh - 2); y <= fireY; y++) {
-        const dy = (fireY - y) / fh
-        if (dy > 1 || dy < 0) continue
-        const sway = Math.sin(t * 3 + dy * 4) * dy * 2.5 * RES
-        const half = half0 * Math.pow(1 - dy, 0.7) + 0.5
-        for (let x = fireX - 10 * RES; x <= fireX + 10 * RES; x++) {
-          const n = vnoise((x / RES) * 0.42, (y / RES) * 0.38 + t * 7)
+    // The flame is a volume: two translucent sheets curved around the middle of the fire, like
+    // a cylinder. The back sheet (deep reds, slower) curves away from the camera, the front
+    // one (golds, faster, more see-through) bulges toward it, its base dipping into the near
+    // side of the stone ring. Each pixel's depth follows the curve, so the relic stands inside
+    // the fire, the logs show through it, and anyone in front of the ring still covers it.
+    // The front sheet is light added on top: where the sheets overlap the fire burns hotter.
+    // Size follows the fire's heat, so a fresh log swells it gradually.
+    const flame = (front: boolean) => {
+      const side = front ? 1 : -1
+      const half0 = (front ? 3 + 5 * heat : 2.6 + 4.4 * heat) * RES
+      const fh = (front ? 4 + 18 * heat : 5 + 23 * heat) * RES
+      const dip = front ? 5 : 3 // how far the base curves toward (or away from) the camera, in pixels
+      const seed = front ? 31 : 0
+      const xr = Math.ceil(half0 + 4 * RES)
+      for (let x = fireX - xr; x <= fireX + xr; x++) {
+        const ub = (x - fireX) / half0
+        const baseY = fireY + Math.round(side * dip * Math.sqrt(Math.max(0, 1 - ub * ub)))
+        for (let y = Math.floor(baseY - fh - 2); y <= baseY; y++) {
+          const dy = (baseY - y) / fh
+          if (dy > 1 || dy < 0) continue
+          const sway = Math.sin(t * (front ? 3.6 : 2.6) + dy * 4 + seed) * dy * 2.5 * RES
+          const half = half0 * Math.pow(1 - dy, 0.7) + 0.5
+          const n = front ? vnoise((x / RES) * 0.5 + seed, (y / RES) * 0.45 + t * 8.5) : vnoise((x / RES) * 0.36, (y / RES) * 0.32 + t * 6)
           const v = (1 - Math.abs(x - fireX - sway) / half) * (1 - dy * 0.6) + (n - 0.5) * 0.9 - dy * 0.35
           if (v < 0.12) continue
-          this.putFx(x, y, FLAME[v > 0.8 ? 3 : v > 0.52 ? 2 : v > 0.3 ? 1 : 0], 1, groundY, 0.2, 0.22)
+          const u = Math.max(-1, Math.min(1, (x - fireX - sway) / half))
+          const depth = side * (0.3 + 4 * Math.sqrt(1 - u * u) * (1 - dy))
+          const k = front ? (v > 0.7 ? 3 : v > 0.45 ? 2 : 1) : v > 0.75 ? 2 : v > 0.4 ? 1 : 0
+          const a = front ? 0.22 + 0.45 * clamp(v) : 0.55 + 0.4 * clamp(v)
+          this.putFx(x, y, FLAME[k], a, groundY, depth, front ? 0.22 : 0.18, front)
         }
       }
+    }
+    this.tagged('fire', () => {
+      // a bed of coals in the middle of the ring, flickering pixel by pixel
+      const coals = (3 + 3 * Math.min(1, heat)) * RES
+      disc(
+        (px, py) => this.putFx(px, py, FLAME[hash(px, py * 3 + ((t * 8) | 0)) < 0.5 ? 1 : 2], 1, groundY, (py - fireY) * 0.8, 0.3),
+        fireX,
+        fireY + 2,
+        coals,
+        3,
+      )
+      flame(false)
     })
-    // The relic stands in the flames. Like the bonfire's sword it is a dark silhouette where the
-    // flame is behind it, lit warm by the fire where it rises above, and its metal glows with heat.
+    // The relic stands in the middle of the fire, between the two sheets. Like the bonfire's
+    // sword it is a dark silhouette where the back flame is behind it, lit warm by the fire
+    // where it rises above, its metal glows with heat, and the front flame licks over it.
     this.tagged('relic', () => {
       const art = RELICS[this.relic]
       const h = art.rows.length
@@ -1864,10 +1904,11 @@ export class Renderer {
           const lit: Color = [art.pal[ch][0] * (0.5 + 1.3 * heat), art.pal[ch][1] * (0.4 + 0.8 * heat), art.pal[ch][2] * (0.35 + 0.45 * heat)]
           const base = inFlame ? mix(art.pal[ch], C.char, 0.8) : lit
           const col = ch === 'g' ? mix(base, GLOW.carving, warm * (0.6 + 0.3 * vnoise(t * 3, c + r))) : base
-          this.putFx(px, py, col, 1, groundY, 0.31, ch === 'g' ? 0.5 * warm : 0) // the bone/wood itself doesn't glow
+          this.putFx(px, py, col, 1, groundY, 0, ch === 'g' ? 0.5 * warm : 0) // the bone/wood itself doesn't glow
         }),
       )
     })
+    this.tagged('fire', () => flame(true))
     // smoke when the fire is low or it's raining (steam)
     const smoky = clamp((0.5 - heat) * 1.4) + (isRaining(w) ? 0.35 : 0)
     if (smoky > 0.02) {
