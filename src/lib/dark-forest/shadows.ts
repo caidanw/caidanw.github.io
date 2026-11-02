@@ -24,6 +24,8 @@ export interface Silhouette {
   x: number
   z: number
   s: number
+  /** Column width in screen pixels (each run covers one column). */
+  col: number
   /** Where the base really is, in screen pixels right of the (rounded) pixel the runs are measured from. */
   ox: number
   /**
@@ -93,7 +95,7 @@ export class SilhouetteRecorder {
       }
     }
     flush()
-    return { x: this.x, z: this.z, s: this.s, ox: this.ox, runs: Int16Array.from(runs) }
+    return { x: this.x, z: this.z, s: this.s, col: this.col, ox: this.ox, runs: Int16Array.from(runs) }
   }
 }
 
@@ -109,7 +111,7 @@ function splat(map: ShadowMap, l: Light, sil: Silhouette) {
   const ly = Math.max(0.5, l.shadowY ?? l.y)
   const half = (map.n * map.cell) / 2
   const runs = sil.runs
-  const colR = 1 / sil.s // half a column's width, in world units
+  const colR = sil.col / 2 / sil.s // half a column's width, in world units: neighbouring strokes meet
   for (let k = 0; k < runs.length; k += 3) {
     const u = (runs[k] + sil.ox) / sil.s
     const yBot = runs[k + 1] / sil.s
@@ -128,11 +130,12 @@ function splat(map: ShadowMap, l: Light, sil: Silhouette) {
       if (Math.abs(gx - l.x) > half || Math.abs(gz - l.z) > half) break
       const spread = Math.hypot(gx - wx, gz - wz)
       // wider and fainter the further it stretches: a big soft light, not a point
-      const rad = colR * t + spread * 0.07 + map.cell * 0.5
+      const core = colR * t + spread * 0.04
+      const soft = map.cell * 0.75 + spread * 0.06
       const fade = Math.min(1, Math.max(0, 1 - (t - 1) / (MAX_STRETCH - 1)))
-      dab(map, gx, gz, rad, fade)
+      dab(map, gx, gz, core, soft, fade)
       // the next dab, about half a dab further along the ground
-      const step = Math.max(map.cell * 0.6, rad * 0.5)
+      const step = Math.max(map.cell * 0.5, (core + soft) * 0.4)
       const dist = Math.hypot(wx - l.x, wz - l.z)
       t += step / Math.max(0.01, dist)
     }
@@ -142,15 +145,15 @@ function splat(map: ShadowMap, l: Light, sil: Silhouette) {
 /** Parts of a caster whose shadow would stretch further than this (times its own distance) cast none. */
 const MAX_STRETCH = 6
 
-/** A soft round dab of shadow: a flat core with a soft rim. Keeps the darkest. */
-function dab(map: ShadowMap, gx: number, gz: number, rad: number, v: number) {
+/**
+ * A soft round dab of shadow: solid out to `core`, then fading over `soft` more (at least about
+ * a map cell, so thin strokes slide across the map instead of popping cell to cell). Keeps the
+ * darkest.
+ */
+function dab(map: ShadowMap, gx: number, gz: number, core: number, soft: number, v: number) {
   if (v <= 0) return
   const inv = 1 / map.cell
-  // at least a cell wide, with a soft rim a cell wide: thin strokes slide smoothly across the
-  // grid instead of popping from cell to cell
-  rad = Math.max(rad, map.cell * 0.9)
-  const soft = Math.max(map.cell, rad * 0.45)
-  const core = rad - soft
+  const rad = core + soft
   const r2 = rad * rad
   const cx = (gx - map.x0) * inv
   const cz = (gz - map.z0) * inv
@@ -166,7 +169,7 @@ function dab(map: ShadowMap, gx: number, gz: number, rad: number, v: number) {
       const e2 = ex * ex + ez * ez
       if (e2 >= r2) continue
       const o = j * map.n + i
-      const a = v * Math.min(1, (rad - Math.sqrt(e2)) / (rad - core))
+      const a = v * Math.min(1, (rad - Math.sqrt(e2)) / soft)
       if (a > map.occ[o]) map.occ[o] = a
     }
   }
