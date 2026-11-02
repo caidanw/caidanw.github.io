@@ -149,17 +149,30 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     for (const b of buttons) b.setAttribute('aria-pressed', String(s[b.dataset.toggle as keyof DarkForestState]))
   }
 
+  // #edit on localhost: the editor's chrome goes around a smaller scene (loaded only then)
+  const editing = params.has('edit') && ['localhost', '127.0.0.1'].includes(location.hostname)
+  const editor = editing ? (await import('../../lib/dark-forest/editor')).mountEditor() : null
+  if (editor) editor.stage.append(canvas)
+
   const forest = startDarkForest(canvas, {
     debug: params.has('debug'),
     rain: params.has('rain'),
     speed: Number(params.get('speed')) || 1,
     vigil: Number(params.get('vigil')) || undefined,
     relic: (params.get('relic') ?? undefined) as Relic | undefined,
-    onStory: tellStory,
-    onChange: sync,
+    onStory: (line) => {
+      tellStory(line)
+      editor?.story(line)
+    },
+    onChange: (s) => {
+      sync(s)
+      editor?.refresh()
+    },
+    onInspect: () => editor?.refresh(),
   })
   sync(forest.state())
-  if (params.has('debug')) Object.assign(window, { forest }) // poke at it from the console
+  editor?.attach(forest)
+  if (params.has('debug') || editing) Object.assign(window, { forest }) // poke at it from the console
 
   const actions: Record<string, () => void> = {
     rain: forest.toggleRain,

@@ -98,6 +98,8 @@ import {
 import { lightness, partNormals, reliefNormals, spriteNormals, type Part } from './normals'
 import { LANTERN_POST, LOG, PACK, RELIC_ART, SKULL, SWORD, type PropArt } from './props'
 import { WEIGHT, micro, shape, type Normal } from './materials'
+import { settings, type View } from './settings'
+import { walkable } from './sim/nav'
 import { cullLights, gatherLight, groundGrain, prepareLights, type Caster, type Light, type Prepared } from './lights'
 import { WALKING, doorOpen, hutOccupancy, isElder, isMoving, isRaining, lightRadius, perchPos, type Mush, type World } from './sim'
 
@@ -551,16 +553,35 @@ const STATE_WORDS: Record<string, string> = {
   keep: "keeping the fire, in the knight's place",
 }
 
-export interface RenderOptions {
-  glow: boolean
-  debug: boolean
-  normals: boolean
+/** How long each stage of the last frame took, in ms. */
+export interface Timings {
+  draw: number
+  compose: number
+  present: number
+}
+
+/** Everything known about one pixel of the last frame (the editor's inspector). */
+export interface PixelInfo {
+  x: number
+  y: number
+  what: 'sky' | 'ground' | 'object'
+  owner: string | null
+  depth: number
+  world: [number, number, number]
+  normal: [number, number, number] | null
+  albedo: Color
+  material: { micro: number; weight: number; spec: number; glint: number }
+  emissive: { a: number; color: Color; depth: number; bloom: number } | null
+  pool: boolean
+  out: Color
+  lights: { name: string; kind: string; amount: number; color: Color }[]
 }
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D
   private scale = 4
   private tileBoxes = new Float32Array(TILES * 6)
+  private prepared: Prepared[] = []
   private st = makeBuf() // static layer (ground, trees, props), rebuilt only when the pool level moves
   private fb = makeBuf() // per-frame layer
   private fx = {
@@ -600,7 +621,7 @@ export class Renderer {
 
   constructor(
     private canvas: HTMLCanvasElement,
-    private relic: Relic = 'antler',
+    public relic: Relic = 'antler',
   ) {
     this.ctx = canvas.getContext('2d')!
     for (const c of [this.outC, this.fxC]) {
@@ -628,12 +649,27 @@ export class Renderer {
     return this.fb.pool[i] === 1 && this.fb.obj[i] === 0
   }
 
-  render(w: World, opts: RenderOptions) {
+  /** Stage timings of the last frame. */
+  timings: Timings = { draw: 0, compose: 0, present: 0 }
+  /** The lights of the last frame, as gathered (after tuning). */
+  lastLights: Light[] = []
+
+  render(w: World) {
+    const t0 = performance.now()
     if (Math.abs(w.poolLevel - this.bakedLevel) > 0.035) this.buildStatic(w.poolLevel)
     this.drawDynamic(w)
     this.resolveFx()
-    this.compose(w, opts)
-    this.present(w, opts)
+    const t1 = performance.now()
+    this.compose(w)
+    const t2 = performance.now()
+    this.present(w)
+    const t3 = performance.now()
+    this.timings = { draw: t1 - t0, compose: t2 - t1, present: t3 - t2 }
+  }
+
+  /** Rebuild the static layer (after editing what's in it). */
+  rebuildStatic() {
+    this.bakedLevel = -1
   }
 
   // ---------------------------------------------------------------- drawing primitives
@@ -2011,24 +2047,75 @@ export class Renderer {
     const warm = (k: number): Color => [0.9 * k, 0.6 * k, 0.25 * k]
     const out: Light[] = []
     const fi = (0.3 + 0.7 * heat) * (0.84 + 0.16 * vnoise(t * 9, 3.3))
-    out.push({ x: 0, y: FIRE_Y, z: 0, radius: lightRadius(w), color: [1.7 * fi, 0.95 * fi, 0.42 * fi], wobble: 1, tail: 0.11, shadows: true, seed: 7 })
+    out.push({
+      kind: 'fire',
+      name: 'campfire',
+      x: 0,
+      y: FIRE_Y,
+      z: 0,
+      radius: lightRadius(w),
+      color: [1.7 * fi, 0.95 * fi, 0.42 * fi],
+      wobble: 1,
+      tail: 0.11,
+      shadows: true,
+      seed: 7,
+    })
     {
       const fl = 0.85 + 0.15 * vnoise(t * 6, 7)
-      out.push({ x: PROPS.lantern.x + 3.3, y: 14, z: PROPS.lantern.z, radius: 32, color: warm(1.4 * fl), wobble: 0.5, tail: 0.06, shadows: true, seed: 3 })
+      out.push({
+        kind: 'lantern',
+        name: 'road lantern',
+        x: PROPS.lantern.x + 3.3,
+        y: 14,
+        z: PROPS.lantern.z,
+        radius: 32,
+        color: warm(1.4 * fl),
+        wobble: 0.5,
+        tail: 0.06,
+        shadows: true,
+        seed: 3,
+      })
     }
     PROPS.graves.forEach((g, i) => {
       const c = w.candles[i]
       if (!c.lit) return
       const fl = (0.8 + 0.2 * vnoise(t * 7 + g.x, 2)) * (0.6 + 0.4 * c.wax)
-      out.push({ x: g.x + 3, y: 3, z: g.z + 1, radius: 22, color: warm(1.2 * fl), wobble: 0.7, tail: 0.04, shadows: true, seed: g.x })
+      out.push({
+        kind: 'candle',
+        name: `candle ${i}`,
+        x: g.x + 3,
+        y: 3,
+        z: g.z + 1,
+        radius: 22,
+        color: warm(1.2 * fl),
+        wobble: 0.7,
+        tail: 0.04,
+        shadows: true,
+        seed: g.x,
+      })
     })
     PROPS.huts.forEach((h, i) => {
-      if (hutOccupancy(w, i)) out.push({ x: h.x + 3, y: 10, z: h.z + 3, radius: 18, color: warm(0.95), wobble: 0, tail: 0.04, shadows: false, seed: i })
+      if (hutOccupancy(w, i))
+        out.push({
+          kind: 'window',
+          name: `hut ${i} window`,
+          x: h.x + 3,
+          y: 10,
+          z: h.z + 3,
+          radius: 18,
+          color: warm(0.95),
+          wobble: 0,
+          tail: 0.04,
+          shadows: false,
+          seed: i,
+        })
     })
     if (w.rune > 0.02) {
       const k = w.rune
       // the rune glows from inside the carving: a tight light at the cut, with a soft spill around it
       out.push({
+        kind: 'rune',
+        name: 'trigon rune',
         x: PROPS.trigon.x,
         y: 24,
         z: PROPS.trigon.z + 1.2,
@@ -2042,15 +2129,55 @@ export class Renderer {
     }
     for (const m of w.mush) {
       if (m.size < 0.5 || m.fsm.state === 'asleep') continue
-      out.push({ x: m.x, y: 6, z: m.z, radius: 8, color: [0.08, 0.3, 0.28], wobble: 0, tail: 0, shadows: false, seed: m.id, owner: tagId(`mush${m.id}`) })
+      out.push({
+        kind: 'cap',
+        name: `${m.name}'s cap`,
+        x: m.x,
+        y: 6,
+        z: m.z,
+        radius: 8,
+        color: [0.08, 0.3, 0.28],
+        wobble: 0,
+        tail: 0,
+        shadows: false,
+        seed: m.id,
+        owner: tagId(`mush${m.id}`),
+      })
       if (m.id === w.keeperId)
-        out.push({ x: m.x + (m.flip ? -3 : 3), y: 4, z: m.z, radius: 10, color: [0.75, 0.38, 0.12], wobble: 0.5, tail: 0, shadows: false, seed: m.id })
+        out.push({
+          kind: 'ember',
+          name: `${m.name}'s ember`,
+          x: m.x + (m.flip ? -3 : 3),
+          y: 4,
+          z: m.z,
+          radius: 10,
+          color: [0.75, 0.38, 0.12],
+          wobble: 0.5,
+          tail: 0,
+          shadows: false,
+          seed: m.id,
+        })
       if (m.fsm.state === 'departing')
-        out.push({ x: m.x + (m.flip ? -3 : 3), y: 5, z: m.z, radius: 15, color: warm(0.8), wobble: 0.6, tail: 0.03, shadows: false, seed: m.id })
+        out.push({
+          kind: 'carried',
+          name: `${m.name}'s lantern`,
+          x: m.x + (m.flip ? -3 : 3),
+          y: 5,
+          z: m.z,
+          radius: 15,
+          color: warm(0.8),
+          wobble: 0.6,
+          tail: 0.03,
+          shadows: false,
+          seed: m.id,
+        })
     }
-    for (const s of SHROOMS) out.push({ x: s.x, y: 1, z: s.z, radius: 7, color: [0.16, 0.1, 0.3], wobble: 0, tail: 0, shadows: false, seed: s.ph })
+    for (const s of SHROOMS)
+      out.push({ kind: 'foxfire', name: 'foxfire', x: s.x, y: 1, z: s.z, radius: 7, color: [0.16, 0.1, 0.3], wobble: 0, tail: 0, shadows: false, seed: s.ph })
     for (const m of w.memorials)
       out.push({
+        kind: 'glowcap',
+        name: `${m.name}'s glowcap`,
         x: m.x,
         y: 3,
         z: m.z,
@@ -2064,18 +2191,52 @@ export class Renderer {
       })
     for (const f of w.flies)
       if (f.a > 0.05)
-        out.push({ x: f.x, y: f.y, z: f.z, radius: 8, color: [0.5 * f.a, 0.6 * f.a, 0.2 * f.a], wobble: 0, tail: 0, shadows: false, seed: f.seed })
-    return out
+        out.push({
+          kind: 'firefly',
+          name: 'firefly',
+          x: f.x,
+          y: f.y,
+          z: f.z,
+          radius: 8,
+          color: [0.5 * f.a, 0.6 * f.a, 0.2 * f.a],
+          wobble: 0,
+          tail: 0,
+          shadows: false,
+          seed: f.seed,
+        })
+    // the editor's tuning, per kind of light
+    return out.flatMap((l) => {
+      const k = settings.lights[l.kind!]
+      if (!k) return [l]
+      if (!k.on) return []
+      return [
+        {
+          ...l,
+          y: l.y + k.height,
+          radius: l.radius * k.radius,
+          color: [l.color[0] * k.gain, l.color[1] * k.gain, l.color[2] * k.gain] as Color,
+          wobble: l.wobble * k.wobble,
+          tail: l.tail * k.tail,
+          shadows: k.shadows === 'default' ? l.shadows : k.shadows === 'on',
+        },
+      ]
+    })
   }
 
-  private compose(w: World, opts: RenderOptions) {
+  private compose(w: World) {
     const t = w.t
     const B = this.fb
     const fx = this.fx
     const out = this.out
     const amb = isRaining(w) ? 0.8 : 1
-    const useNormals = opts.normals
-    const lights = prepareLights(this.lights(w), this.casters(w), t)
+    const L = settings.layers
+    const useNormals = L.normals
+    const moonK = settings.ambient.moon
+    const view = settings.view
+    const raw = this.lights(w)
+    this.lastLights = raw
+    const lights = prepareLights(raw, this.casters(w), t)
+    this.prepared = lights
     const nrm: [number, number, number] = [0, 0, 0]
     // Light culling: most lights (caps, candles, fireflies) only reach a small patch, so each
     // 32x32 tile of the screen gathers only the lights that can reach what it shows.
@@ -2118,9 +2279,9 @@ export class Renderer {
         normal = nrm
         moon = 0.5 + 1.3 * Math.max(0, nrm[0] * MOON[0] + nrm[1] * MOON[1] + nrm[2] * MOON[2])
       }
-      Lc[0] = 0.15 * amb * moon
-      Lc[1] = 0.18 * amb * moon
-      Lc[2] = 0.27 * amb * moon
+      Lc[0] = 0.15 * amb * moon * moonK
+      Lc[1] = 0.18 * amb * moon * moonK
+      Lc[2] = 0.27 * amb * moon * moonK
       gatherLight(here, x, y, z, ground, ground ? groundGrain(x, z) : 0.5, normal, Lc, tag)
       if (normal && spec > 0) {
         // metal: a tight warm glint where the surface faces the fire, a cool rim toward the moon
@@ -2152,7 +2313,11 @@ export class Renderer {
           r = B.r[i] * Lc[0]
           g = B.g[i] * Lc[1]
           b = B.b[i] * Lc[2]
-          if (B.pool[i] && !B.obj[i]) {
+          if (B.pool[i] && !B.obj[i] && !L.reflections) {
+            r += 0.03 * amb
+            g += 0.045 * amb
+            b += 0.075 * amb
+          } else if (B.pool[i] && !B.obj[i]) {
             // open water: dark surface + the mirrored world + mirrored emissives, gently rippled
             const ox = Math.round(Math.sin((y / RES) * 1.7 + t * 2.4) * 0.7 * RES)
             const j = y * W + Math.max(0, Math.min(W - 1, x + ox))
@@ -2166,14 +2331,14 @@ export class Renderer {
               g += 0.045 * amb
               b += 0.075 * amb
             }
-            const fa = fx.ra[j] * 0.75
+            const fa = L.emissives ? fx.ra[j] * 0.75 : 0
             if (fa > 0) {
               r = r * (1 - fa) + fx.rr[j] * fa
               g = g * (1 - fa) + fx.rg[j] * fa
               b = b * (1 - fa) + fx.rb[j] * fa
             }
           }
-          let m = mistAt(B.kz[i])
+          let m = L.mist ? mistAt(B.kz[i]) * settings.ambient.mist : 0
           if (m > 0) {
             m = Math.min(0.95, m * (0.75 + 0.35 * vnoise((x / RES) * 0.025 + t * 0.06, (y / RES) * 0.06)))
             r = r * (1 - m) + C.mist[0] * m
@@ -2181,7 +2346,7 @@ export class Renderer {
             b = b * (1 - m) + C.mist[2] * m
           }
           // moonlit speckles on the leaves, twinkling slowly
-          const gl = B.gl[i]
+          const gl = L.glints ? B.gl[i] : 0
           if (gl > 0) {
             const k = gl * 0.26 * amb * (1 - m) * (0.55 + 0.45 * Math.sin(t * 0.8 + x * 0.37 + y * 0.71))
             r += 0.5 * k
@@ -2193,7 +2358,14 @@ export class Renderer {
           g = B.bgg[i] * amb
           b = B.bgb[i] * amb
         }
-        const fa = fx.a[i]
+        if (view === 'light') {
+          // the light arriving here, without the surface's own colour
+          const lit = B.a[i] ? 1 : 0
+          r = Lc[0] * 0.5 * lit
+          g = Lc[1] * 0.5 * lit
+          b = Lc[2] * 0.5 * lit
+        }
+        const fa = L.emissives && view === 'final' ? fx.a[i] : 0
         if (fa > 0) {
           r = r * (1 - fa) + fx.r[i] * fa
           g = g * (1 - fa) + fx.g[i] * fa
@@ -2204,19 +2376,191 @@ export class Renderer {
         out.b[i] = b
       }
     }
-    for (const s of STARS) {
-      const i = s.y * W + s.x
-      if (B.a[i]) continue
-      const a = s.b * (0.55 + 0.45 * Math.sin(t * 1.3 + s.ph)) * (isRaining(w) ? 0.2 : 1)
-      out.r[i] += 0.86 * a
-      out.g[i] += 0.88 * a
-      out.b[i] += 0.94 * a
-    }
+    if (view !== 'final') this.showBuffer(view, tileLights)
+    else if (L.stars)
+      for (const s of STARS) {
+        const i = s.y * W + s.x
+        if (B.a[i]) continue
+        const a = s.b * (0.55 + 0.45 * Math.sin(t * 1.3 + s.ph)) * (isRaining(w) ? 0.2 : 1)
+        out.r[i] += 0.86 * a
+        out.g[i] += 0.88 * a
+        out.b[i] += 0.94 * a
+      }
   }
 
   // ---------------------------------------------------------------- output
 
-  private present(w: World, opts: RenderOptions) {
+  /** Replace the frame with one of the buffers behind it (the editor's views). */
+  private showBuffer(view: View, tileLights: Prepared[][]) {
+    const B = this.fb
+    const fx = this.fx
+    const out = this.out
+    for (let i = 0; i < N; i++) {
+      let r = 0
+      let g = 0
+      let b = 0
+      const obj = B.a[i] && B.obj[i]
+      switch (view) {
+        case 'albedo':
+          ;[r, g, b] = B.a[i] ? [B.r[i], B.g[i], B.b[i]] : [B.bgr[i], B.bgg[i], B.bgb[i]]
+          break
+        case 'normals':
+          if (obj && B.nz[i] > 0) [r, g, b] = [B.nx[i] * 0.5 + 0.5, B.ny[i] * 0.5 + 0.5, B.nz[i]]
+          else if (B.a[i]) [r, g, b] = [0.5, 0.75, 0.6] // the ground faces up
+          break
+        case 'depth': {
+          if (obj) r = g = b = clamp((B.dep[i] + 100) / 180)
+          else if (B.a[i]) [r, g, b] = [0.05, 0.08, 0.2]
+          break
+        }
+        case 'emissive':
+          ;[r, g, b] = [fx.r[i] * fx.a[i], fx.g[i] * fx.a[i], fx.b[i] * fx.a[i]]
+          break
+        case 'hover': {
+          const h = B.hv[i]
+          if (h) [r, g, b] = [hash(h, 1) * 0.8 + 0.2, hash(h, 2) * 0.8 + 0.2, hash(h, 3) * 0.8 + 0.2]
+          break
+        }
+        case 'tiles': {
+          const x = i % W
+          const y = (i / W) | 0
+          const n = tileLights[(y >> TILE_BITS) * TILES_X + (x >> TILE_BITS)].length
+          const k = clamp(n / 12)
+          const edge = (x & 31) === 0 || (y & 31) === 0 ? 0.25 : 0
+          r = out.r[i] * 0.35 + k + edge
+          g = out.g[i] * 0.35 + (1 - k) * 0.25 * (n > 0 ? 1 : 0) + edge
+          b = out.b[i] * 0.35 + edge
+          break
+        }
+        default:
+          continue // 'light' is written while composing
+      }
+      out.r[i] = r
+      out.g[i] = g
+      out.b[i] = b
+    }
+  }
+
+  /** Everything about one pixel of the last frame, and how much each light gives it. */
+  inspectPixel(x: number, y: number): PixelInfo | null {
+    if (x < 0 || x >= W || y < 0 || y >= H) return null
+    const B = this.fb
+    const fx = this.fx
+    const i = y * W + x
+    const what = !B.a[i] ? 'sky' : B.obj[i] ? 'object' : 'ground'
+    const tag = B.hv[i]
+    const ground = what === 'ground'
+    const normal: [number, number, number] | null = what === 'object' && B.nz[i] > 0 ? [B.nx[i], B.ny[i], B.nz[i]] : null
+    const lights =
+      what === 'sky'
+        ? []
+        : this.prepared
+            .map((l) => {
+              const c: Color = [0, 0, 0]
+              gatherLight([l], B.kx[i], B.ky[i], B.kz[i], ground, ground ? groundGrain(B.kx[i], B.kz[i]) : 0.5, settings.layers.normals ? normal : null, c, tag)
+              return { name: l.name ?? '?', kind: l.kind ?? '?', amount: 0.3 * c[0] + 0.55 * c[1] + 0.15 * c[2], color: c }
+            })
+            .filter((l) => l.amount > 0.002)
+            .sort((a, b) => b.amount - a.amount)
+    return {
+      x,
+      y,
+      what,
+      owner: this.labels.get(tag)?.[0] ?? null,
+      depth: B.dep[i],
+      world: [B.kx[i], B.ky[i], B.kz[i]],
+      normal,
+      albedo: B.a[i] ? [B.r[i], B.g[i], B.b[i]] : [B.bgr[i], B.bgg[i], B.bgb[i]],
+      material: { micro: B.mh[i], weight: B.mw[i], spec: B.sp[i], glint: B.gl[i] },
+      emissive: fx.a[i] > 0 ? { a: fx.a[i], color: [fx.r[i], fx.g[i], fx.b[i]], depth: fx.dep[i], bloom: fx.bw[i] } : null,
+      pool: !!B.pool[i],
+      out: [this.out.r[i], this.out.g[i], this.out.b[i]],
+      lights,
+    }
+  }
+
+  /** The editor's overlays, drawn over the finished frame at output resolution. */
+  private drawOverlays(w: World) {
+    const O = settings.overlays
+    const sel = settings.selectedLight
+    const insp = settings.inspect
+    if (!O.lights && !O.casters && !O.nav && !O.paths && !sel && !insp) return
+    const { ctx, scale: S } = this
+    ctx.save()
+    ctx.lineWidth = Math.max(1, S / 2)
+    const ellipse = (x: number, z: number, r: number, stroke: string, fill?: string) => {
+      const [cx, cy, s] = project(x, 0, z)
+      ctx.beginPath()
+      ctx.ellipse(cx * S, cy * S, Math.max(1, r * s * S), Math.max(1, r * 1.215 * S), 0, 0, Math.PI * 2)
+      if (fill) {
+        ctx.fillStyle = fill
+        ctx.fill()
+      }
+      ctx.strokeStyle = stroke
+      ctx.stroke()
+    }
+    if (O.nav) {
+      ctx.fillStyle = 'rgba(255,70,70,0.28)'
+      for (let z = -100; z < 90; z += 2)
+        for (let x = -170; x < 170; x += 2) {
+          if (walkable(x, z)) continue
+          const [sx, sy] = project(x, 0, z)
+          if (sx < 0 || sx >= W || sy < HORIZON || sy >= H) continue
+          ctx.fillRect(sx * S - S, sy * S - S, 2 * S, 2 * S)
+        }
+    }
+    if (O.paths) {
+      ctx.strokeStyle = 'rgba(159,245,228,0.8)'
+      for (const m of w.mush) {
+        const pts = [[m.x, m.z], ...(m.path ?? []), ...(m.route ?? [])]
+        if (pts.length < 2) continue
+        ctx.beginPath()
+        pts.forEach(([x, z], k) => {
+          const [sx, sy] = project(x, 0, z)
+          if (k) ctx.lineTo(sx * S, sy * S)
+          else ctx.moveTo(sx * S, sy * S)
+        })
+        ctx.stroke()
+      }
+    }
+    if (O.casters) for (const c of this.casters(w)) ellipse(c.x, c.z, c.r, 'rgba(255,200,80,0.7)')
+    if (O.lights || sel) {
+      for (const l of this.lastLights) {
+        const on = l.kind === sel
+        if (!O.lights && !on) continue
+        const [lx, ly] = project(l.x, l.y, l.z)
+        const [gx, gy] = project(l.x, 0, l.z)
+        const col = on ? 'rgba(255,220,120,0.95)' : 'rgba(255,220,120,0.35)'
+        ellipse(l.x, l.z, l.radius, col)
+        ctx.strokeStyle = col
+        ctx.beginPath()
+        ctx.moveTo(gx * S, gy * S)
+        ctx.lineTo(lx * S, ly * S)
+        ctx.stroke()
+        ctx.fillStyle = `rgb(${Math.min(255, l.color[0] * 200)},${Math.min(255, l.color[1] * 200)},${Math.min(255, l.color[2] * 200)})`
+        ctx.fillRect(lx * S - 2 * S, ly * S - 2 * S, 4 * S, 4 * S)
+      }
+    }
+    if (insp) {
+      const x = (insp.x + 0.5) * S
+      const y = (insp.y + 0.5) * S
+      ctx.strokeStyle = '#fff'
+      ctx.strokeRect(insp.x * S - 0.5, insp.y * S - 0.5, S + 1, S + 1)
+      ctx.beginPath()
+      ctx.moveTo(x - 8 * S, y)
+      ctx.lineTo(x - 2 * S, y)
+      ctx.moveTo(x + 2 * S, y)
+      ctx.lineTo(x + 8 * S, y)
+      ctx.moveTo(x, y - 8 * S)
+      ctx.lineTo(x, y - 2 * S)
+      ctx.moveTo(x, y + 2 * S)
+      ctx.lineTo(x, y + 8 * S)
+      ctx.stroke()
+    }
+    ctx.restore()
+  }
+
+  private present(w: World) {
     const { ctx, scale: S, fx, out } = this
     const DW = W * S
     const DH = H * S
@@ -2241,16 +2585,16 @@ export class Renderer {
     ctx.save()
     ctx.imageSmoothingEnabled = false
     ctx.drawImage(this.outC, 0, 0, DW, DH)
-    if (opts.glow) {
+    if (settings.layers.bloom && settings.layers.emissives && settings.view === 'final') {
       // soft bloom from the emissive layer, plus a faint warm wash around the fire
       const heat = Math.min(1.2, w.fire.heat)
       ctx.globalCompositeOperation = 'lighter'
       ctx.imageSmoothingEnabled = true
       ctx.filter = `blur(${3 * S * RES}px)`
-      ctx.globalAlpha = 0.85 * (0.45 + 0.55 * heat)
+      ctx.globalAlpha = Math.min(1, 0.85 * (0.45 + 0.55 * heat) * settings.ambient.bloom)
       ctx.drawImage(this.fxC, 0, 0, DW, DH)
       ctx.filter = `blur(${9 * S * RES}px)`
-      ctx.globalAlpha = 0.55 * (0.3 + 0.7 * heat)
+      ctx.globalAlpha = Math.min(1, 0.55 * (0.3 + 0.7 * heat) * settings.ambient.bloom)
       ctx.drawImage(this.fxC, 0, 0, DW, DH)
       ctx.filter = 'none'
       ctx.globalAlpha = 1
@@ -2266,9 +2610,11 @@ export class Renderer {
       ctx.fillRect(-DW, -DH * 2, DW * 2, DH * 4)
     }
     ctx.restore()
-    if (isRaining(w)) this.drawRain(w)
-    this.drawHover()
-    if (opts.debug) this.drawDebug(w)
+    if (isRaining(w) && settings.layers.rain) this.drawRain(w)
+    if (settings.layers.labels) this.drawHover()
+    else this.hovered = null
+    if (settings.overlays.states) this.drawDebug(w)
+    this.drawOverlays(w)
   }
 
   /** Rain as straight, thin streaks at full output resolution, over the pixel art. */

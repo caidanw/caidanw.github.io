@@ -16,6 +16,7 @@
  */
 import { vnoise, type Color } from './util'
 import { RES } from './world'
+import type { LightKind } from './settings'
 
 export interface Light {
   x: number
@@ -32,6 +33,9 @@ export interface Light {
   shadows: boolean
   /** Varies the wobble pattern between lights. */
   seed: number
+  /** What kind of light this is (for tuning) and which one (for the editor). */
+  kind?: LightKind
+  name?: string
   /** Hover tag of the thing giving off this light; it doesn't light itself (a cap's glow would flicker across its own cap). */
   owner?: number
 }

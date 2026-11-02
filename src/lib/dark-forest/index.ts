@@ -3,8 +3,10 @@
  * Mount it on a canvas whose parent decides the available space; the canvas
  * is letterboxed to 16:9 and rendered at an integer multiple of 640x360.
  */
-import { Renderer } from './renderer'
+import { Renderer, type PixelInfo, type Timings } from './renderer'
+import { settings } from './settings'
 import { createWorld, dropStick, isRaining, step, toggleRain, type World } from './sim'
+import { createMush } from './sim/shroomfolk'
 import { H, RES, W, unproject, RELICS, type Relic } from './world'
 
 export interface DarkForestOptions {
@@ -23,6 +25,8 @@ export interface DarkForestOptions {
   onStory?: (line: string) => void
   /** Called whenever a toggle changes, so the page can reflect it in its controls. */
   onChange?: (state: DarkForestState) => void
+  /** Called when a pixel is picked with the inspect tool. */
+  onInspect?: () => void
 }
 
 export interface DarkForestState {
@@ -31,6 +35,12 @@ export interface DarkForestState {
   debug: boolean
   normals: boolean
   paused: boolean
+}
+
+export interface DarkForestStats {
+  fps: number
+  timings: Timings
+  lights: number
 }
 
 export interface DarkForest {
@@ -44,6 +54,20 @@ export interface DarkForest {
   inspect(): World
   /** What the pointer is over right now: [name, lore], or null. */
   hovering(): [string, string] | null
+  // ---- for the editor
+  /** Advance one frame (while paused). */
+  stepFrame(): void
+  stats(): DarkForestStats
+  /** Everything about the inspected pixel, or null. */
+  pixel(): PixelInfo | null
+  relic(): Relic
+  setRelic(r: Relic): void
+  /** Someone new walks in, at the edge of the clearing. */
+  spawnShroomfolk(): void
+  /** The knight's vigil ends now (he rises on the next good night). */
+  endVigil(): void
+  /** The lights of the last frame. */
+  lights(): Renderer['lastLights']
   destroy(): void
 }
 
@@ -51,20 +75,34 @@ const MAX_SCALE = 8
 
 export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOptions = {}): DarkForest {
   const world: World = createWorld()
-  const relic = options.relic && RELICS.includes(options.relic) ? options.relic : 'antler'
-  const renderer = new Renderer(canvas, relic)
-  const opts = { glow: options.glow ?? true, debug: options.debug ?? false, normals: options.normals ?? true }
-  let paused = false
+  const renderer = new Renderer(canvas, options.relic && RELICS.includes(options.relic) ? options.relic : 'antler')
+  if (options.glow === false) settings.layers.bloom = false
+  if (options.normals === false) settings.layers.normals = false
+  if (options.debug) settings.overlays.states = true
+  if (options.speed) settings.speed = options.speed
   if (options.rain) toggleRain(world)
   if (options.vigil) world.knight.vigilLength = options.vigil
 
-  const state = (): DarkForestState => ({ rain: isRaining(world), glow: opts.glow, debug: opts.debug, normals: opts.normals, paused })
+  const state = (): DarkForestState => ({
+    rain: isRaining(world),
+    glow: settings.layers.bloom,
+    debug: settings.overlays.states,
+    normals: settings.layers.normals,
+    paused: settings.paused,
+  })
   const changed = () => options.onChange?.(state())
 
   // ---------- sizing: fit 16:9 in the parent, render at an integer scale for crisp pixels
   const fit = () => {
-    const box = canvas.parentElement!.getBoundingClientRect()
-    const cssW = Math.min(box.width, (box.height * W) / H)
+    const parent = canvas.parentElement!
+    const box = parent.getBoundingClientRect()
+    let cssW = Math.min(box.width, (box.height * W) / H)
+    // a parent marked data-crisp (the editor) gets a whole number of device pixels per pixel,
+    // as long as that still fills most of the space
+    if ('crisp' in parent.dataset) {
+      const k = Math.floor((cssW * devicePixelRatio) / W)
+      if (k >= 1 && (k * W) / devicePixelRatio >= cssW * 0.75) cssW = (k * W) / devicePixelRatio
+    }
     const cssH = (cssW * H) / W
     canvas.style.width = `${cssW}px`
     canvas.style.height = `${cssH}px`
@@ -75,7 +113,7 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
   ro.observe(canvas.parentElement!)
   fit()
 
-  // ---------- input: hover names things and spooks the deer; click drops a stick
+  // ---------- input: hover names things and spooks the deer; click drops a stick (or inspects)
   const toScreen = (e: PointerEvent) => {
     const r = canvas.getBoundingClientRect()
     return { x: ((e.clientX - r.left) / r.width) * W, y: ((e.clientY - r.top) / r.height) * H }
@@ -97,6 +135,11 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
   const DROP_HEIGHT = 22
   const onDown = (e: PointerEvent) => {
     const { x, y } = toScreen(e)
+    if (settings.tool === 'inspect') {
+      settings.inspect = { x: Math.floor(x), y: Math.floor(y) }
+      options.onInspect?.()
+      return
+    }
     let q = unproject(x, y + DROP_HEIGHT * 1.35 * RES)
     for (let i = 0; i < 3 && q; i++) q = unproject(x, y + DROP_HEIGHT * (1 + q[1] * 0.0028) * 1.35 * RES) // refine for depth
     if (q) dropStick(world, { x: q[0], z: q[1] }, DROP_HEIGHT)
@@ -109,11 +152,17 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
   let raf = 0
   let last = performance.now()
   let wasRaining = isRaining(world)
+  let stepOnce = false
+  let fps = 60
   const frame = (now: number) => {
-    const dt = Math.min(0.05, (now - last) / 1000) * (options.speed ?? 1)
+    const real = now - last
+    fps = fps * 0.95 + (1000 / Math.max(1, real)) * 0.05
+    const dt = Math.min(0.05, real / 1000) * settings.speed
     last = now
-    if (!paused) step(world, dt, renderer.isOpenWater)
-    renderer.render(world, opts)
+    if (!settings.paused || stepOnce) step(world, stepOnce ? 1 / 60 : dt, renderer.isOpenWater)
+    stepOnce = false
+    if (settings.fireHeat !== null) world.fire.heat = settings.fireHeat
+    renderer.render(world)
     while (world.story.length) options.onStory?.(world.story.shift()!)
     // weather changes on its own timer (and toggles land a tick later), so report it when it happens
     if (isRaining(world) !== wasRaining) {
@@ -124,29 +173,32 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
   }
   raf = requestAnimationFrame(frame)
 
+  const toggle = (f: () => void) => () => {
+    f()
+    changed()
+  }
   return {
     toggleRain() {
       toggleRain(world) // takes effect on the next tick; the loop reports the change
     },
-    toggleGlow() {
-      opts.glow = !opts.glow
-      changed()
-    },
-    toggleDebug() {
-      opts.debug = !opts.debug
-      changed()
-    },
-    toggleNormals() {
-      opts.normals = !opts.normals
-      changed()
-    },
-    togglePause() {
-      paused = !paused
-      changed()
-    },
+    toggleGlow: toggle(() => (settings.layers.bloom = !settings.layers.bloom)),
+    toggleDebug: toggle(() => (settings.overlays.states = !settings.overlays.states)),
+    toggleNormals: toggle(() => (settings.layers.normals = !settings.layers.normals)),
+    togglePause: toggle(() => (settings.paused = !settings.paused)),
     state,
     inspect: () => world,
     hovering: () => renderer.hovered,
+    stepFrame: () => (stepOnce = true),
+    stats: () => ({ fps, timings: renderer.timings, lights: renderer.lastLights.length }),
+    pixel: () => (settings.inspect ? renderer.inspectPixel(settings.inspect.x, settings.inspect.y) : null),
+    relic: () => renderer.relic,
+    setRelic: (r) => (renderer.relic = r),
+    spawnShroomfolk() {
+      const a = Math.random() * Math.PI * 2
+      world.mush.push(createMush(world, Math.cos(a) * 30, Math.sin(a) * 22))
+    },
+    endVigil: () => (world.knight.vigilLength = Math.min(world.knight.vigilLength, world.knight.vigil)),
+    lights: () => renderer.lastLights,
     destroy() {
       cancelAnimationFrame(raf)
       ro.disconnect()
