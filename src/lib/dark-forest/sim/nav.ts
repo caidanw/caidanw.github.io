@@ -63,6 +63,12 @@ const cellOf = (x: number, z: number): [number, number] => [Math.floor((x - X0) 
 const centre = (cx: number, cz: number): [number, number] => [X0 + (cx + 0.5) * CELL, Z0 + (cz + 0.5) * CELL]
 
 /** Can you walk at world point (x, z)? */
+/** Forget the static grid (after the layout changed); it's rebuilt on the next query. */
+export function rebuildNav() {
+  staticBlocked = null
+  nav.version++
+}
+
 export const walkable = (x: number, z: number): boolean => !blockedCell(...cellOf(x, z))
 
 /** The nearest walkable cell to a point (searching outward ring by ring). */

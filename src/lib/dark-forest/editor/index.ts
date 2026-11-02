@@ -9,6 +9,7 @@ import { LIGHT_KINDS, VIEWS, defaultLightTune, resetSettings, settings, type Lig
 import { DATA, FILES, applyData, changed, snapshot, type DataFile } from '../art'
 import { RELICS, type Relic } from '../world'
 import { createArtEditor } from './art-editor'
+import { createSceneEditor } from './scene-editor'
 import { applyStaged, changedPaths, discardStaged, loadStaged, stage as stageFile, stagingAvailable } from './staging'
 import { CSS } from './style'
 
@@ -92,13 +93,23 @@ export function mountEditor(): Editor {
   const stepBtn = h('button', { title: 'advance one frame', onclick: () => forest?.stepFrame() }, 'step')
   const speed = h('select', { onchange: (e: Event) => (settings.speed = Number((e.target as HTMLSelectElement).value)) })
   for (const s of [0.25, 0.5, 1, 2, 4, 8, 16]) speed.append(h('option', { value: s, selected: s === settings.speed }, `${s}×`))
-  const toolBtns = (['play', 'inspect'] as const).map((tool) =>
-    h('button', { 'data-tool': tool, title: tool === 'play' ? 'clicks drop sticks' : 'clicks inspect a pixel', onclick: () => setTool(tool) }, tool),
+  const toolBtns = (['play', 'inspect', 'move'] as const).map((tool) =>
+    h(
+      'button',
+      {
+        'data-tool': tool,
+        title: { play: 'clicks drop sticks', inspect: 'clicks inspect a pixel', move: 'drag things around the clearing' }[tool],
+        onclick: () => setTool(tool),
+      },
+      tool,
+    ),
   )
-  const setTool = (tool: 'play' | 'inspect') => {
+  const setTool = (tool: 'play' | 'inspect' | 'move') => {
     settings.tool = tool
     for (const b of toolBtns) b.setAttribute('aria-pressed', String(b.dataset.tool === tool))
     if (tool === 'inspect') showTab('inspect')
+    if (tool === 'move') showTab('object')
+    if (tool !== 'move') settings.selection = null
   }
   const heatAuto = check(
     'auto',
@@ -226,7 +237,14 @@ export function mountEditor(): Editor {
   )
 
   // ---------------------------------------------------------------- right: inspect, lights
-  const tabs = { inspect: h('div', { class: 'tab' }), lights: h('div', { class: 'tab' }), art: h('div', { class: 'tab' }), changes: h('div', { class: 'tab' }) }
+  const tabs = {
+    inspect: h('div', { class: 'tab' }),
+    lights: h('div', { class: 'tab' }),
+    object: h('div', { class: 'tab' }),
+    world: h('div', { class: 'tab' }),
+    art: h('div', { class: 'tab' }),
+    changes: h('div', { class: 'tab' }),
+  }
   const tabBtns = (Object.keys(tabs) as (keyof typeof tabs)[]).map((k) => h('button', { 'data-tab': k, onclick: () => showTab(k) }, k))
   const showTab = (k: keyof typeof tabs) => {
     for (const [name, el] of Object.entries(tabs)) el.hidden = name !== k
@@ -453,6 +471,7 @@ export function mountEditor(): Editor {
                   discardStaged(f, baseline[f]).then(() => {
                     if (f === 'lights') resetSettings('lights')
                     art.refresh()
+                    scene.refresh()
                     renderChanges()
                     refreshAll()
                   }),
@@ -471,7 +490,17 @@ export function mountEditor(): Editor {
     renderChanges()
   }
   tabs.changes.append(changesBody)
-  const right = h('aside', { class: 'dfe-right' }, h('nav', { class: 'tabs seg' }, ...tabBtns), tabs.inspect, tabs.lights, tabs.art, tabs.changes)
+  const right = h(
+    'aside',
+    { class: 'dfe-right' },
+    h('nav', { class: 'tabs seg' }, ...tabBtns),
+    tabs.inspect,
+    tabs.lights,
+    tabs.object,
+    tabs.world,
+    tabs.art,
+    tabs.changes,
+  )
 
   // ---------------------------------------------------------------- footer: stats, village, story
   const stats = h('div', { class: 'stats' })
@@ -491,6 +520,15 @@ export function mountEditor(): Editor {
   const art = createArtEditor((file) => edited(file))
   const leftArt = h('aside', { class: 'dfe-left', hidden: true }, art.left)
   tabs.art.append(art.right)
+  // scene editing: the move tool, the selected object, the world palette
+  const scene = createSceneEditor({
+    canvas: () => stage.querySelector('canvas'),
+    tagAt: (x, y) => forest?.tagAt(x, y) ?? null,
+    edited: (file) => edited(file),
+    showObject: () => showTab('object'),
+  })
+  tabs.object.append(scene.object)
+  tabs.world.append(scene.world)
   const setMode = (m: 'scene' | 'art') => {
     for (const b of modeBtns) b.setAttribute('aria-pressed', String(b.dataset.mode === m))
     const isArt = m === 'art'
@@ -501,7 +539,7 @@ export function mountEditor(): Editor {
       centerArea.replaceChildren(art.center)
       art.refresh()
     } else centerArea.replaceChildren(stage)
-    for (const b of tabBtns) b.hidden = isArt ? b.dataset.tab === 'inspect' || b.dataset.tab === 'lights' : b.dataset.tab === 'art'
+    for (const b of tabBtns) b.hidden = isArt ? ['inspect', 'lights', 'object', 'world'].includes(b.dataset.tab!) : b.dataset.tab === 'art'
     showTab(isArt ? 'art' : 'inspect')
   }
   const root = h('div', { class: 'dfe' }, head, left, leftArt, centerArea, right, foot)
@@ -548,6 +586,7 @@ export function mountEditor(): Editor {
     stage,
     attach(f) {
       forest = f
+      scene.refresh()
       refreshAll()
       window.setInterval(refreshAll, 250)
       // pick up edits staged in an earlier session

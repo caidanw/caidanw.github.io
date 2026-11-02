@@ -81,6 +81,9 @@ html.dfe-on, html.dfe-on body { overflow: hidden; }
 .dfe input.num { width: 52px; }
 .dfe input.chars { flex: 1; min-width: 0; }
 .dfe .warn { color: #e0b04a; }
+.dfe .field { width: 44px; }
+.dfe .world-col input { width: 28px; height: 18px; padding: 0; border: 1px solid var(--line); background: none; }
+.dfe .tabs { flex-wrap: wrap; }
 .dfe-stage canvas { display: block; image-rendering: pixelated; cursor: crosshair; }
 
 .dfe .tabs { margin-bottom: 10px; }

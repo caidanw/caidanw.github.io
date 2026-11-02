@@ -16,16 +16,35 @@ import { join } from 'node:path'
 
 const FILES = new Set(['sprites', 'props', 'palette', 'lights', 'layout'])
 
+/**
+ * How data files are written: small things (a tree, a part, a position) on one line, bigger
+ * ones expanded, then Prettier (which keeps that shape). The same everywhere, so a diff shows
+ * only what was edited.
+ * @param {unknown} data
+ * @param {string} as  a path whose Prettier config applies
+ */
+export async function formatData(data, as) {
+  const prettier = await import('prettier')
+  const options = (await prettier.resolveConfig(as)) ?? {}
+  return prettier.format(compact(data, 0), { ...options, plugins: [], parser: 'json' })
+}
+/** @param {unknown} v @param {number} depth @returns {string} */
+function compact(v, depth) {
+  const flat = JSON.stringify(v)
+  if (v === null || typeof v !== 'object' || (depth >= 2 && flat.length <= 110 && !flat.includes('[['))) return flat
+  const pad = '  '.repeat(depth + 1)
+  const end = '  '.repeat(depth)
+  if (Array.isArray(v)) return v.length ? `[\n${v.map((x) => pad + compact(x, depth + 1)).join(',\n')}\n${end}]` : '[]'
+  const entries = Object.entries(/** @type {Record<string, unknown>} */ (v))
+  return entries.length ? `{\n${entries.map(([k, x]) => `${pad}${JSON.stringify(k)}: ${compact(x, depth + 1)}`).join(',\n')}\n${end}}` : '{}'
+}
+
 /** @param {{ root: string }} opts */
 export function forestStaging({ root }) {
   const dataDir = join(root, 'src/lib/dark-forest/data')
   const stageDir = join(root, '.forest-staging')
   const read = async (/** @type {string} */ path) => JSON.parse(await readFile(path, 'utf8'))
-  const format = async (/** @type {unknown} */ data) => {
-    const prettier = await import('prettier')
-    const options = (await prettier.resolveConfig(join(dataDir, 'x.json'))) ?? {}
-    return prettier.format(JSON.stringify(data, null, 2), { ...options, plugins: [], parser: 'json' })
-  }
+  const format = (/** @type {unknown} */ data) => formatData(data, join(dataDir, 'x.json'))
 
   /** @type {import('vite').Plugin} */
   const plugin = {

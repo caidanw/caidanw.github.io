@@ -102,8 +102,10 @@ function defaults() {
     lights: Object.fromEntries(LIGHT_KINDS.map(({ kind }) => [kind, tune(kind)])) as Record<LightKind, LightTune>,
     /** Highlight this kind of light in the overlay. */
     selectedLight: null as LightKind | null,
-    /** Clicking the scene: play (drop a stick) or inspect a pixel. */
-    tool: 'play' as 'play' | 'inspect',
+    /** Clicking the scene: play (drop a stick), inspect a pixel, or move things. */
+    tool: 'play' as 'play' | 'inspect' | 'move',
+    /** What the move tool has selected (a live layout object), ringed in the scene. */
+    selection: null as { x: number; z: number } | null,
     /** The pixel being inspected (framebuffer coordinates). */
     inspect: null as { x: number; y: number } | null,
     /** Hold the fire at this heat (null: let it burn). */

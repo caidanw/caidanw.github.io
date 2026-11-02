@@ -7,6 +7,7 @@
  * Palettes are hex strings; "$name" means the world palette's colour `name`, and stays linked
  * to it (edit the world colour and every palette using it follows).
  */
+import layoutData from './data/layout.json'
 import lightsData from './data/lights.json'
 import paletteData from './data/palette.json'
 import propsData from './data/props.json'
@@ -40,12 +41,34 @@ export interface RelicData {
   palette: HexPalette
 }
 
+interface Spot {
+  x: number
+  z: number
+}
+/** Where everything stands. */
+export interface Layout {
+  props: {
+    knight: Spot
+    sword: Spot
+    pack: Spot
+    woodpile: Spot
+    huts: Spot[]
+    graves: (Spot & { helm?: boolean })[]
+    lantern: Spot
+    trigon: Spot
+  }
+  hearthstones: (Spot & { h: number; w: number; lean: number; carved: boolean })[]
+  trees: (Spot & { h: number; w: number; seed: number; tone: number })[]
+  bushes: (Spot & { w: number; h: number; seed: number; lobes: number })[]
+}
+
 /** The raw data, exactly what's in data/*.json. The editor edits this and saves it. */
 export const DATA = {
   sprites: spritesData as unknown as Record<string, SpriteData>,
   props: propsData as unknown as Record<string, PropData> & { relics: Record<string, RelicData> },
   palette: paletteData as Record<keyof typeof paletteData, string>,
   lights: lightsData as Record<string, Record<string, unknown>>,
+  layout: layoutData as Layout,
 }
 
 const MISSING: Color = [1, 0, 1]
@@ -120,7 +143,7 @@ syncProps()
 // ---------------------------------------------------------------- editing
 
 /** The data files the editor can edit and save (data/<file>.json). */
-export const FILES = ['sprites', 'props', 'palette', 'lights'] as const
+export const FILES = ['sprites', 'props', 'palette', 'lights', 'layout'] as const
 export type DataFile = (typeof FILES)[number]
 
 const listeners = new Set<(file: DataFile) => void>()

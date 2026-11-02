@@ -8,6 +8,7 @@ import { onArtChange } from './art'
 import { forgetNormals } from './normals'
 import { resetSettings, settings } from './settings'
 import { createWorld, dropStick, isRaining, step, toggleRain, type World } from './sim'
+import { rebuildNav } from './sim/nav'
 import { createMush } from './sim/shroomfolk'
 import { H, RES, W, unproject, RELICS, type Relic } from './world'
 
@@ -68,6 +69,8 @@ export interface DarkForest {
   spawnShroomfolk(): void
   /** The knight's vigil ends now (he rises on the next good night). */
   endVigil(): void
+  /** The hover tag key of the thing at this framebuffer pixel. */
+  tagAt(x: number, y: number): string | null
   /** The lights of the last frame. */
   lights(): Renderer['lastLights']
   destroy(): void
@@ -116,6 +119,7 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
     forgetNormals()
     renderer.rebuildStatic()
     if (file === 'lights') resetSettings('lights')
+    if (file === 'layout') rebuildNav()
   })
 
   const ro = new ResizeObserver(fit)
@@ -144,6 +148,7 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
   const DROP_HEIGHT = 22
   const onDown = (e: PointerEvent) => {
     const { x, y } = toScreen(e)
+    if (settings.tool === 'move') return // the editor handles it
     if (settings.tool === 'inspect') {
       settings.inspect = { x: Math.floor(x), y: Math.floor(y) }
       options.onInspect?.()
@@ -208,6 +213,7 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
     },
     endVigil: () => (world.knight.vigilLength = Math.min(world.knight.vigilLength, world.knight.vigil)),
     lights: () => renderer.lastLights,
+    tagAt: (x, y) => renderer.tagAt(x, y),
     destroy() {
       cancelAnimationFrame(raf)
       offArt()

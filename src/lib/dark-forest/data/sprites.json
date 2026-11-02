@@ -209,50 +209,17 @@
       }
     },
     "parts": [
-      {
-        "chars": "hHvd",
-        "kind": "dome"
-      },
-      {
-        "chars": "pPq",
-        "kind": "dome"
-      },
-      {
-        "chars": "mn",
-        "kind": "cylinder"
-      },
-      {
-        "chars": "ceC",
-        "kind": "cylinder"
-      },
-      {
-        "chars": "lLy",
-        "kind": "cylinder"
-      },
-      {
-        "chars": "Aa",
-        "kind": "cylinder"
-      },
-      {
-        "chars": "gG",
-        "kind": "dome"
-      },
-      {
-        "chars": "Kk",
-        "kind": "dome"
-      },
-      {
-        "chars": "Iij",
-        "kind": "cylinder"
-      },
-      {
-        "chars": "bB",
-        "kind": "dome"
-      },
-      {
-        "chars": "sStr",
-        "kind": "flat"
-      }
+      { "chars": "hHvd", "kind": "dome" },
+      { "chars": "pPq", "kind": "dome" },
+      { "chars": "mn", "kind": "cylinder" },
+      { "chars": "ceC", "kind": "cylinder" },
+      { "chars": "lLy", "kind": "cylinder" },
+      { "chars": "Aa", "kind": "cylinder" },
+      { "chars": "gG", "kind": "dome" },
+      { "chars": "Kk", "kind": "dome" },
+      { "chars": "Iij", "kind": "cylinder" },
+      { "chars": "bB", "kind": "dome" },
+      { "chars": "sStr", "kind": "flat" }
     ],
     "shine": {
       "H": 1,
@@ -371,42 +338,15 @@
       "baby": [".rrrr.", "rrwrrr", "rrrrrr", ".uuuu.", "..ss..", "..ss.."]
     },
     "palettes": {
-      "default": {
-        "r": "#8f4b3c",
-        "w": "#e0b896",
-        "u": "#5a3028",
-        "s": "#d8ccb4",
-        "e": "#1a1410"
-      },
-      "elder": {
-        "r": "#7d655c",
-        "w": "#ece2d2",
-        "u": "#4a3a34",
-        "s": "#c9c2b4",
-        "e": "#1a1410"
-      }
+      "default": { "r": "#8f4b3c", "w": "#e0b896", "u": "#5a3028", "s": "#d8ccb4", "e": "#1a1410" },
+      "elder": { "r": "#7d655c", "w": "#ece2d2", "u": "#4a3a34", "s": "#c9c2b4", "e": "#1a1410" }
     },
     "parts": [
-      {
-        "chars": "rw",
-        "kind": "cap"
-      },
-      {
-        "chars": "u",
-        "kind": "under"
-      },
-      {
-        "chars": "se",
-        "kind": "cylinder"
-      },
-      {
-        "chars": "k",
-        "kind": "cylinder"
-      },
-      {
-        "chars": "h",
-        "kind": "dome"
-      }
+      { "chars": "rw", "kind": "cap" },
+      { "chars": "u", "kind": "under" },
+      { "chars": "se", "kind": "cylinder" },
+      { "chars": "k", "kind": "cylinder" },
+      { "chars": "h", "kind": "dome" }
     ],
     "shine": {}
   },
@@ -496,50 +436,17 @@
       ]
     },
     "palettes": {
-      "default": {
-        "r": "#8f4b3c",
-        "w": "#e0b896",
-        "u": "#5a3028",
-        "s": "#d8ccb4",
-        "e": "#1a1410",
-        "k": "#a32c2c",
-        "h": "#dedad2"
-      },
-      "elder": {
-        "r": "#7d655c",
-        "w": "#ece2d2",
-        "u": "#4a3a34",
-        "s": "#c9c2b4",
-        "e": "#1a1410",
-        "k": "#a32c2c",
-        "h": "#dedad2"
-      }
+      "default": { "r": "#8f4b3c", "w": "#e0b896", "u": "#5a3028", "s": "#d8ccb4", "e": "#1a1410", "k": "#a32c2c", "h": "#dedad2" },
+      "elder": { "r": "#7d655c", "w": "#ece2d2", "u": "#4a3a34", "s": "#c9c2b4", "e": "#1a1410", "k": "#a32c2c", "h": "#dedad2" }
     },
     "parts": [
-      {
-        "chars": "rw",
-        "kind": "cap"
-      },
-      {
-        "chars": "u",
-        "kind": "under"
-      },
-      {
-        "chars": "se",
-        "kind": "cylinder"
-      },
-      {
-        "chars": "k",
-        "kind": "cylinder"
-      },
-      {
-        "chars": "h",
-        "kind": "dome"
-      }
+      { "chars": "rw", "kind": "cap" },
+      { "chars": "u", "kind": "under" },
+      { "chars": "se", "kind": "cylinder" },
+      { "chars": "k", "kind": "cylinder" },
+      { "chars": "h", "kind": "dome" }
     ],
-    "shine": {
-      "h": 1
-    }
+    "shine": { "h": 1 }
   },
   "deer": {
     "frames": {
@@ -617,33 +524,13 @@
       ]
     },
     "palettes": {
-      "default": {
-        "b": "#9a7a5c",
-        "u": "#7d6249",
-        "h": "#a8876a",
-        "e": "#1a1410",
-        "t": "#c9b9a0",
-        "n": "#2a2018",
-        "l": "#7a5f47"
-      }
+      "default": { "b": "#9a7a5c", "u": "#7d6249", "h": "#a8876a", "e": "#1a1410", "t": "#c9b9a0", "n": "#2a2018", "l": "#7a5f47" }
     },
     "parts": [
-      {
-        "chars": "bu",
-        "kind": "dome"
-      },
-      {
-        "chars": "hne",
-        "kind": "dome"
-      },
-      {
-        "chars": "t",
-        "kind": "flat"
-      },
-      {
-        "chars": "l",
-        "kind": "cylinder"
-      }
+      { "chars": "bu", "kind": "dome" },
+      { "chars": "hne", "kind": "dome" },
+      { "chars": "t", "kind": "flat" },
+      { "chars": "l", "kind": "cylinder" }
     ],
     "shine": {}
   },
@@ -651,21 +538,10 @@
     "frames": {
       "glowcap": ["...cccc...", ".cccccccc.", "cccccccccc", ".cccccccc.", "....ss....", "....ss....", "....ss....", "...ssss..."]
     },
-    "palettes": {
-      "default": {
-        "c": "#9ff5e4",
-        "s": "#d8ccb4"
-      }
-    },
+    "palettes": { "default": { "c": "#9ff5e4", "s": "#d8ccb4" } },
     "parts": [
-      {
-        "chars": "c",
-        "kind": "cap"
-      },
-      {
-        "chars": "s",
-        "kind": "cylinder"
-      }
+      { "chars": "c", "kind": "cap" },
+      { "chars": "s", "kind": "cylinder" }
     ],
     "shine": {}
   },
@@ -674,19 +550,8 @@
       "sit": [".....e.e.", "...gggggg", "..ggggggg", ".gGgggggg", "GG.G..GG."],
       "hop": [".......e.e", "....gggggg", "gggggggggG", "G........G"]
     },
-    "palettes": {
-      "default": {
-        "e": "#c9d67a",
-        "g": "$frog",
-        "G": "$frogD"
-      }
-    },
-    "parts": [
-      {
-        "chars": "geG",
-        "kind": "dome"
-      }
-    ],
+    "palettes": { "default": { "e": "#c9d67a", "g": "$frog", "G": "$frogD" } },
+    "parts": [{ "chars": "geG", "kind": "dome" }],
     "shine": {}
   },
   "crow": {
@@ -695,12 +560,7 @@
       "up": ["c........c", "cc......cc", ".ccc..ccc.", "..cccccc..", "....ccb..."],
       "down": ["..........", "....ccb...", "..cccccc..", ".ccc..ccc.", "cc......cc"]
     },
-    "palettes": {
-      "default": {
-        "c": "$crow",
-        "b": "$iron"
-      }
-    },
+    "palettes": { "default": { "c": "$crow", "b": "$iron" } },
     "parts": [],
     "shine": {}
   }

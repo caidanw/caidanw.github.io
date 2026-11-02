@@ -53,31 +53,12 @@
       "d": "$bladeD"
     },
     "parts": [
-      {
-        "chars": "oO",
-        "kind": "dome"
-      },
-      {
-        "chars": "rR",
-        "kind": "cylinder"
-      },
-      {
-        "chars": "gG",
-        "kind": "cylinder"
-      },
-      {
-        "chars": "sSd",
-        "kind": "cylinder"
-      }
+      { "chars": "oO", "kind": "dome" },
+      { "chars": "rR", "kind": "cylinder" },
+      { "chars": "gG", "kind": "cylinder" },
+      { "chars": "sSd", "kind": "cylinder" }
     ],
-    "shine": {
-      "o": 1,
-      "O": 1,
-      "g": 0.8,
-      "s": 1,
-      "S": 1,
-      "d": 0.8
-    }
+    "shine": { "o": 1, "O": 1, "g": 0.8, "s": 1, "S": 1, "d": 0.8 }
   },
   "pack": {
     "rows": [
@@ -94,63 +75,28 @@
       "..pppppppppp.."
     ],
     "anchor": 7,
-    "palette": {
-      "e": "$bedroll",
-      "E": "#3a3a38",
-      "p": "$pack",
-      "P": "$packHi",
-      "f": "#2e251c",
-      "y": "#c9a45a"
-    },
+    "palette": { "e": "$bedroll", "E": "#3a3a38", "p": "$pack", "P": "$packHi", "f": "#2e251c", "y": "#c9a45a" },
     "parts": [
-      {
-        "chars": "eE",
-        "kind": "dome"
-      },
-      {
-        "chars": "pPfy",
-        "kind": "dome"
-      }
+      { "chars": "eE", "kind": "dome" },
+      { "chars": "pPfy", "kind": "dome" }
     ],
-    "shine": {
-      "y": 0.8
-    }
+    "shine": { "y": 0.8 }
   },
   "log": {
     "rows": ["lllllllE.", "llllllEyE", "LLLLLLEyE", "LLLLLLLE."],
     "anchor": 4,
-    "palette": {
-      "l": "$log",
-      "L": "#5e4430",
-      "E": "$logEnd",
-      "y": "#e0bd8c"
-    },
+    "palette": { "l": "$log", "L": "#5e4430", "E": "$logEnd", "y": "#e0bd8c" },
     "parts": [
-      {
-        "chars": "lL",
-        "kind": "dome"
-      },
-      {
-        "chars": "Ey",
-        "kind": "flat"
-      }
+      { "chars": "lL", "kind": "dome" },
+      { "chars": "Ey", "kind": "flat" }
     ],
     "shine": {}
   },
   "skull": {
     "rows": [".bbb.", "bkbkb", "bbbbB", ".B.B."],
     "anchor": 2,
-    "palette": {
-      "b": "$bone",
-      "B": "$boneD",
-      "k": "$char"
-    },
-    "parts": [
-      {
-        "chars": "bBk",
-        "kind": "dome"
-      }
-    ],
+    "palette": { "b": "$bone", "B": "$boneD", "k": "$char" },
+    "parts": [{ "chars": "bBk", "kind": "dome" }],
     "shine": {}
   },
   "lanternPost": {
@@ -203,33 +149,13 @@
       "............wW............"
     ],
     "anchor": 12,
-    "palette": {
-      "w": "$wood",
-      "W": "#36291d",
-      "i": "$iron",
-      "G": "$door",
-      "g": "$door",
-      "s": "$sign",
-      "S": "$signD",
-      "n": "$iron"
-    },
+    "palette": { "w": "$wood", "W": "#36291d", "i": "$iron", "G": "$door", "g": "$door", "s": "$sign", "S": "$signD", "n": "$iron" },
     "parts": [
-      {
-        "chars": "wW",
-        "kind": "cylinder"
-      },
-      {
-        "chars": "iGg",
-        "kind": "cylinder"
-      },
-      {
-        "chars": "sSn",
-        "kind": "flat"
-      }
+      { "chars": "wW", "kind": "cylinder" },
+      { "chars": "iGg", "kind": "cylinder" },
+      { "chars": "sSn", "kind": "flat" }
     ],
-    "shine": {
-      "i": 0.6
-    }
+    "shine": { "i": 0.6 }
   },
   "relics": {
     "antler": {
@@ -262,10 +188,7 @@
         ".........bb........",
         ".........bb........"
       ],
-      "palette": {
-        "b": "$bone",
-        "g": "$bone"
-      }
+      "palette": { "b": "$bone", "g": "$bone" }
     },
     "crook": {
       "rows": [
@@ -310,11 +233,7 @@
         "............ww..",
         "............ww.."
       ],
-      "palette": {
-        "w": "$relicWood",
-        "i": "$relicIronHi",
-        "g": "$relicIron"
-      }
+      "palette": { "w": "$relicWood", "i": "$relicIronHi", "g": "$relicIron" }
     },
     "key": {
       "rows": [
@@ -353,10 +272,7 @@
         "......kk......",
         "......kk......"
       ],
-      "palette": {
-        "g": "$relicIron",
-        "k": "$relicIronHi"
-      }
+      "palette": { "g": "$relicIron", "k": "$relicIronHi" }
     }
   }
 }

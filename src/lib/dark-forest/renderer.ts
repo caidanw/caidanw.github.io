@@ -175,10 +175,10 @@ const GLYPHS: [number, number][][] = [
 ]
 /** Screen spots the tree crowns keep clear of: the moon, and the top of the trigon stone. */
 const MOON_AT = [170 * RES, 16 * RES]
-const TRIGON_AT = (() => {
+const trigonAt = () => {
   const [x, y, s] = project(PROPS.trigon.x, 0, PROPS.trigon.z)
   return [x, y - Math.round(40 * s)]
-})()
+}
 
 /**
  * Composite an emissive into one pixel of a layer (straight alpha), over or under what's
@@ -1050,6 +1050,7 @@ export class Renderer {
     lobes.push({ cx, cy, rx: R, ry: R * 1.08 })
     lobes.push({ cx: cx + (rng() - 0.5) * R * 0.5, cy: cy - R * (0.55 + rng() * 0.2), rx: R * 0.62, ry: R * 0.62 })
     // keep the moon and the trigon in view
+    const TRIGON_AT = trigonAt()
     const clearOf = (l: Lobe) => {
       const moon = Math.hypot(l.cx - MOON_AT[0], l.cy - MOON_AT[1]) - l.rx < 20
       const trig = t.z > PROPS.trigon.z && Math.abs(l.cx - TRIGON_AT[0]) < l.rx + 20 && l.cy + l.ry > TRIGON_AT[1] - 6
@@ -1459,7 +1460,7 @@ export class Renderer {
     }
     // everything that stands up, back to front
     const statics: { z: number; draw: () => void }[] = [
-      ...TREES.map((t) => ({ z: t.z, draw: () => this.casting(B, t.x, t.z, () => this.drawTree(B, t)) })),
+      ...TREES.map((t, i) => ({ z: t.z, draw: () => this.tagged(`tree${i}`, () => this.casting(B, t.x, t.z, () => this.drawTree(B, t))) })),
       ...BUSHES.map((b, i) => ({ z: b.z, draw: () => this.tagged(`bush${i}`, () => this.casting(B, b.x, b.z, () => this.drawBush(B, b))) })),
       ...PROPS.huts.map((h, i) => ({ z: h.z, draw: () => this.tagged(`hut${i}`, () => this.casting(B, h.x, h.z, () => this.drawHut(B, h))) })),
       ...PROPS.graves.map((g, i) => ({ z: g.z, draw: () => this.tagged('grove', () => this.casting(B, g.x, g.z, () => this.drawGrave(B, g, i))) })),
@@ -2482,6 +2483,15 @@ export class Renderer {
     }
   }
 
+  /** The hover tag key of the thing at this pixel ('hut0', 'tree12', ...), or null. */
+  tagAt(x: number, y: number): string | null {
+    if (x < 0 || x >= W || y < 0 || y >= H) return null
+    const id = this.fb.hv[y * W + x]
+    if (!id) return null
+    for (const [k, v] of TAGS) if (v === id) return k
+    return null
+  }
+
   /** Everything about one pixel of the last frame, and how much each light gives it. */
   inspectPixel(x: number, y: number): PixelInfo | null {
     if (x < 0 || x >= W || y < 0 || y >= H) return null
@@ -2525,7 +2535,8 @@ export class Renderer {
     const O = settings.overlays
     const sel = settings.selectedLight
     const insp = settings.inspect
-    if (!O.lights && !O.casters && !O.nav && !O.paths && !sel && !insp) return
+    const pick = settings.selection
+    if (!O.lights && !O.casters && !O.nav && !O.paths && !sel && !insp && !pick) return
     const { ctx, scale: S } = this
     ctx.save()
     ctx.lineWidth = Math.max(1, S / 2)
@@ -2590,6 +2601,12 @@ export class Renderer {
         ctx.fillStyle = `rgb(${Math.min(255, l.color[0] * 200)},${Math.min(255, l.color[1] * 200)},${Math.min(255, l.color[2] * 200)})`
         ctx.fillRect(lx * S - 2 * S, ly * S - 2 * S, 4 * S, 4 * S)
       }
+    }
+    if (pick) {
+      // what the move tool has selected
+      ctx.setLineDash([3 * S, 2 * S])
+      ellipse(pick.x, pick.z, 4, 'rgba(240,138,60,0.95)')
+      ctx.setLineDash([])
     }
     if (insp) {
       const x = (insp.x + 0.5) * S

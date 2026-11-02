@@ -3,7 +3,7 @@
  * World space is a ground plane (x right, z toward the camera, y up) with the
  * campfire at the origin.
  */
-import { WORLD } from './art'
+import { DATA, WORLD } from './art'
 import { clamp, rngFrom, vnoise } from './util'
 
 // ---------- framebuffer + camera (low 3/4 "stage" view) ----------
@@ -56,23 +56,8 @@ export const poolMetric = (x: number, z: number): number => {
 /** Is (x, z) under water when the pool is at `level` (1 = normal, grows in rain)? */
 export const inPool = (x: number, z: number, level: number): boolean => poolMetric(x, z) < level * level
 
-export const PROPS = {
-  knight: { x: -17, z: 2 },
-  sword: { x: -25, z: -1 },
-  pack: { x: -27, z: 5 },
-  woodpile: { x: 15, z: -7 },
-  huts: [
-    { x: -66, z: -14 },
-    { x: -40, z: -40 },
-  ],
-  graves: [
-    { x: 74, z: -24, helm: true },
-    { x: 84, z: -18 },
-    { x: 92, z: -28 },
-  ] as (Point & { helm?: boolean })[],
-  lantern: { x: -96, z: 16 },
-  trigon: { x: -4, z: -76 },
-}
+/** Where everything stands (data/layout.json, edited in the editor's move tool). Live objects. */
+export const PROPS = DATA.layout.props
 
 /** Lily pads, as world points inside the pool. */
 export const PADS: [number, number][] = [
@@ -90,11 +75,7 @@ export const STONE_RING = Array.from({ length: 13 }, (_, i) => {
 })
 
 /** Three old standing stones behind the fire; the tall one carries a carved antler crown that warms with the flames. */
-export const HEARTHSTONES = [
-  { x: -27, z: -19, h: 13, w: 3, lean: -1, carved: false },
-  { x: 14, z: -35, h: 18, w: 4, lean: 0, carved: true },
-  { x: 30, z: -15, h: 11, w: 3, lean: 1, carved: false },
-]
+export const HEARTHSTONES = DATA.layout.hearthstones
 
 /**
  * What stands planted in the ashes: the bonfire's coiled sword, reimagined.
@@ -126,24 +107,14 @@ export const GROVE_SPOTS: [number, number][] = (() => {
 /** Hut geometry in world units: the door sits left of centre; shroomfolk step from the front point to the inside point. */
 export const HUT = { doorDx: -1.9, front: 6.5, inside: -3, capacity: 2 }
 
-const avoid: (Point & { pad: number })[] = [
+/** Keep-clear zones around props (read live, so moved props move them). */
+const avoid = (): (Point & { pad: number })[] => [
   ...PROPS.huts.map((p) => ({ ...p, pad: 8 })),
   ...PROPS.graves.map((p) => ({ ...p, pad: 0 })),
   { ...PROPS.lantern, pad: 0 },
   { ...PROPS.trigon, pad: 0 },
 ]
-export const nearProp = (x: number, z: number, r: number): boolean => avoid.some((p) => Math.hypot(p.x - x, p.z - z) < r + p.pad)
-
-/** Landmarks that must stay visible: no tree may stand between them and the camera. [point, half-width in world units] */
-const landmarks: [Point, number][] = [
-  ...PROPS.huts.map((p): [Point, number] => [p, 15]),
-  ...PROPS.graves.map((p): [Point, number] => [p, 10]),
-  [{ x: 67, z: -16 }, 8],
-  [PROPS.lantern, 9],
-  [PROPS.trigon, 9],
-]
-/** Would something at (x, z) stand in front of a landmark from the camera's point of view? */
-export const blocksLandmark = (x: number, z: number): boolean => landmarks.some(([p, hw]) => z > p.z && Math.abs(x - p.x) < hw)
+export const nearProp = (x: number, z: number, r: number): boolean => avoid().some((p) => Math.hypot(p.x - x, p.z - z) < r + p.pad)
 
 export interface Tree extends Point {
   h: number
@@ -152,32 +123,8 @@ export interface Tree extends Point {
   tone: number
 }
 
-export const TREES: Tree[] = (() => {
-  const rng = rngFrom(5)
-  const out: Tree[] = []
-  const ok = (x: number, z: number, gap: number) => !out.some((t) => Math.abs(t.x - x) < gap && Math.abs(t.z - z) < gap * 0.7)
-  const add = (x: number, z: number, h: number, w: number) => out.push({ x, z, h, w, seed: (rng() * 1e6) | 0, tone: rng() })
-  // back band, lost in mist; keep an avenue open behind the fire for the moon
-  for (let i = 0; i < 500 && out.length < 54; i++) {
-    const x = (rng() * 2 - 1) * 200
-    const z = -86 + rng() * 40
-    if (Math.abs(x) < 22 + -z * 0.12 || !ok(x, z, 8) || nearProp(x, z, 12) || blocksLandmark(x, z)) continue
-    add(x, z, 0.9 + rng() * 0.5, 0.6 + rng() * 0.5)
-  }
-  // mid band, the edge of the clearing
-  for (let i = 0; i < 500 && out.length < 84; i++) {
-    const x = (rng() * 2 - 1) * 170
-    const z = -50 + rng() * 60
-    if (Math.hypot(x * 0.8, z) < 52 || Math.abs(x) < 40 || !ok(x, z, 11) || nearProp(x, z, 14) || blocksLandmark(x, z)) continue
-    add(x, z, 0.85 + rng() * 0.4, 0.8 + rng() * 0.5)
-  }
-  // near framing trunks
-  for (let i = 0; i < 4; i++) {
-    const side = i % 2 ? 1 : -1
-    add(side * (100 + rng() * 25), 30 + i * 12 + rng() * 6, 1.3, 1.1 + rng() * 0.4)
-  }
-  return out
-})()
+/** The forest (data/layout.json). Live objects: the editor moves, adds and removes them. */
+export const TREES: Tree[] = DATA.layout.trees
 
 export interface Bush extends Point {
   /** Half-width and height, in world units. */
@@ -191,31 +138,7 @@ export interface Bush extends Point {
  * Bushes: mounds at the edge of the clearing and at the feet of the trees, and a few big
  * dark ones in the near corners, framing the stage. The road out stays open.
  */
-export const BUSHES: Bush[] = (() => {
-  const rng = rngFrom(21)
-  const out: Bush[] = []
-  const clear = (x: number, z: number, w: number) =>
-    !out.some((b) => Math.hypot(b.x - x, (b.z - z) * 1.6) < b.w + w + 3) && !TREES.some((t) => Math.hypot(t.x - x, (t.z - z) * 1.4) < 1.6 * t.w + 2)
-  for (let i = 0; i < 900 && out.length < 20; i++) {
-    const a = rng() * Math.PI * 2
-    const r = 62 + rng() * 32
-    const x = Math.cos(a) * r * 1.25
-    const z = Math.sin(a) * r * 0.75 - 8
-    if (z > 30 || inPool(x, z, 1.7) || nearProp(x, z, 9) || blocksLandmark(x, z)) continue
-    if (x < -70 && z > 4 && z < 34) continue // the road out
-    const w = 5 + rng() * 6
-    if (!clear(x, z, w)) continue
-    out.push({ x, z, w, h: w * (0.55 + rng() * 0.25), seed: (rng() * 1e6) | 0, lobes: 2 + ((rng() * 3) | 0) })
-  }
-  for (const [x, z, w] of [
-    [-96, 62, 14],
-    [-74, 74, 10],
-    [96, 64, 15],
-    [76, 76, 9],
-  ])
-    out.push({ x, z, w, h: w * 0.62, seed: (rng() * 1e6) | 0, lobes: 4 })
-  return out
-})()
+export const BUSHES: Bush[] = DATA.layout.bushes
 
 export const TUFTS = (() => {
   const rng = rngFrom(9)
