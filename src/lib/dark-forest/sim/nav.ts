@@ -6,7 +6,7 @@
  * creatures walk in straight lines when they can and around things when they
  * can't. moveTo() in helpers.ts follows these paths transparently.
  */
-import { HEARTHSTONES, KNIGHT_GRAVE, PROPS, TREES, poolMetric } from '../world'
+import { BUSHES, HEARTHSTONES, KNIGHT_GRAVE, PROPS, TREES, poolMetric } from '../world'
 
 const CELL = 2
 const X0 = -180
@@ -26,6 +26,7 @@ function blockedStatic(x: number, z: number): boolean {
   for (const h of PROPS.huts) if (Math.hypot(x - h.x, (z - h.z) * 1.2) < 6) return true // the stem; the cap is overhead
   for (const g of [...PROPS.graves, KNIGHT_GRAVE]) if (Math.hypot(x - g.x, z - g.z) < 2.5) return true
   for (const t of TREES) if (Math.hypot(x - t.x, z - t.z) < 1.6 * t.w + 0.8) return true
+  for (const b of BUSHES) if (Math.hypot(x - b.x, (z - b.z) * 1.8) < b.w * 0.9) return true
   if (Math.hypot(x - PROPS.woodpile.x, (z - PROPS.woodpile.z) * 1.3) < 5) return true
   if (Math.hypot(x - PROPS.lantern.x, z - PROPS.lantern.z) < 1.8) return true
   if (Math.hypot(x - PROPS.pack.x, z - PROPS.pack.z) < 2.8) return true

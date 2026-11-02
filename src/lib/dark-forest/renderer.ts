@@ -26,6 +26,8 @@ import {
   SHROOMS,
   STONE_RING,
   TREES,
+  BUSHES,
+  type Bush,
   TUFTS,
   W,
   inPool,
@@ -68,6 +70,79 @@ import { LANTERN_POST, LOG, PACK, RELIC_ART, SKULL, SWORD, type PropArt } from '
 import { WEIGHT, micro, shape, type Normal } from './materials'
 import { cullLights, gatherLight, groundGrain, prepareLights, type Caster, type Light, type Prepared } from './lights'
 import { WALKING, doorOpen, hutOccupancy, isElder, isMoving, isRaining, lightRadius, perchPos, type Mush, type World } from './sim'
+
+/** What the bushes are called on hover. */
+const BUSH_NAMES: [string, string][] = [
+  ['a bramble', 'thorny, and full of small sounds'],
+  ['a holly bush', 'its leaves catch the firelight'],
+  ['a thicket', 'something is asleep in there'],
+  ['a juniper', 'it smells of rain'],
+]
+
+/** A round lobe of foliage, in screen pixels. */
+interface Lobe {
+  cx: number
+  cy: number
+  rx: number
+  ry: number
+}
+interface Foliage {
+  x: number
+  z: number
+  bx: number
+  by: number
+  s: number
+  dep: number
+  base: Color
+  speck: Color
+  dim: Color
+  seed: number
+  arcs: boolean
+  clipY?: number
+  heightAt: (py: number) => number
+}
+/** The little glyphs scattered through foliage: hollow squares, corners, a pair of dots. */
+const GLYPHS: [number, number][][] = [
+  [
+    [0, 0],
+    [1, 0],
+    [2, 0],
+    [3, 0],
+    [0, 1],
+    [3, 1],
+    [0, 2],
+    [3, 2],
+    [0, 3],
+    [1, 3],
+    [2, 3],
+    [3, 3],
+  ],
+  [
+    [0, 0],
+    [1, 0],
+    [2, 0],
+    [0, 1],
+    [2, 1],
+    [0, 2],
+    [1, 2],
+    [2, 2],
+  ],
+  [
+    [0, 0],
+    [1, 0],
+    [0, 1],
+  ],
+  [
+    [0, 0],
+    [2, 0],
+  ],
+]
+/** Screen spots the tree crowns keep clear of: the moon, and the top of the trigon stone. */
+const MOON_AT = [170 * RES, 16 * RES]
+const TRIGON_AT = (() => {
+  const [x, y, s] = project(PROPS.trigon.x, 0, PROPS.trigon.z)
+  return [x, y - Math.round(40 * s)]
+})()
 
 /** Light-culling tiles: 32x32 pixels. */
 const TILE_BITS = 5
@@ -388,6 +463,8 @@ export class Renderer {
   private ctx: CanvasRenderingContext2D
   private scale = 4
   private tileBoxes = new Float32Array(TILES * 6)
+  /** Foliage speckles: how strongly each static pixel glints in the moonlight (0 = not at all). */
+  private glint = new Float32Array(N)
   private st = makeBuf() // static layer (ground, trees, props), rebuilt only when the pool level moves
   private fb = makeBuf() // per-frame layer
   private fx = {
@@ -665,81 +742,192 @@ export class Renderer {
     return c
   }
 
+  /**
+   * Foliage in the Sword & Sworcery manner: one flat silhouette (the union of round lobes),
+   * pale speckles that gather toward the top of each lobe, dotted arcs tracing the lobes'
+   * upper rims (bushes), and a few tiny square glyphs. Later lobes sit in front of earlier
+   * ones. Normals are soft domes, so firelight still finds the form.
+   */
+  private foliage(B: Buf, lobes: Lobe[], f: Foliage) {
+    let x0 = Infinity
+    let y0 = Infinity
+    let x1 = -Infinity
+    let y1 = -Infinity
+    for (const l of lobes) {
+      x0 = Math.min(x0, Math.floor(l.cx - l.rx))
+      x1 = Math.max(x1, Math.ceil(l.cx + l.rx))
+      y0 = Math.min(y0, Math.floor(l.cy - l.ry))
+      y1 = Math.min(f.clipY ?? Infinity, Math.max(y1, Math.ceil(l.cy + l.ry)))
+    }
+    if (x1 < 0 || x0 >= W || y1 < 0 || y0 >= H) return
+    const bw = x1 - x0 + 1
+    const bh = y1 - y0 + 1
+    const owner = new Int16Array(bw * bh).fill(-1)
+    // each lobe's rim is scalloped: little bumps a couple of pixels deep, like clumps of leaves
+    const bumps = lobes.map((l, li) => ({ k: Math.max(6, Math.min(16, Math.round(l.rx / 3))), ph: hash(f.seed, li) * 6.28, amp: Math.min(0.09, 2.2 / l.rx) }))
+    const rim = (li: number, u: number, v: number) => 1 - bumps[li].amp + bumps[li].amp * Math.sin(Math.atan2(v, u) * bumps[li].k + bumps[li].ph)
+    lobes.forEach((l, li) => {
+      for (let py = Math.max(y0, Math.floor(l.cy - l.ry)); py <= Math.min(y1, l.cy + l.ry); py++) {
+        for (let px = Math.max(x0, Math.floor(l.cx - l.rx)); px <= Math.min(x1, l.cx + l.rx); px++) {
+          const u = (px - l.cx) / l.rx
+          const v = (py - l.cy) / l.ry
+          if (Math.hypot(u, v) <= rim(li, u, v)) owner[(py - y0) * bw + px - x0] = li
+        }
+      }
+    })
+    const at = (px: number, py: number) => (px < x0 || px > x1 || py < y0 || py > y1 ? -1 : owner[(py - y0) * bw + px - x0])
+    // where each pixel sits within its lobe: u, v in -1..1 and how many pixels in from the rim
+    const place = (li: number, px: number, py: number) => {
+      const l = lobes[li]
+      const u = (px - l.cx) / l.rx
+      const v = (py - l.cy) / l.ry
+      return { u, v, edge: (rim(li, u, v) - Math.hypot(u, v)) * Math.min(l.rx, l.ry) }
+    }
+    const col = new Map<number, Color>()
+    // a few glyphs: tiny hollow squares and corners, high in the lobes
+    const rng = rngFrom(f.seed)
+    const area = bw * bh
+    for (let g = 0; g < Math.round(area / 420); g++) {
+      const px = x0 + Math.floor(rng() * bw)
+      const py = y0 + Math.floor(rng() * bh)
+      const li = at(px, py)
+      if (li < 0) continue
+      const { v, edge } = place(li, px, py)
+      if (edge < 4 || v > 0.2) continue
+      for (const [dx, dy] of GLYPHS[Math.floor(rng() * GLYPHS.length)]) if (at(px + dx, py + dy) === li) col.set((py + dy) * W + px + dx, f.speck)
+    }
+    this.region++
+    for (let py = y0; py <= y1; py++) {
+      for (let px = x0; px <= x1; px++) {
+        const li = at(px, py)
+        if (li < 0) continue
+        const { u, v, edge } = place(li, px, py)
+        let c = col.get(py * W + px) ?? f.base
+        if (c === f.base) {
+          const top = clamp(0.15 - v * 0.85)
+          const n = hash(px * 7 + f.seed, py * 13)
+          if (f.arcs && v < 0.2 && edge >= 1.5 && edge < 2.5 && ((px + py) & 1) === 0)
+            c = f.speck // the dotted rim
+          else if (f.arcs && v < 0 && edge >= 4.5 && edge < 5.5 && n < 0.45) c = f.dim
+          else if (edge > 1 && n < 0.012 + 0.11 * top) c = hash(py, px * 3 + f.seed) < 0.4 ? f.speck : f.dim
+        }
+        if (c === f.speck) this.glint[py * W + px] = 1
+        else if (c === f.dim) this.glint[py * W + px] = 0.4
+        const d = shape.dome(u, v)
+        const l = Math.hypot(d[0] * 0.45, d[1] * 0.45 + 0.12, 1)
+        const nrm: Normal = [(d[0] * 0.45) / l, (d[1] * 0.45 + 0.12) / l, 1 / l]
+        this.put(B, px, py, c, f.x + (px - f.bx) / f.s, f.z, f.heightAt(py), f.by, f.dep + li * 0.0004, false, nrm)
+      }
+    }
+  }
+
+  /**
+   * A tree: a straight flat trunk with a thin moonlit edge, and a crown of a few big lobes
+   * (sometimes a lower clump on a side branch). Crowns keep clear of the moon and, for trees
+   * standing in front of it, the trigon stone.
+   */
   private drawTree(B: Buf, t: Tree) {
     const [bx, by, s] = project(t.x, 0, t.z)
-    const dep = t.z
     const ys = by - project(t.x, 1, t.z)[1]
     const h = 95 * t.h
-    const tw = Math.max(1, Math.round(1.8 * t.w * s))
+    const tw = Math.max(2, Math.round(1.8 * t.w * s))
     const rng = rngFrom(t.seed)
-    // the trunk is a cylinder with grooved bark
+    const R = Math.max(6, (7 + rng() * 5) * t.w * s)
+    const cx = bx + (rng() - 0.5) * R * 0.3
+    const cy = by - h * (0.48 + rng() * 0.22) * ys
+    const lobes: Lobe[] = []
+    const side = rng() < 0.5 ? -1 : 1
+    let branch: Lobe | null = null
+    if (rng() < 0.45) {
+      // a lower clump on a branch
+      const br = R * (0.45 + rng() * 0.15)
+      branch = { cx: bx + side * (R * 0.7 + br * 0.4), cy: cy + R * (1.3 + rng() * 0.6), rx: br, ry: br * 1.05 }
+      lobes.push(branch)
+    }
+    for (const k of [-1, 1]) {
+      const r = R * (0.5 + rng() * 0.2)
+      lobes.push({ cx: cx + k * R * (0.55 + rng() * 0.25), cy: cy + R * (0.15 + rng() * 0.35), rx: r, ry: r * 1.05 })
+    }
+    lobes.push({ cx, cy, rx: R, ry: R * 1.08 })
+    lobes.push({ cx: cx + (rng() - 0.5) * R * 0.5, cy: cy - R * (0.55 + rng() * 0.2), rx: R * 0.62, ry: R * 0.62 })
+    // keep the moon and the trigon in view
+    const clearOf = (l: Lobe) => {
+      const moon = Math.hypot(l.cx - MOON_AT[0], l.cy - MOON_AT[1]) - l.rx < 20
+      const trig = t.z > PROPS.trigon.z && Math.abs(l.cx - TRIGON_AT[0]) < l.rx + 20 && l.cy + l.ry > TRIGON_AT[1] - 6
+      return !moon && !trig
+    }
+    for (const l of lobes) for (let k = 0; k < 6 && !clearOf(l); k++) ((l.rx *= 0.75), (l.ry *= 0.75))
+    const crown = lobes.filter((l) => clearOf(l) && l.rx >= 3)
+    // the trunk, up into the crown
+    const trunkTop = Math.round(cy)
     this.region++
-    for (let r = 0; r <= h * 1.25 * ys; r++) {
+    for (let py = by; py >= trunkTop; py--) {
       for (let k = 0; k < tw; k++) {
         const u = tw > 1 ? ((k + 0.5) / tw) * 2 - 1 : 0
         const px = bx - (tw >> 1) + k
-        const py = by - r
-        this.put(
-          B,
-          px,
-          py,
-          k === 0 && tw > 1 ? C.trunkRim : C.trunk,
-          t.x + u,
-          t.z,
-          r / ys,
-          by,
-          dep,
-          false,
-          shape.cylinder(u),
-          micro.bark(px, py, t.seed),
-          WEIGHT.bark,
-        )
+        this.put(B, px, py, k === 0 && tw > 2 ? C.trunkRim : C.trunk, t.x + u, t.z, (by - py) / ys, by, t.z, false, shape.cylinder(u * 0.6))
       }
     }
     if (tw >= 2) {
-      this.put(B, bx - (tw >> 1) - 1, by, C.trunk, t.x, t.z, 0, by, dep, false, shape.cylinder(-0.9))
-      this.put(B, bx + tw - (tw >> 1), by, C.trunk, t.x, t.z, 0, by, dep, false, shape.cylinder(0.9))
+      this.put(B, bx - (tw >> 1) - 1, by, C.trunk, t.x, t.z, 0, by, t.z, false, shape.cylinder(-0.9))
+      this.put(B, bx + tw - (tw >> 1), by, C.trunk, t.x, t.z, 0, by, t.z, false, shape.cylinder(0.9))
     }
-    // a column of stacked leafy clumps, each its own dome, narrowing toward the top
-    const n = 4 + ((rng() * 4) | 0)
-    const y0 = h * (0.32 + rng() * 0.15)
-    const y1 = h * 1.2
-    for (let k = 0; k < n; k++) {
-      const f = k / (n - 1)
-      const wy = y0 + (y1 - y0) * f
-      const rad = Math.max(2, Math.round((4 + rng() * 3.5) * t.w * s * (1 - 0.45 * f)))
-      const cx = Math.round(bx + (rng() - 0.5) * rad * 0.9)
-      const cy = Math.round(by - wy * ys)
-      this.region++
-      disc(
-        (px, py, u, v) => {
-          const tex = hash(px * 3 + t.seed, py * 7)
-          let c = t.tone > 0.5 ? C.canopy : C.canopyD
-          if (u > 0.45) c = C.canopyD
-          if ((u < -0.55 && v < 0.3) || (v < -0.7 && u < 0.3)) c = tex < 0.7 ? C.canopyRim : C.canopyHi
-          else if (tex < 0.07) c = C.canopyHi
-          this.put(
-            B,
-            px,
-            py,
-            c,
-            t.x + (px - bx) / s,
-            t.z,
-            wy - ((v * rad) / ys) * 0.5,
-            by,
-            dep + 0.001 * k,
-            false,
-            shape.dome(u, v),
-            micro.leaves(px, py, t.seed),
-            WEIGHT.leaves,
-          )
-        },
-        cx,
-        cy,
-        rad,
-        Math.round(rad * 1.15),
-      )
+    if (branch && crown.includes(branch)) {
+      // the branch: from the trunk out to its clump
+      const y0 = Math.round(branch.cy + branch.ry * 0.3)
+      const x1 = Math.round(branch.cx)
+      const steps = Math.abs(x1 - bx)
+      for (let i = 0; i <= steps; i++) {
+        const px = bx + Math.sign(x1 - bx) * i
+        const py = Math.round(y0 + (i / (steps || 1)) * -branch.ry * 0.3 + (1 - i / (steps || 1)) * R * 0.25)
+        for (let j = 0; j < Math.max(1, tw >> 2); j++) this.put(B, px, py + j, C.trunk, t.x, t.z, (by - py) / ys, by, t.z, false, shape.flat)
+      }
     }
+    this.foliage(B, crown, {
+      x: t.x,
+      z: t.z,
+      bx,
+      by,
+      s,
+      dep: t.z + 0.002,
+      base: t.tone > 0.5 ? C.canopy : C.canopyD,
+      speck: C.canopyRim,
+      dim: C.canopyHi,
+      seed: t.seed,
+      arcs: false,
+      heightAt: (py) => (by - py) / ys,
+    })
+  }
+
+  /** A bush: a mound of overlapping lobes sitting on the ground, dotted along their rims. */
+  private drawBush(B: Buf, b: Bush) {
+    const [bx, by, s] = project(b.x, 0, b.z)
+    const rng = rngFrom(b.seed)
+    const wd = b.w * s
+    const ht = b.h * s
+    const lobes: Lobe[] = []
+    // the top of the mound first (behind), then the lower lobes in front of it
+    lobes.push({ cx: bx + (rng() - 0.5) * wd * 0.3, cy: by - ht * 0.95, rx: wd * 0.5, ry: ht * 0.62 })
+    for (let k = 0; k < b.lobes; k++) {
+      const f = b.lobes > 1 ? k / (b.lobes - 1) - 0.5 : 0
+      const r = wd * (0.42 + rng() * 0.16) * (1 - Math.abs(f) * 0.5)
+      lobes.push({ cx: bx + f * wd * 1.15 + (rng() - 0.5) * wd * 0.12, cy: by - r * (0.55 + rng() * 0.2), rx: r, ry: r * 0.85 })
+    }
+    this.foliage(B, lobes, {
+      x: b.x,
+      z: b.z,
+      bx,
+      by,
+      s,
+      dep: b.z,
+      base: C.bush,
+      speck: C.canopyRim,
+      dim: C.canopyHi,
+      seed: b.seed,
+      arcs: true,
+      clipY: by,
+      heightAt: (py) => (by - py) / s,
+    })
   }
 
   /**
@@ -996,6 +1184,7 @@ export class Renderer {
     this.bakedLevel = lvl
     for (const k in B) (B[k as keyof Buf] as Float32Array).fill(0)
     B.dep.fill(-1e9)
+    this.glint.fill(0)
     this.region = 0
     const setBg = (x: number, y: number, c: Color) => {
       if (x < 0 || x >= W || y < 0 || y >= H) return
@@ -1064,6 +1253,7 @@ export class Renderer {
     // everything that stands up, back to front
     const statics: { z: number; draw: () => void }[] = [
       ...TREES.map((t) => ({ z: t.z, draw: () => this.drawTree(B, t) })),
+      ...BUSHES.map((b, i) => ({ z: b.z, draw: () => this.tagged(`bush${i}`, () => this.drawBush(B, b)) })),
       ...PROPS.huts.map((h, i) => ({ z: h.z, draw: () => this.tagged(`hut${i}`, () => this.drawHut(B, h)) })),
       ...PROPS.graves.map((g, i) => ({ z: g.z, draw: () => this.tagged('grove', () => this.drawGrave(B, g, i)) })),
       { z: PROPS.lantern.z, draw: () => this.tagged('lantern', () => this.drawLanternPost(B, PROPS.lantern)) },
@@ -1299,6 +1489,7 @@ export class Renderer {
     this.say('pool', 'rain pool', w.poolLevel > 1.08 ? 'swollen with rain' : 'still and dark')
     this.say('foxfire', 'foxfire', 'a fungus that glows on rotting wood')
     this.say('relic', RELICS[this.relic].name, RELICS[this.relic].sub)
+    BUSHES.forEach((b, i) => this.say(`bush${i}`, ...BUSH_NAMES[b.seed % BUSH_NAMES.length]))
 
     // ---- objects first (they fill the depth buffer that emissives test against)
     const [fireX, fireY] = this.tagged('fire', () => this.drawCampfire(B, w))
@@ -1646,6 +1837,7 @@ export class Renderer {
       ...HEARTHSTONES.map((h) => ({ x: h.x, z: h.z, r: h.w * 0.7, h: h.h * 0.8 })),
       ...STONE_RING.map((s) => ({ x: s.x, z: s.z, r: s.w * 0.6, h: 1.5 })),
       ...TREES.map((t) => ({ x: t.x, z: t.z, r: 1.1 * t.w, h: 60 })),
+      ...BUSHES.map((b) => ({ x: b.x, z: b.z, r: b.w * 0.8, h: b.h })),
     ]
     for (const m of w.mush) if (m.fsm.state !== 'asleep') out.push({ x: m.x, z: m.z, r: 2.2 * Math.max(0.4, m.size), h: 6 * Math.max(0.3, m.size) })
     return out
@@ -1829,6 +2021,14 @@ export class Renderer {
             r = r * (1 - m) + C.mist[0] * m
             g = g * (1 - m) + C.mist[1] * m
             b = b * (1 - m) + C.mist[2] * m
+          }
+          // moonlit speckles on the leaves, twinkling slowly; hidden by anything that moves in front
+          const gl = this.glint[i]
+          if (gl > 0 && B.dep[i] === this.st.dep[i]) {
+            const k = gl * 0.26 * amb * (1 - m) * (0.55 + 0.45 * Math.sin(t * 0.8 + x * 0.37 + y * 0.71))
+            r += 0.5 * k
+            g += 0.68 * k
+            b += 0.75 * k
           }
         } else {
           r = B.bgr[i] * amb

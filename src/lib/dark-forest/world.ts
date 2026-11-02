@@ -52,6 +52,7 @@ export const C = {
   canopyD: hex('#141f20'),
   canopyHi: hex('#36504b'),
   canopyRim: hex('#5f817a'),
+  bush: hex('#16231f'),
   tuft: hex('#3e5a3e'),
   reed: hex('#2f4a34'),
   reedHi: hex('#4f6e4a'),
@@ -251,6 +252,44 @@ export const TREES: Tree[] = (() => {
     const side = i % 2 ? 1 : -1
     add(side * (100 + rng() * 25), 30 + i * 12 + rng() * 6, 1.3, 1.1 + rng() * 0.4)
   }
+  return out
+})()
+
+export interface Bush extends Point {
+  /** Half-width and height, in world units. */
+  w: number
+  h: number
+  seed: number
+  lobes: number
+}
+
+/**
+ * Bushes: mounds at the edge of the clearing and at the feet of the trees, and a few big
+ * dark ones in the near corners, framing the stage. The road out stays open.
+ */
+export const BUSHES: Bush[] = (() => {
+  const rng = rngFrom(21)
+  const out: Bush[] = []
+  const clear = (x: number, z: number, w: number) =>
+    !out.some((b) => Math.hypot(b.x - x, (b.z - z) * 1.6) < b.w + w + 3) && !TREES.some((t) => Math.hypot(t.x - x, (t.z - z) * 1.4) < 1.6 * t.w + 2)
+  for (let i = 0; i < 900 && out.length < 20; i++) {
+    const a = rng() * Math.PI * 2
+    const r = 62 + rng() * 32
+    const x = Math.cos(a) * r * 1.25
+    const z = Math.sin(a) * r * 0.75 - 8
+    if (z > 30 || inPool(x, z, 1.7) || nearProp(x, z, 9) || blocksLandmark(x, z)) continue
+    if (x < -70 && z > 4 && z < 34) continue // the road out
+    const w = 5 + rng() * 6
+    if (!clear(x, z, w)) continue
+    out.push({ x, z, w, h: w * (0.55 + rng() * 0.25), seed: (rng() * 1e6) | 0, lobes: 2 + ((rng() * 3) | 0) })
+  }
+  for (const [x, z, w] of [
+    [-96, 62, 14],
+    [-74, 74, 10],
+    [96, 64, 15],
+    [76, 76, 9],
+  ])
+    out.push({ x, z, w, h: w * 0.62, seed: (rng() * 1e6) | 0, lobes: 4 })
   return out
 })()
 
