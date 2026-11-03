@@ -128,6 +128,14 @@ export function mountEditor(): Editor {
   )
   refreshers.push(() => heatAuto.refresh())
   const rainBtn = h('button', { onclick: () => forest?.toggleRain() }, 'rain')
+  const gpuToggle = live(
+    check(
+      'gpu',
+      () => settings.gpu,
+      (v) => (settings.gpu = v),
+      'light the frame on the GPU (WebGL2); off: the CPU reference',
+    ),
+  )
   const relic = h('select', { onchange: (e: Event) => forest?.setRelic((e.target as HTMLSelectElement).value as Relic) })
   for (const r of RELICS) relic.append(h('option', { value: r }, r))
   const head = h(
@@ -137,6 +145,7 @@ export function mountEditor(): Editor {
     modeSeg,
     h('span', { class: 'dim' }, 'editor'),
     h('div', { class: 'group' }, pauseBtn, stepBtn, speed),
+    h('div', { class: 'group' }, gpuToggle),
     h('div', { class: 'group seg' }, ...toolBtns),
     h('div', { class: 'group' }, h('span', { class: 'dim' }, 'fire'), heatAuto, heat),
     h('div', { class: 'group' }, rainBtn, h('span', { class: 'dim' }, 'relic'), relic),
@@ -563,7 +572,16 @@ export function mountEditor(): Editor {
     stats.replaceChildren(
       h('div', {}, h('b', {}, `${fmt(st.fps, 0)} fps`), h('span', { class: 'dim' }, ` · ${fmt(t.draw + t.compose + t.present, 1)} ms`)),
       h('div', { class: 'dim' }, `draw ${fmt(t.draw, 1)} · light ${fmt(t.compose, 1)} · present ${fmt(t.present, 1)} ms`),
-      h('div', { class: 'dim' }, `${st.lights} lights`),
+      h('div', { class: 'dim' }, `${st.lights} lights · drawn on the ${st.path.toUpperCase()}`),
+      ...(st.gpuDiff
+        ? [
+            h(
+              'div',
+              { class: st.gpuDiff!.max > 4 / 255 ? 'warn' : 'dim' },
+              `CPU vs GPU: mean ${(st.gpuDiff.mean * 255).toFixed(2)} · max ${(st.gpuDiff.max * 255).toFixed(1)} · ${(st.gpuDiff.over * 100).toFixed(2)}% of pixels off (of 255)`,
+            ),
+          ]
+        : []),
     )
     const w = forest.inspect()
     village.replaceChildren(

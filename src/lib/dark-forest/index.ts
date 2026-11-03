@@ -44,6 +44,9 @@ export interface DarkForestStats {
   fps: number
   timings: Timings
   lights: number
+  /** Which path drew the last frame, and (in the CPU vs GPU view) how far apart they are. */
+  path: 'cpu' | 'gpu'
+  gpuDiff: { mean: number; max: number; over: number } | null
 }
 
 export interface DarkForest {
@@ -203,7 +206,7 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
     inspect: () => world,
     hovering: () => renderer.hovered,
     stepFrame: () => (stepOnce = true),
-    stats: () => ({ fps, timings: renderer.timings, lights: renderer.lastLights.length }),
+    stats: () => ({ fps, timings: renderer.timings, lights: renderer.lastLights.length, path: renderer.path, gpuDiff: renderer.gpuDiff }),
     pixel: () => (settings.inspect ? renderer.inspectPixel(settings.inspect.x, settings.inspect.y) : null),
     relic: () => renderer.relic,
     setRelic: (r) => (renderer.relic = r),

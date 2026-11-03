@@ -101,6 +101,7 @@ import {
 import { lightness, partNormals, reliefNormals, spriteNormals, type Part } from './normals'
 import { LANTERN_POST, LOG, PACK, RELIC_ART, SKULL, SWORD, type PropArt } from './props'
 import { WEIGHT, micro, shape, type Normal } from './materials'
+import { GpuCompositor, type GpuFrame } from './gpu'
 import { settings, type View } from './settings'
 import { walkable } from './sim/nav'
 import { cullLights, gatherLight, groundGrain, prepareLights, type Light, type Prepared } from './lights'
@@ -664,6 +665,13 @@ export class Renderer {
   timings: Timings = { draw: 0, compose: 0, present: 0 }
   /** The lights of the last frame, as gathered (after tuning). */
   lastLights: Light[] = []
+  /** The GPU compositor, made on first use (null if WebGL2 isn't there). */
+  private gpu: GpuCompositor | null | undefined
+  /** How the GPU frame compares with the CPU one (the CPU vs GPU view). */
+  gpuDiff: { mean: number; max: number; over: number } | null = null
+  /** Which path drew the last frame. */
+  path: 'cpu' | 'gpu' = 'cpu'
+  private gpuChannels: GpuFrame['channels'] | null = null
 
   render(w: World) {
     const t0 = performance.now()
@@ -671,9 +679,19 @@ export class Renderer {
     this.drawDynamic(w)
     this.resolveFx()
     const t1 = performance.now()
-    this.compose(w)
+    this.prepare(w)
+    const view = settings.view
+    const gpu = settings.gpu && (view === 'final' || view === 'gpudiff') ? this.gpuCompositor() : null
+    if (gpu && view === 'gpudiff') {
+      // both, and where they differ
+      this.compose(w, 'final')
+      gpu.render(this.gpuFrame(w))
+      this.showDiff(gpu.readLit())
+    } else if (gpu) gpu.render(this.gpuFrame(w))
+    else this.compose(w)
+    this.path = gpu && view === 'final' ? 'gpu' : 'cpu'
     const t2 = performance.now()
-    this.present(w)
+    this.present(w, this.path === 'gpu' ? gpu!.canvas : null)
     const t3 = performance.now()
     this.timings = { draw: t1 - t0, compose: t2 - t1, present: t3 - t2 }
   }
@@ -2242,16 +2260,9 @@ export class Renderer {
     })
   }
 
-  private compose(w: World) {
+  /** This frame's lights, as prepared (and their shadow maps): both paths light with these. */
+  private prepare(w: World) {
     const t = w.t
-    const B = this.fb
-    const fx = this.fx
-    const out = this.out
-    const amb = isRaining(w) ? 0.8 : 1
-    const L = settings.layers
-    const useNormals = L.normals
-    const moonK = settings.ambient.moon
-    const view = settings.view
     const raw = this.lights(w)
     this.lastLights = raw
     // the strongest few shadow-casting lights get shadow maps this frame
@@ -2262,8 +2273,20 @@ export class Renderer {
         .sort((a, b) => strength(b) - strength(a))
         .slice(0, BUDGET),
     )
-    const lights = prepareLights(raw, t, (l) => (casting.has(l) ? this.shadows.mapFor(l) : null))
-    this.prepared = lights
+    this.prepared = prepareLights(raw, t, (l) => (casting.has(l) ? this.shadows.mapFor(l) : null))
+  }
+
+  /** The CPU lighting pass (the reference; the GPU compositor ports this). */
+  private compose(w: World, view: View = settings.view) {
+    const t = w.t
+    const B = this.fb
+    const fx = this.fx
+    const out = this.out
+    const amb = isRaining(w) ? 0.8 : 1
+    const L = settings.layers
+    const useNormals = L.normals
+    const moonK = settings.ambient.moon
+    const lights = this.prepared
     const nrm: [number, number, number] = [0, 0, 0]
     // Light culling: most lights (caps, candles, fireflies) only reach a small patch, so each
     // 32x32 tile of the screen gathers only the lights that can reach what it shows.
@@ -2416,6 +2439,71 @@ export class Renderer {
   }
 
   // ---------------------------------------------------------------- output
+
+  private gpuCompositor(): GpuCompositor | null {
+    if (this.gpu === undefined) this.gpu = GpuCompositor.create(W, H)
+    return this.gpu
+  }
+
+  /** Everything the GPU compositor needs for this frame (the buffers themselves, no copies). */
+  private gpuFrame(w: World): GpuFrame {
+    if (!this.gpuChannels) {
+      const B = this.fb
+      const fx = this.fx
+      const starB = new Float32Array(N)
+      const starPh = new Float32Array(N)
+      for (const s of STARS) {
+        starB[s.y * W + s.x] += s.b
+        starPh[s.y * W + s.x] = s.ph
+      }
+      this.gpuChannels = {
+        ...Object.fromEntries(Object.entries(B)),
+        ...Object.fromEntries(Object.entries(fx).map(([k, v]) => [`fx.${k}`, v])),
+        starB,
+        starPh,
+      } as GpuFrame['channels']
+    }
+    const L = settings.layers
+    return {
+      channels: this.gpuChannels,
+      staticVersion: this.shadows.version,
+      lights: this.prepared,
+      t: w.t,
+      amb: isRaining(w) ? 0.8 : 1,
+      moonK: settings.ambient.moon,
+      mistK: settings.ambient.mist,
+      mistColor: C.mist,
+      layers: { normals: L.normals, reflections: L.reflections, emissives: L.emissives, mist: L.mist, glints: L.glints, stars: L.stars, bloom: L.bloom },
+      raining: isRaining(w),
+      heat: w.fire.heat,
+      bloomK: settings.ambient.bloom,
+      width: W,
+      height: H,
+      res: RES,
+      outW: W * this.scale,
+      outH: H * this.scale,
+    }
+  }
+
+  /** The CPU vs GPU view: the CPU frame dimmed, with every pixel where the GPU disagrees in red (x8). */
+  private showDiff(lit: Float32Array) {
+    const out = this.out
+    let sum = 0
+    let max = 0
+    let over = 0
+    for (let i = 0; i < N; i++) {
+      const c = [clamp(out.r[i]), clamp(out.g[i]), clamp(out.b[i])]
+      const d = Math.max(Math.abs(c[0] - clamp(lit[i * 4])), Math.abs(c[1] - clamp(lit[i * 4 + 1])), Math.abs(c[2] - clamp(lit[i * 4 + 2])))
+      sum += d
+      if (d > max) max = d
+      if (d > 1.5 / 255) over++
+      const g = (c[0] + c[1] + c[2]) / 3
+      out.r[i] = g * 0.3 + d * 8
+      out.g[i] = g * 0.3
+      out.b[i] = g * 0.3
+    }
+    this.gpuDiff = { mean: sum / N, max, over: over / N }
+  }
 
   /** Replace the frame with one of the buffers behind it (the editor's views). */
   private showBuffer(view: View, tileLights: Prepared[][]) {
@@ -2621,10 +2709,17 @@ export class Renderer {
     ctx.restore()
   }
 
-  private present(w: World) {
+  private present(w: World, gpuCanvas: HTMLCanvasElement | null = null) {
     const { ctx, scale: S, fx, out } = this
     const DW = W * S
     const DH = H * S
+    if (gpuCanvas) {
+      // the GPU drew the lit frame and its bloom at the output size
+      ctx.drawImage(gpuCanvas, 0, 0)
+      if (settings.layers.bloom && settings.layers.emissives) this.drawWarmWash(w)
+      this.drawOver(w)
+      return
+    }
     const d = this.outImg.data
     const e = this.fxImg.data
     for (let i = 0; i < N; i++) {
@@ -2659,18 +2754,35 @@ export class Renderer {
       ctx.drawImage(this.fxC, 0, 0, DW, DH)
       ctx.filter = 'none'
       ctx.globalAlpha = 1
-      const [fsx, fsy] = project(0, 8, 0)
-      const fl = heat * (0.85 + 0.15 * vnoise(w.t * 9, 1))
-      ctx.translate(fsx * S, fsy * S)
-      ctx.scale(1, 0.6)
-      const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, lightRadius(w) * 1.5 * S * RES)
-      gr.addColorStop(0, `rgba(255,140,60,${0.07 * fl})`)
-      gr.addColorStop(0.4, `rgba(255,110,40,${0.025 * fl})`)
-      gr.addColorStop(1, 'rgba(255,100,30,0)')
-      ctx.fillStyle = gr
-      ctx.fillRect(-DW, -DH * 2, DW * 2, DH * 4)
     }
     ctx.restore()
+    if (settings.layers.bloom && settings.layers.emissives && settings.view === 'final') this.drawWarmWash(w)
+    this.drawOver(w)
+  }
+
+  /** A faint warm wash around the fire (with the bloom). */
+  private drawWarmWash(w: World) {
+    const { ctx, scale: S } = this
+    const DW = W * S
+    const DH = H * S
+    const heat = Math.min(1.2, w.fire.heat)
+    ctx.save()
+    ctx.globalCompositeOperation = 'lighter'
+    const [fsx, fsy] = project(0, 8, 0)
+    const fl = heat * (0.85 + 0.15 * vnoise(w.t * 9, 1))
+    ctx.translate(fsx * S, fsy * S)
+    ctx.scale(1, 0.6)
+    const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, lightRadius(w) * 1.5 * S * RES)
+    gr.addColorStop(0, `rgba(255,140,60,${0.07 * fl})`)
+    gr.addColorStop(0.4, `rgba(255,110,40,${0.025 * fl})`)
+    gr.addColorStop(1, 'rgba(255,100,30,0)')
+    ctx.fillStyle = gr
+    ctx.fillRect(-DW, -DH * 2, DW * 2, DH * 4)
+    ctx.restore()
+  }
+
+  /** What draws over the finished frame: rain, labels, debug text, the editor's overlays. */
+  private drawOver(w: World) {
     if (isRaining(w) && settings.layers.rain) this.drawRain(w)
     if (settings.layers.labels) this.drawHover()
     else this.hovered = null

@@ -6,7 +6,7 @@ import { DATA } from './art'
  */
 
 /** What the scene shows: the final image, or one of the buffers behind it. */
-export type View = 'final' | 'albedo' | 'normals' | 'depth' | 'light' | 'shadows' | 'emissive' | 'hover' | 'tiles'
+export type View = 'final' | 'albedo' | 'normals' | 'depth' | 'light' | 'shadows' | 'emissive' | 'hover' | 'tiles' | 'gpudiff'
 
 export const VIEWS: { view: View; label: string; hint: string }[] = [
   { view: 'final', label: 'final', hint: 'the finished frame' },
@@ -18,6 +18,7 @@ export const VIEWS: { view: View; label: string; hint: string }[] = [
   { view: 'emissive', label: 'emissive', hint: 'the glow layer: fire, caps, embers, glints' },
   { view: 'hover', label: 'hover tags', hint: 'which named thing each pixel belongs to' },
   { view: 'tiles', label: 'light tiles', hint: 'how many lights each 32px tile gathers' },
+  { view: 'gpudiff', label: 'CPU vs GPU', hint: 'the CPU frame, with every pixel where the GPU disagrees in red (x8)' },
 ]
 
 /** Every source of light, by kind. Tuning applies to all lights of a kind. */
@@ -112,6 +113,8 @@ function defaults() {
     fireHeat: null as number | null,
     speed: 1,
     paused: false,
+    /** Light the frame on the GPU (WebGL2) when it can; the CPU path is the reference. */
+    gpu: true,
   }
 }
 
