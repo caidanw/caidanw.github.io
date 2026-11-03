@@ -23,18 +23,29 @@ export const KNIGHT_SHINE = K.shine
 export const KNIGHT_PARTS = K.parts
 
 const M = SPRITES.shroomfolk
-/** The shroomfolk: a domed cap with pale spots (they glow), gills, a stout stem with two eyes. Faces right. */
-export const MUSH = { walk: [M.frames.walk0, M.frames.walk1], sit: M.frames.sit, sitBlink: M.frames.sitBlink, mid: M.frames.mid, baby: M.frames.baby }
-export const MUSH_PAL = M.palettes.default
-/** Elders fade: a greyer cap, paler spots. */
-export const MUSH_PAL_ELDER = M.palettes.elder
+/**
+ * The shroomfolk: little fly agarics. A domed cap with irregular warts (they glow), gills, a
+ * plump stem with big eyes and a blush, a ring, the bulb at its foot. Faces right. Elders have
+ * their own frames: the cap droops, the eyes are sleepy, moss creeps up the bulb.
+ */
+export const MUSH = {
+  walk: [M.frames.walk0, M.frames.walk1],
+  sit: M.frames.sit,
+  sitBlink: M.frames.sitBlink,
+  mid: M.frames.mid,
+  baby: M.frames.baby,
+  elder: { walk: [M.frames.elderWalk0, M.frames.elderWalk1], sit: M.frames.elderSit, sitBlink: M.frames.elderSit },
+}
+/** Cap colours (fly agarics come in red, gold and a deep crimson), and the elders' faded one. */
+export const MUSH_CAPS = ['default', 'gold', 'crimson'] as const
+export const MUSH_PALS = M.palettes
 export const MUSH_PARTS = M.parts
 
 const KP = SPRITES.keeper
-/** The keeper wears the knight's cape over the shoulders and a steel crest on the cap. */
+/** The keeper wears the knight's cape as a mantle, and one of his pauldrons. */
 export const MUSH_KEEPER = { walk: [KP.frames.walk0, KP.frames.walk1], sit: KP.frames.sit, sitBlink: KP.frames.sitBlink }
-export const KEEPER_PAL = KP.palettes.default
-export const KEEPER_PAL_ELDER = KP.palettes.elder
+export const KEEPER_PALS = KP.palettes
+export const KEEPER_PARTS = KP.parts
 export const KEEPER_SHINE = KP.shine
 
 const D = SPRITES.deer

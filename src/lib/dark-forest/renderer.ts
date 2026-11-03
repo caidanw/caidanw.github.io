@@ -79,8 +79,8 @@ import {
   GLOWCAP,
   GLOWCAP_PAL,
   GLOWCAP_PARTS,
-  KEEPER_PAL,
-  KEEPER_PAL_ELDER,
+  KEEPER_PALS,
+  KEEPER_PARTS,
   KEEPER_SHINE,
   CROW_PAL,
   KNIGHT,
@@ -92,8 +92,8 @@ import {
   KNIGHT_STAND,
   MUSH,
   MUSH_KEEPER,
-  MUSH_PAL,
-  MUSH_PAL_ELDER,
+  MUSH_CAPS,
+  MUSH_PALS,
   MUSH_PARTS,
   type Palette,
   type Rows,
@@ -458,6 +458,9 @@ const ZED: [number, number][] = [
   [1, 2],
   [2, 2],
 ]
+
+/** Each shroomfolk's cap colour, for good: red, gold or crimson. */
+const capOf = (m: Mush) => MUSH_CAPS[Math.floor(hash(m.id * 7919, 3) * MUSH_CAPS.length) % MUSH_CAPS.length]
 
 /** States in which shroomfolk sit down once they've arrived. */
 const SITTING: string[] = ['visit', 'keep', 'farewell', 'tend']
@@ -1642,7 +1645,7 @@ export class Renderer {
 
   /** Which frame a shroomfolk shows: walking, standing, or sitting (with the occasional blink). */
   private mushFrame(m: Mush, w: World, keeper: boolean): Rows {
-    const set = keeper ? MUSH_KEEPER : MUSH
+    const set = keeper ? MUSH_KEEPER : isElder(m) ? MUSH.elder : MUSH
     const st = m.fsm.state
     const moving = WALKING.includes(st) && isMoving(m)
     if (moving) return set.walk[((w.t * (isElder(m) ? 5 : 7)) % 2) | 0]
@@ -1732,7 +1735,7 @@ export class Renderer {
       const [name, sub] = this.mushHover(m, w)
       const hover = { key, name, sub }
       if (st === 'sprouting') {
-        this.sprite(B, m.size < 0.5 ? MUSH.baby : MUSH.mid, m.x, m.z, MUSH_PAL, m.flip, { hover, parts: MUSH_PARTS })
+        this.sprite(B, m.size < 0.5 ? MUSH.baby : MUSH.mid, m.x, m.z, MUSH_PALS[capOf(m)], m.flip, { glowChar: 'w', hover, parts: MUSH_PARTS })
         continue
       }
       const keeper = w.keeperId === m.id
@@ -1741,13 +1744,14 @@ export class Renderer {
       const elder = isElder(m)
       const [, by] = project(m.x, 0, m.z)
       const sink = st === 'wilting' ? Math.round(m.sink * 10) : 0
-      const pal = keeper ? (elder ? KEEPER_PAL_ELDER : KEEPER_PAL) : elder ? MUSH_PAL_ELDER : MUSH_PAL
+      const cap = elder ? 'elder' : capOf(m)
+      const pal = keeper ? KEEPER_PALS[cap] : MUSH_PALS[cap]
       const sp = this.sprite(B, this.mushFrame(m, w, keeper), m.x, m.z, pal, m.flip, {
         glowChar: 'w',
         lift: hop - sink,
         sinkTo: sink ? by : undefined,
         hover,
-        parts: MUSH_PARTS,
+        parts: keeper ? KEEPER_PARTS : MUSH_PARTS,
         shine: keeper ? KEEPER_SHINE : undefined,
       })
       caps.push({ ...sp, elder, key })
