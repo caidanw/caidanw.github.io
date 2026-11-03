@@ -860,7 +860,6 @@ export class Renderer {
     const w = rows[0].length
     const glow: [number, number][] = []
     const at = (r: number, c: number) => rows[r][flip ? w - 1 - c : c]
-    const filled = (r: number, c: number) => r >= 0 && r < h && c >= 0 && c < w && at(r, c) !== '.'
     const clip = opts.sinkTo ?? Infinity // rows below this screen line are under the soil
     const nm = opts.parts ? partNormals(rows, opts.parts) : spriteNormals(rows, (ch) => pal[ch])
     const prevTag = this.tag
@@ -868,16 +867,7 @@ export class Renderer {
       this.say(opts.hover.key, opts.hover.name, opts.hover.sub)
       this.tag = tagId(opts.hover.key)
     }
-    for (let r = -1; r <= h; r++) {
-      for (let c = -1; c <= w; c++) {
-        if (filled(r, c) || (r === h && lift === 0)) continue
-        if (filled(r - 1, c) || filled(r + 1, c) || filled(r, c - 1) || filled(r, c + 1)) {
-          const py = by - h + r + 1 - lift
-          if (py > clip) continue
-          this.put(B, bx - (w >> 1) + c, py, C.outline, wx, wz, (h - r + lift) / RES, by, dep - 0.01)
-        }
-      }
-    }
+    // no outline: at this resolution the art carries its own edges (values, shaded sides)
     for (let r = 0; r < h; r++) {
       for (let c = 0; c < w; c++) {
         const ch = at(r, c)
@@ -1750,7 +1740,7 @@ export class Renderer {
       const hop = isRaining(w) && moving && Math.sin(t * 12 + m.id * 10) > 0.6 ? 1 : 0
       const elder = isElder(m)
       const [, by] = project(m.x, 0, m.z)
-      const sink = st === 'wilting' ? Math.round(m.sink * 9) : 0
+      const sink = st === 'wilting' ? Math.round(m.sink * 10) : 0
       const pal = keeper ? (elder ? KEEPER_PAL_ELDER : KEEPER_PAL) : elder ? MUSH_PAL_ELDER : MUSH_PAL
       const sp = this.sprite(B, this.mushFrame(m, w, keeper), m.x, m.z, pal, m.flip, {
         glowChar: 'w',
