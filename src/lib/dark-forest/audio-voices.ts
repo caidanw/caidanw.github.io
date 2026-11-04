@@ -113,108 +113,122 @@ function owl(ctx: BaseAudioContext) {
 }
 
 /**
- * Crow: a clipped, noisy "ka" opening into a coarse caw. No rising/falling vowel arch
- * (the previous version read as a baby crying), and no regular singing vibrato.
+ * Crow pulse register: short pressure openings in groups of two or three, with longer
+ * closures between groups, exciting a damp tract resonance. This creates the rattling
+ * interior of a caw at the source, rather than adding vibrato to a smooth sung vowel.
+ * Physically informed, not a full syrinx simulation (research notes cite the observations).
  */
 function crow(ctx: BaseAudioContext) {
   const sr = ctx.sampleRate
-  const duration = rnd(0.38, 0.52)
-  const base = rnd(305, 335)
-  const burst = bandpass(rnd(3200, 4200), 0.85, sr)
-  const air = bandpass(2400, 0.75, sr)
-  const jitterDecay = Math.exp((-TAU * 130) / sr)
-  const pressureDecay = Math.exp((-TAU * 65) / sr)
-  let jitter = 0
-  let pressure = 0
-  let phase = 0
-  return render(ctx, duration + 0.035, (t) => {
-    const u = Math.min(1, t / duration)
-    jitter = jitterDecay * jitter + (1 - jitterDecay) * (Math.random() * 2 - 1)
-    pressure = pressureDecay * pressure + (1 - pressureDecay) * (Math.random() * 2 - 1)
-    // Almost level pitch through the body; a short downward break only as the beak closes.
-    const hz = base * (1.035 - 0.055 * u - 0.12 * u ** 6 + jitter * 1.2)
-    phase += (TAU * hz) / sr
-    const opening = Math.exp(-t / 0.028)
-    let voice = 0
-    for (let h = 1; h <= 14; h++) {
-      const f = hz * h
-      const throat = Math.exp(-0.5 * ((f - (1850 + 420 * opening)) / 450) ** 2)
-      const lower = 0.12 * Math.exp(-0.5 * ((f - 1050) / 240) ** 2)
-      const upper = 0.35 * Math.exp(-0.5 * ((f - 2900) / 550) ** 2)
-      voice += (Math.sin(h * phase + h * 0.14) * (throat + lower + upper)) / Math.sqrt(h)
+  const duration = rnd(0.46, 0.59)
+  const interval = 1 / rnd(300, 340)
+  const pulses: { at: number; width: number; gain: number }[] = []
+  let at = 0.008
+  while (at < duration - 0.02) {
+    const count = Math.random() < 0.7 ? 3 : 2
+    const groupGain = rnd(0.8, 1)
+    for (let i = 0; i < count; i++) {
+      pulses.push({ at, width: rnd(0.0005, 0.0008), gain: groupGain * (i === 1 ? rnd(0.6, 0.8) : rnd(0.85, 1)) })
+      at += interval * rnd(0.94, 1.06)
     }
-    const rasp = Math.max(0.3, Math.min(1.3, 0.85 + pressure * 3))
-    const vowel = (voice * rasp + air(Math.random() * 2 - 1) * 0.16) * envelope(t - 0.006, duration - 0.006, 0.008, 0.075)
-    // A brief unvoiced opening, not a loud digital click. It precedes and overlaps the caw.
-    const ka = burst(Math.random() * 2 - 1) * 0.85 * envelope(t, 0.032, 0.002, 0.025)
-    return ka + vowel
+    at += rnd(0.003, 0.005) // a missing opening: the longer closure makes the group audible
+  }
+  const tract = bandpass(rnd(1550, 1750), rnd(12, 16), sr)
+  const upper = bandpass(rnd(2600, 2900), 7, sr)
+  const burst = bandpass(rnd(3200, 4200), 0.85, sr)
+  const air = bandpass(2300, 0.7, sr)
+  let index = 0
+  return render(ctx, duration + 0.045, (t) => {
+    while (index + 1 < pulses.length && pulses[index + 1].at <= t) index++
+    const p = pulses[index]
+    const age = t - p.at
+    const pressure = age > 0 && age < p.width ? (1 - Math.exp(-age / 0.00004)) * Math.exp(-age / (p.width * 0.28)) * p.gain : 0
+    const voice = tract(pressure) * 3.2 + upper(pressure) * 2 + pressure * 0.12
+    const breath = air(Math.random() * 2 - 1) * 0.015
+    const body = (voice + breath) * envelope(t - 0.006, duration - 0.006, 0.008, 0.07)
+    const ka = burst(Math.random() * 2 - 1) * 0.24 * envelope(t, 0.032, 0.002, 0.025)
+    return ka + body
   })
 }
 
 /**
- * A door catches, squeaks, then strains lower as it is pulled open. Two slipping hinge
- * surfaces make an unstable, overtone-rich squeal; just a few loads excite the wood.
- * The old continuous band of noise and many little impacts sounded like gravel.
+ * Force → near-periodic stick/slip releases → material modes → panel reflections.
+ * The source becomes a pitched creak as releases bunch together, not random gravel
+ * and not a drawn audio-frequency whistle. Based on the published synthesis approaches
+ * in the research notes; this event model is lighter than an elasto-plastic contact solver.
  */
 function door(ctx: BaseAudioContext) {
   const sr = ctx.sampleRate
   const duration = rnd(1.05, 1.25)
-  const size = rnd(0.9, 1.05)
-  const wood = [125, 250, 395, 560, 790].map((f) => bandpass(f * rnd(0.95, 1.05), 3, sr))
-  const air = bandpass(3400, 0.85, sr)
-  const pitch: [number, number][] = [
-    [0, 900],
-    [0.08, 1550],
-    [0.2, 2350],
-    [0.29, 2250],
-    [0.35, 2150],
-    [0.4, 1850],
-    [0.6, 1050],
-    [0.82, 470],
-    [1, 200],
-  ]
+  const size = rnd(0.94, 1.06)
+  const wood = [125, 250, 395, 560, 790].map((f, i) => bandpass(f * size, 1.5 + i * 0.4, sr))
+  const hinge = [bandpass(1450 * size, 7, sr), bandpass(3100 * size, 9, sr)]
+  const panel = [4.7, 6.4, 8.3, 11.7].map((ms) => reflection(ms, sr))
   const force: [number, number][] = [
     [0, 0],
-    [0.06, 0.25],
-    [0.14, 1],
-    [0.26, 0.55],
-    [0.31, 0.015],
-    [0.35, 0.015],
-    [0.39, 0.7],
-    [0.55, 0.5],
-    [0.75, 0.32],
-    [0.94, 0.04],
+    [0.05, 0.18],
+    [0.14, 0.82],
+    [0.22, 0.88],
+    [0.265, 0.7],
+    [0.29, 0],
+    [0.38, 0],
+    [0.43, 0.67],
+    [0.58, 0.61],
+    [0.76, 0.32],
+    [0.94, 0.08],
     [1, 0],
   ]
-  const loads = [
-    { at: 0.025, gain: 0.6 },
-    { at: duration * 0.37, gain: 1 },
-    { at: duration * 0.94, gain: 0.4 },
-  ]
-  const jitterDecay = Math.exp((-TAU * 45) / sr)
-  const detune = rnd(1.018, 1.038)
-  let phase = 0
-  let otherPhase = 0
-  let jitter = 0
+  const smoothing = Math.exp(-1 / (sr * 0.009))
+  let pressure = 0
+  let clock = 0
+  let lastSlip = 0
+  let slipAge = 1
+  let slipLife = 0.003
+  let slipGain = 0
+  let irregularity = 1
+  let target = 1
+  let nextTarget = 0
+  const wobbleSmoothing = Math.exp(-1 / (sr * 0.012))
   return render(ctx, duration + 0.12, (t) => {
-    const u = Math.min(1, t / duration)
-    jitter = jitterDecay * jitter + (1 - jitterDecay) * (Math.random() * 2 - 1)
-    const hz = contour(u, pitch) * size * (1 + jitter * 0.55 + 0.008 * Math.sin(TAU * 19 * t))
-    phase += (TAU * hz) / sr
-    otherPhase += (TAU * hz * detune) / sr
-    const strain = contour(u, force)
-    const chatter = 0.82 + 0.18 * Math.sin(TAU * (23 * t + 12 * t * t)) ** 2
-    const squeak = 0.24 * Math.sin(phase) + 0.65 * Math.sin(2 * phase) + 0.12 * Math.sin(3 * phase) + 0.17 * Math.sin(2 * otherPhase)
-    let load = 0
-    for (const p of loads) {
-      const age = t - p.at
-      if (age >= 0) load += p.gain * (1 - Math.exp(-age / 0.0005)) * Math.exp(-age / 0.004)
+    pressure = smoothing * pressure + (1 - smoothing) * contour(Math.min(1, t / duration), force)
+    if (t >= nextTarget) {
+      target = rnd(0.88, 1.12)
+      nextTarget = t + rnd(0.012, 0.025)
     }
-    let panel = 0
-    for (const mode of wood) panel += mode(load)
-    const breath = air(Math.random() * 2 - 1) * 0.025 * strain
-    return ((squeak * chatter * strain + breath) * 0.7 + panel * 0.13) * envelope(t, duration + 0.1, 0.025, 0.15)
+    irregularity = wobbleSmoothing * irregularity + (1 - wobbleSmoothing) * target
+    if (pressure > 0.1) {
+      clock += ((25 + 310 * pressure ** 1.3) * irregularity) / sr
+      if (clock >= 1) {
+        clock -= 1
+        // Force accumulated while stuck: longer waits produce larger, longer releases.
+        slipGain = Math.min(0.55, Math.sqrt(Math.min(1, (t - lastSlip) / 0.08)))
+        slipLife = 0.001 + 0.007 * Math.sqrt(slipGain)
+        lastSlip = t
+        slipAge = 0
+      }
+    } else clock = 0
+    const pulse = slipAge < slipLife ? slipGain * (1 - slipAge / slipLife) ** 2 * Math.min(1, (slipAge * sr) / 3) : 0
+    slipAge += 1 / sr
+    let body = 0
+    for (const mode of wood) body += mode(pulse)
+    const edge = hinge[0](pulse) * 0.8 + hinge[1](pulse) * 0.45
+    const material = body * 0.65 + edge + pulse * 0.13
+    let reflected = 0
+    for (const delay of panel) reflected += delay(material)
+    return (material * 0.7 + reflected * 0.16) * envelope(t, duration + 0.1, 0.02, 0.15)
   })
+}
+
+/** Short, damp panel reflection, not a room/cave reverb. */
+function reflection(ms: number, sr: number) {
+  const samples = new Float32Array(Math.round((ms * sr) / 1000))
+  let at = 0
+  return (x: number) => {
+    const y = samples[at]
+    samples[at] = x + y * 0.08
+    at = (at + 1) % samples.length
+    return y
+  }
 }
 
 /** Piecewise motion/pressure: a catch is a real pause, not a smooth singing vibrato. */
