@@ -40,7 +40,7 @@ export interface Weather {
   manual: boolean
 }
 
-export type FireState = 'roaring' | 'steady' | 'low'
+export type FireState = 'embers' | 'low' | 'steady' | 'roaring' | 'blazing'
 export interface Fire {
   fsm: Fsm<FireState>
   fuel: number
@@ -48,6 +48,8 @@ export interface Fire {
   heat: number
   /** A short-lived kick added on top of fuel (a fresh log roars, rain makes it hiss and sink). */
   flare: number
+  /** When it last blazed up (so the story only remarks on it now and then). */
+  lastBlaze: number
 }
 
 export type KnightState = 'resting' | 'nodding' | 'rising' | 'walking' | 'kneeling' | 'gone'
@@ -62,6 +64,8 @@ export interface Knight extends Walker {
   route: [number, number][]
   sword: 'planted' | 'carried' | 'laid'
   step: number
+  /** Seconds until he'll next lean over and add a log himself. */
+  tend: number
 }
 
 export type MushState =
@@ -109,7 +113,19 @@ export interface Mush extends Walker {
   size: number
   carrying: boolean
   claim: Stick | null
+  /** Carrying a bundle from the forest (two for the pile). */
+  bundle?: boolean
   hut: number | null
+  /**
+   * Who they are around the fire. diligence: how soon they notice it needs feeding; hardy:
+   * how little the cold bothers them; likes: the size of fire they're happy with (0..1.2);
+   * merry: a festive mood (0..1) that spreads between those gathered by the fire, and wants
+   * the fire built high.
+   */
+  diligence: number
+  hardy: number
+  likes: number
+  merry: number
 }
 
 export type DeerState = 'graze' | 'walk' | 'toPool' | 'drink' | 'flee'
@@ -140,6 +156,8 @@ export interface Crow {
 }
 
 export interface Stick extends Point {
+  /** Gathered at the forest's edge: a bundle (two for the pile). */
+  bundle?: boolean
   claimed: boolean
   /** Height above the ground while falling, vertical speed, and tumble. */
   y: number

@@ -30,28 +30,39 @@ export const createKnight = (): Knight => ({
   route: [],
   sword: 'planted',
   step: 0,
+  tend: rand(20, 40),
 })
 
 /** The long vigil is over, and tonight is a good night for it. */
 const ready = (e: Knight, w: World) => e.vigil >= e.vigilLength && !isRaining(w) && w.fire.fsm.state !== 'low'
 
+/** The fire has burned low (he nods off). */
+const dim = (w: World) => w.fire.fsm.state === 'low' || w.fire.fsm.state === 'embers'
+
 export const knightMachine: Def<Knight, KnightState> = {
   name: 'knight',
-  always: (e, _ctx, dt) => {
-    if (e.fsm.state === 'resting' || e.fsm.state === 'nodding') e.vigil += dt
+  always: (e, ctx, dt) => {
+    if (e.fsm.state !== 'resting' && e.fsm.state !== 'nodding') return
+    e.vigil += dt
+    // he keeps the fire, quietly: when it burns low he leans over and adds a log himself
+    if ((e.tend -= dt) <= 0 && ctx.w.fire.fuel < 0.4) {
+      ctx.emit('fire:fed', { amount: 0.2 })
+      e.tend = rand(30, 55)
+      if (Math.random() < 0.25) tell(ctx.w, 'The knight leaned over and laid another log on the fire.')
+    }
   },
   states: {
     resting: {
       enter: (e) => (e.headDown = false),
       update: (e, ctx) => {
         if (ready(e, ctx.w)) return 'rising'
-        return ctx.w.fire.fsm.state === 'low' && e.fsm.time > 3 ? 'nodding' : undefined
+        return dim(ctx.w) && e.fsm.time > 3 ? 'nodding' : undefined
       },
     },
     nodding: {
       update: (e, ctx) => {
         e.headDown = Math.sin(e.fsm.time * 0.7) > -0.3
-        return ctx.w.fire.fsm.state !== 'low' ? 'resting' : undefined
+        return !dim(ctx.w) ? 'resting' : undefined
       },
       on: { 'fire:fed': () => 'resting' },
     },

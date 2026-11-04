@@ -591,9 +591,14 @@ export function mountEditor(): Editor {
       ...w.mush.map((m) =>
         h(
           'li',
-          {},
+          { title: 'diligence: how soon they notice the fire · likes: the fire they want · hardy: cold tolerance · merry: festive mood' },
           `${m.name}${m.id === w.keeperId ? ' (keeper)' : ''} `,
-          h('span', { class: 'dim' }, `${m.fsm.state} · energy ${fmt(m.energy)} · warmth ${fmt(m.warmth)}`),
+          h(
+            'span',
+            { class: 'dim' },
+            `${m.fsm.state} · warmth ${fmt(m.warmth)} · diligence ${fmt(m.diligence)} · likes ${fmt(m.likes)} · hardy ${fmt(m.hardy)} · `,
+          ),
+          h('span', { class: m.merry > 0.4 ? 'warn' : 'dim' }, `merry ${fmt(m.merry)}`),
         ),
       ),
     )

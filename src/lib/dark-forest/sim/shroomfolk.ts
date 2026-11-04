@@ -16,13 +16,34 @@
  *   idle -> visit -> idle                                  (now and then, sit by a friend's glowcap)
  *   idle -> keep -> idle                                   (the keeper, once the knight has gone)
  *
- * Reacts to: fire:low (drop what you're doing and feed it), stick:dropped
- * (someone go get it), rain:start (wake up and come out, they love the rain).
+ * Tending the fire is attention, not an alarm: each notices for themselves when the fire is
+ * smaller than they'd like (if they're awake, close and not busy), sooner the more diligent
+ * they are. What size they'd like depends on who they are (likes, hardy), how cold they are,
+ * and how merry: a festive mood spreads between those gathered by the fire, and merry
+ * shroomfolk feed it again and again until it blazes. When the pile runs low, someone goes
+ * to the forest's edge for wood.
+ *
+ * Reacts to: stick:dropped (someone go get it), rain:start (wake up and come out, they love
+ * the rain), rain:end (merry, if they're by the fire).
  */
 import { clamp, rand } from '../util'
 import { GROVE, GROVE_SPOTS, HUT, PROPS } from '../world'
 import { fsm } from './fsm'
-import { ROAD, candlesNeedTending, countIn, freeGroveSpot, freeSpotNear, freshName, isElder, isRaining, lightRadius, moveTo, tell } from './helpers'
+import {
+  ROAD,
+  candlesNeedTending,
+  countIn,
+  freeGroveSpot,
+  freeSpotNear,
+  freshName,
+  isElder,
+  isRaining,
+  lightRadius,
+  moveTo,
+  restingStick,
+  tell,
+} from './helpers'
+import { inPool } from '../world'
 import type { Ctx, Def, Mush, MushState, Stick, World } from './types'
 
 export interface MushOptions {
@@ -55,6 +76,10 @@ export function createMush(w: World, x: number, z: number, o: MushOptions = {}):
     wait: rand(0, 2),
     warmth: 0.8,
     energy: rand(0.45, 1),
+    diligence: rand(0.15, 1),
+    hardy: rand(0, 1),
+    likes: rand(0.25, 0.9),
+    merry: 0,
     home: o.home ?? (Math.random() * PROPS.huts.length) | 0,
     size,
     carrying: false,
@@ -76,7 +101,7 @@ export function createTraveler(w: World): Mush {
 }
 
 const PILE_SPOT = [PROPS.woodpile.x - 3, PROPS.woodpile.z + 3] as const
-const MAX_FETCHERS = 2
+const MAX_FETCHERS = 3
 const WORKING: MushState[] = ['fetch', 'haul', 'feed', 'stoke']
 const doorX = (hut: number) => PROPS.huts[hut].x + HUT.doorDx
 
@@ -88,10 +113,38 @@ function hutWithRoom(m: Mush, ctx: Ctx): number | null {
 }
 
 const adult = (m: Mush) => m.size >= 1
-const someoneFeeding = (ctx: Ctx) => countIn(ctx.w.mush, 'feed', 'stoke') > 0
 const fetchers = (ctx: Ctx) => countIn(ctx.w.mush, 'fetch', 'haul')
 
-const wantsToFeed = (m: Mush, ctx: Ctx) => adult(m) && ctx.w.fire.fsm.state === 'low' && ctx.w.pile > 0 && !someoneFeeding(ctx)
+const feeders = (ctx: Ctx) => countIn(ctx.w.mush, 'feed', 'stoke')
+
+/** States in which they'd notice the fire (awake, not busy with a job). */
+const ATTENTIVE: MushState[] = ['idle', 'wander', 'keep', 'visit']
+
+/** The fire they'd like right now: their taste, more when cold (unless hardy) or in the rain, much more when merry. */
+export const fireWanted = (m: Mush, w: World) => Math.min(1.25, m.likes + (1 - m.warmth) * (1 - m.hardy) * 0.35 + (isRaining(w) ? 0.12 : 0) + m.merry * 0.75)
+
+/** Would they go and feed the fire? (Close enough to see it, wood in the pile, not too many already at it.) */
+const wantsToFeed = (m: Mush, ctx: Ctx) => {
+  const w = ctx.w
+  if (!adult(m) || w.pile <= 0 || feeders(ctx) >= (m.merry > 0.4 ? 2 : 1)) return false
+  if (Math.hypot(m.x, m.z) > 26 + 18 * w.fire.heat) return false // only those near enough to see it's dwindling
+  return w.fire.fuel < fireWanted(m, w) - 0.08
+}
+
+/** How likely (per second) they are to notice: the diligent sooner, and the further the fire is from what they'd like. */
+const urge = (m: Mush, ctx: Ctx) =>
+  (0.005 + 0.2 * m.diligence + 0.4 * m.merry) * (m.warmth > 0.7 && m.merry < 0.2 ? 0.5 : 1) * clamp((fireWanted(m, ctx.w) - ctx.w.fire.fuel) / 0.4) // warm and content: in no hurry
+
+/** Somewhere at the forest's edge to look for wood. */
+function forestEdge(w: World): [number, number] {
+  for (let k = 0; k < 20; k++) {
+    const a = Math.random() * Math.PI * 2
+    const x = Math.cos(a) * rand(62, 85) * 1.2
+    const z = Math.sin(a) * rand(45, 60) - 10
+    if (z < 30 && !inPool(x, z, w.poolLevel * 1.3)) return [x, z]
+  }
+  return [-60, -30]
+}
 
 function claim(m: Mush, s: Stick): MushState {
   s.claimed = true
@@ -115,7 +168,7 @@ function decide(m: Mush, ctx: Ctx): MushState {
   const w = ctx.w
   // the end of a life: half set off down the road, half go back to the soil
   if (m.age > m.lifespan) return Math.random() < 0.5 ? 'farewell' : 'wilting'
-  if (wantsToFeed(m, ctx)) return 'feed'
+  if (wantsToFeed(m, ctx) && Math.random() < 0.3 + m.diligence + m.merry) return 'feed'
   // tired: go home to rest (in the rain they'd rather stay out, unless exhausted)
   if (adult(m) && m.energy < 0.3 && (!isRaining(w) || m.energy < 0.1)) {
     const hut = hutWithRoom(m, ctx)
@@ -131,6 +184,12 @@ function decide(m: Mush, ctx: Ctx): MushState {
     const nearest = free.reduce((a, b) => (Math.hypot(a.x - m.x, a.z - m.z) < Math.hypot(b.x - m.x, b.z - m.z) ? a : b))
     return claim(m, nearest)
   }
+  // the pile is running low and nothing's lying about: go to the forest's edge for wood
+  if (adult(m) && w.pile < 6 && !free.length && fetchers(ctx) < MAX_FETCHERS && Math.random() < 0.15 + 0.45 * m.diligence + 0.3 * m.merry) {
+    const s = { ...restingStick(...forestEdge(w)), bundle: true }
+    w.sticks.push(s)
+    return claim(m, s)
+  }
   // the keeper sits in the knight's place by the fire
   if (w.keeperId === m.id && Math.random() < 0.6) return 'keep'
   // now and then, sit a while by a friend's glowcap
@@ -141,19 +200,39 @@ function decide(m: Mush, ctx: Ctx): MushState {
   return 'wander'
 }
 
-/** Interrupt light work (idling, wandering) to answer the fire. */
-const answerFire = (m: Mush, ctx: Ctx) => (wantsToFeed(m, ctx) ? 'feed' : undefined)
-
 const answerStick = (m: Mush, ctx: Ctx, s: Stick) => (adult(m) && !s.claimed && ctx.w.pile < 9 && fetchers(ctx) < MAX_FETCHERS ? claim(m, s) : undefined)
 
 export const mushMachine: Def<Mush, MushState> = {
   name: 'shroomfolk',
   always: (m, ctx, dt) => {
-    const near = Math.hypot(m.x, m.z) < lightRadius(ctx.w) * 0.55
-    m.warmth = clamp(m.warmth + dt * (near ? 0.08 : -0.05) * (isRaining(ctx.w) ? 0.6 : 1))
-    if (m.fsm.state === 'asleep') m.energy = clamp(m.energy + dt / 10)
+    const w = ctx.w
+    const d = Math.hypot(m.x, m.z)
+    const near = d < lightRadius(w) * 0.55
+    m.warmth = clamp(m.warmth + dt * (near ? 0.08 : -0.05) * (isRaining(w) ? 0.6 : 1))
+    if (m.fsm.state === 'asleep')
+      m.energy = clamp(m.energy + dt / 28) // a proper sleep: often several are asleep at once, and the fire is left alone
     else if (adult(m)) m.energy = clamp(m.energy - dt / (WORKING.includes(m.fsm.state) ? 60 : 100))
     m.age += dt
+    // a festive mood fades slowly, and spreads between those gathered by the fire
+    m.merry = Math.max(0, m.merry - dt / 110)
+    if (d < 34 && m.fsm.state !== 'asleep') {
+      // it passes on weaker than it is (catching up toward 80% of the merriest nearby), so it fades unless renewed
+      let around = 0
+      let merriest = 0
+      for (const o of w.mush) {
+        if (o === m || o.fsm.state === 'asleep' || Math.hypot(o.x - m.x, o.z - m.z) > 14) continue
+        around++
+        merriest = Math.max(merriest, o.merry)
+      }
+      if (merriest * 0.8 > m.merry) m.merry += (merriest * 0.8 - m.merry) * dt * 0.25
+      // now and then, with enough of them gathered, someone starts a song
+      if (around >= 2 && Math.random() < dt / 170) {
+        m.merry = Math.min(1, m.merry + 0.6)
+        if (Math.random() < 0.5) tell(w, `${m.name} started a song by the fire, and the others joined in.`)
+      }
+    }
+    // noticing the fire: awake, not busy, close enough, and it's smaller than they'd like
+    if (ATTENTIVE.includes(m.fsm.state) && m.fsm.time > 1 && wantsToFeed(m, ctx) && Math.random() < dt * urge(m, ctx)) return 'feed'
   },
   states: {
     sprouting: {
@@ -165,15 +244,16 @@ export const mushMachine: Def<Mush, MushState> = {
     idle: {
       enter: (m) => (m.wait = rand(0.5, 3)),
       update: (m, ctx, dt) => ((m.wait -= dt) <= 0 ? decide(m, ctx) : undefined),
-      on: { 'fire:low': answerFire, 'stick:dropped': answerStick },
+      on: { 'stick:dropped': answerStick },
     },
     wander: {
       enter: (m, ctx) => {
         const range = m.warmth < 0.35 ? 26 : isRaining(ctx.w) ? 70 : 40 // cold ones stay close
-        ;[m.tx, m.tz] = freeSpotNear(ctx.w, 16, range)
+        const back = 16 + Math.max(0, ctx.w.fire.heat - 0.7) * 16 // and everyone sits further back from a blaze
+        ;[m.tx, m.tz] = freeSpotNear(ctx.w, back, Math.max(back + 8, range))
       },
       update: (m, ctx, dt) => (moveTo(m, (isRaining(ctx.w) ? 7 : 5) * pace(m), dt) ? 'idle' : undefined),
-      on: { 'fire:low': answerFire, 'stick:dropped': answerStick },
+      on: { 'stick:dropped': answerStick },
     },
     fetch: {
       enter: (m) => {
@@ -185,6 +265,7 @@ export const mushMachine: Def<Mush, MushState> = {
         if (!s || !ctx.w.sticks.includes(s)) return 'idle'
         if (!moveTo(m, 9, dt)) return
         ctx.w.sticks.splice(ctx.w.sticks.indexOf(s), 1)
+        m.bundle = !!s.bundle
         return 'haul'
       },
       exit: (m) => {
@@ -199,7 +280,7 @@ export const mushMachine: Def<Mush, MushState> = {
       },
       update: (m, ctx, dt) => {
         if (!moveTo(m, 7, dt)) return
-        ctx.w.pile = Math.min(9, ctx.w.pile + 1)
+        ctx.w.pile = Math.min(9, ctx.w.pile + (m.bundle ? 2 : 1))
         return 'idle'
       },
       exit: (m) => (m.carrying = false),
@@ -222,7 +303,8 @@ export const mushMachine: Def<Mush, MushState> = {
       update: (m, ctx, dt) => {
         if (!moveTo(m, 6, dt)) return
         ctx.emit('fire:fed', { amount: 0.22 })
-        return 'idle'
+        // merry: straight back for another one
+        return m.merry > 0.4 && wantsToFeed(m, ctx) ? 'feed' : 'idle'
       },
       exit: (m) => (m.carrying = false),
     },
@@ -330,7 +412,7 @@ export const mushMachine: Def<Mush, MushState> = {
         return (m.wait -= dt) <= 0 ? 'idle' : undefined
       },
       exit: (m) => (m.spot = null),
-      on: { 'fire:low': answerFire, 'rain:start': () => 'idle' },
+      on: { 'rain:start': () => 'idle' },
     },
     keep: {
       // the keeper sits where the knight sat, facing the fire
@@ -344,7 +426,6 @@ export const mushMachine: Def<Mush, MushState> = {
         m.flip = false
         return (m.wait -= dt) <= 0 ? 'idle' : undefined
       },
-      on: { 'fire:low': answerFire },
     },
     exiting: {
       enter: (m) => {
@@ -354,6 +435,12 @@ export const mushMachine: Def<Mush, MushState> = {
       },
       update: (m, _ctx, dt) => (moveTo(m, 3, dt, true) ? 'idle' : undefined),
       exit: (m) => (m.hut = null),
+    },
+  },
+  on: {
+    // the rain's over: those by the fire are glad of it
+    'rain:end': (m) => {
+      if (Math.hypot(m.x, m.z) < 34) m.merry = Math.min(1, m.merry + 0.4)
     },
   },
 }

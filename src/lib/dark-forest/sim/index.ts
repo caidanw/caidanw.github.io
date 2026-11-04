@@ -122,6 +122,10 @@ function chooseKeeper(w: World) {
   const keeper = candidates.reduce((a, b) => (a.age > b.age ? a : b))
   const first = w.keeperId === null
   w.keeperId = keeper.id
+  // the keeper tends the fire faithfully, and likes it steady; the village gathers to mark it
+  keeper.diligence = Math.max(keeper.diligence, 0.95)
+  keeper.likes = 0.8
+  for (const m of w.mush) m.merry = Math.min(1, m.merry + 0.5)
   tell(
     w,
     first ? `${keeper.name} took up the knight's place by the fire. The village calls them the keeper now.` : `${keeper.name} is the keeper of the fire now.`,
@@ -136,6 +140,8 @@ function welcomeTravelers(w: World, dt: number) {
   w.arrivalTimer = rand(60, 120)
   const m = createTraveler(w)
   w.mush.push(m)
+  // a welcome: those by the fire are merry, and want it built up for the newcomer
+  for (const o of w.mush) if (Math.hypot(o.x, o.z) < 34) o.merry = Math.min(1, o.merry + 0.45)
   tell(w, `A traveler came up the road. The village took them in and called them ${m.name}.`)
 }
 

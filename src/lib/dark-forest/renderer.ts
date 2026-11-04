@@ -463,6 +463,15 @@ const ZED: [number, number][] = [
 /** Each shroomfolk's cap colour, for good: red, gold or crimson. */
 const capOf = (m: Mush) => MUSH_CAPS[Math.floor(hash(m.id * 7919, 3) * MUSH_CAPS.length) % MUSH_CAPS.length]
 
+/** How the campfire is burning, for its hover label. */
+const FIRE_WORDS: Record<string, string> = {
+  embers: 'down to its embers',
+  low: 'burning low',
+  steady: 'burning steady',
+  roaring: 'roaring',
+  blazing: 'blazing, built high',
+}
+
 /** States in which shroomfolk sit down once they've arrived. */
 const SITTING: string[] = ['visit', 'keep', 'farewell', 'tend']
 
@@ -1706,7 +1715,7 @@ export class Renderer {
       const candles = w.candles.some((c) => c.lit) ? '' : ' · the candles are out'
       this.say('grove', 'the quiet grove', `${companions}${village}${candles}`)
     }
-    this.say('fire', 'the campfire', w.fire.fsm.state === 'roaring' ? 'roaring' : w.fire.fsm.state === 'steady' ? 'burning steady' : 'burning low')
+    this.say('fire', 'the campfire', FIRE_WORDS[w.fire.fsm.state])
     this.say('woodpile', 'woodpile', `${w.pile} log${w.pile === 1 ? '' : 's'}, stacked by small hands`)
     this.say('pool', 'rain pool', w.poolLevel > 1.08 ? 'swollen with rain' : 'still and dark')
     this.say('foxfire', 'foxfire', 'a fungus that glows on rotting wood')
