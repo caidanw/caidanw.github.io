@@ -5,6 +5,7 @@
  */
 import { Renderer, type PixelInfo, type Timings } from './renderer'
 import { onArtChange } from './art'
+import { Soundscape } from './audio'
 import { forgetNormals } from './normals'
 import { resetSettings, settings } from './settings'
 import { createWorld, dropStick, isRaining, step, toggleRain, type World } from './sim'
@@ -33,6 +34,7 @@ export interface DarkForestOptions {
 }
 
 export interface DarkForestState {
+  sound: boolean
   rain: boolean
   glow: boolean
   debug: boolean
@@ -51,6 +53,11 @@ export interface DarkForestStats {
 
 export interface DarkForest {
   toggleRain(): void
+  /** Sound on or off (call from a click or a key: browsers require it). */
+  toggleSound(): void
+  setVolume(v: number): void
+  /** How loud it is right now (0..1). */
+  soundLevel(): number
   toggleGlow(): void
   toggleDebug(): void
   toggleNormals(): void
@@ -91,7 +98,10 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
   if (options.rain) toggleRain(world)
   if (options.vigil) world.knight.vigilLength = options.vigil
 
+  const sound = new Soundscape()
+  sound.setVolume(settings.sound.volume)
   const state = (): DarkForestState => ({
+    sound: settings.sound.on,
     rain: isRaining(world),
     glow: settings.layers.bloom,
     debug: settings.overlays.states,
@@ -180,6 +190,7 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
     stepOnce = false
     if (settings.fireHeat !== null) world.fire.heat = settings.fireHeat
     renderer.render(world)
+    if (settings.sound.on) sound.update(world)
     while (world.story.length) options.onStory?.(world.story.shift()!)
     // weather changes on its own timer (and toggles land a tick later), so report it when it happens
     if (isRaining(world) !== wasRaining) {
@@ -198,6 +209,16 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
     toggleRain() {
       toggleRain(world) // takes effect on the next tick; the loop reports the change
     },
+    toggleSound: toggle(() => {
+      settings.sound.on = !settings.sound.on
+      if (settings.sound.on) sound.start()
+      else sound.stop()
+    }),
+    setVolume(v) {
+      settings.sound.volume = v
+      sound.setVolume(v)
+    },
+    soundLevel: () => sound.level(),
     toggleGlow: toggle(() => (settings.layers.bloom = !settings.layers.bloom)),
     toggleDebug: toggle(() => (settings.overlays.states = !settings.overlays.states)),
     toggleNormals: toggle(() => (settings.layers.normals = !settings.layers.normals)),
@@ -220,6 +241,7 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
     destroy() {
       cancelAnimationFrame(raf)
       offArt()
+      sound.stop()
       ro.disconnect()
       canvas.removeEventListener('pointermove', onMove)
       canvas.removeEventListener('pointerleave', onLeave)

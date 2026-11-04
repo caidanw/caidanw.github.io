@@ -128,6 +128,17 @@ export function mountEditor(): Editor {
   )
   refreshers.push(() => heatAuto.refresh())
   const rainBtn = h('button', { onclick: () => forest?.toggleRain() }, 'rain')
+  const soundBtn = h('button', { title: 'the soundscape (S)', onclick: () => forest?.toggleSound() }, 'sound')
+  const volume = live(
+    slider(
+      'volume',
+      () => settings.sound.volume,
+      (v) => forest?.setVolume(v),
+      0,
+      1.5,
+    ),
+  )
+  const meter = h('span', { class: 'meter', title: 'how loud it is right now' }, h('i', {}))
   const gpuToggle = live(
     check(
       'gpu',
@@ -146,6 +157,7 @@ export function mountEditor(): Editor {
     h('span', { class: 'dim' }, 'editor'),
     h('div', { class: 'group' }, pauseBtn, stepBtn, speed),
     h('div', { class: 'group' }, gpuToggle),
+    h('div', { class: 'group' }, soundBtn, volume, meter),
     h('div', { class: 'group seg' }, ...toolBtns),
     h('div', { class: 'group' }, h('span', { class: 'dim' }, 'fire'), heatAuto, heat),
     h('div', { class: 'group' }, rainBtn, h('span', { class: 'dim' }, 'relic'), relic),
@@ -564,6 +576,8 @@ export function mountEditor(): Editor {
     pauseBtn.setAttribute('aria-pressed', String(s.paused))
     stepBtn.toggleAttribute('disabled', !s.paused)
     rainBtn.setAttribute('aria-pressed', String(s.rain))
+    soundBtn.setAttribute('aria-pressed', String(s.sound))
+    ;(meter.firstChild as HTMLElement).style.width = `${Math.min(100, forest.soundLevel() * 400)}%`
     relic.value = forest.relic()
     const all = forest.lights()
     for (const r of lightRows) r.refresh(all)

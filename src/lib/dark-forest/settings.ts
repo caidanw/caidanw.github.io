@@ -115,6 +115,8 @@ function defaults() {
     paused: false,
     /** Light the frame on the GPU (WebGL2) when it can; the CPU path is the reference. */
     gpu: true,
+    /** The soundscape (browsers only allow it after a click or a key). */
+    sound: { on: false, volume: 0.7 },
   }
 }
 

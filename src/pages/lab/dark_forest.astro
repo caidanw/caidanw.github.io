@@ -13,6 +13,9 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
         <span id="story">hover to learn names · click the ground to drop a stick</span>
       </p>
       <div class="toggles">
+        <button type="button" data-toggle="sound" aria-pressed="false">
+          <kbd>S</kbd> sound
+        </button>
         <button type="button" data-toggle="rain" aria-pressed="false">
           <kbd>R</kbd> rain
         </button>
@@ -175,6 +178,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   if (params.has('debug') || editing) Object.assign(window, { forest }) // poke at it from the console
 
   const actions: Record<string, () => void> = {
+    sound: forest.toggleSound,
     rain: forest.toggleRain,
     glow: forest.toggleGlow,
     debug: forest.toggleDebug,
@@ -188,7 +192,7 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     })
   }
 
-  const keys: Record<string, string> = { r: 'rain', g: 'glow', d: 'debug', n: 'normals', ' ': 'paused' }
+  const keys: Record<string, string> = { s: 'sound', r: 'rain', g: 'glow', d: 'debug', n: 'normals', ' ': 'paused' }
   addEventListener('keydown', (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey) return
     const action = keys[e.key.toLowerCase()]
