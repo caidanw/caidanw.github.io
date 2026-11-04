@@ -32,13 +32,22 @@ export const createWeather = (): Weather => ({
 /** Move v toward `to` at `rate` per second, without overshooting. */
 const toward = (v: number, to: number, rate: number) => (v < to ? Math.min(to, v + rate) : Math.max(to, v - rate))
 
-/** Lightning, now and then, while the clouds are thick. */
+/**
+ * Lightning, now and then, while the clouds are thick. Each strike has a distance (km), mostly
+ * a few km off and now and then close, especially as the storm thickens. Distance sets the
+ * flash's brightness, whether the bolt itself is seen (far ones are mostly sheet lightning),
+ * and how long the thunder takes to arrive (about a second per km, compressed from sound's
+ * ~3 s/km); the soundscape makes near thunder loud, sharp and bright and far thunder soft
+ * and muffled.
+ */
 function strikes(e: Weather, ctx: Ctx, dt: number, often: number) {
   if ((e.nextStrike -= dt) > 0 || e.cloud < 0.45) return
-  const power = rand(0.5, 1) * e.cloud
-  e.flash = Math.max(e.flash, power)
-  e.bolt = Math.random() < 0.7 ? { x: rand(30, W - 30), seed: (Math.random() * 1e6) | 0, age: 0 } : null // sometimes just sheet lightning
-  e.thunder.push({ at: ctx.w.t + rand(0.8, 3.5), power })
+  const distance = 0.5 + 5.5 * Math.random() ** 0.8 * (1.3 - 0.3 * e.cloud)
+  const near = Math.max(0, 1 - (distance - 0.5) / 5.5)
+  e.flash = Math.max(e.flash, e.cloud * (0.35 + 0.65 * near))
+  const x = rand(30, W - 30)
+  e.bolt = Math.random() < 0.15 + 0.85 * near ? { x, seed: (Math.random() * 1e6) | 0, age: 0 } : null
+  e.thunder.push({ at: ctx.w.t + 0.3 + 0.9 * distance, distance, pan: e.bolt ? (x / W) * 2 - 1 : rand(-0.8, 0.8) })
   e.nextStrike = rand(6, 20) / often
 }
 

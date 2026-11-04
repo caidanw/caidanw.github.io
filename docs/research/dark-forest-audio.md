@@ -255,3 +255,64 @@ Listening sheet: `~/Projects/dark-forest-moodboard/sounds/crow-series-listening.
 ### Accepted: crow series and door squeak
 
 The operator accepted the crow series in `9d6f6b1` ("sounds good") and the single 0.5–0.8 s door squeak ("good for now"). Treat both as accepted. Do not retune them while working on other sounds, and keep their voice-check assertions.
+
+## Thunder: distance-driven and rolling
+
+Operator review: thunder is liked overall but may be too quiet; does it vary with distance? Approved approach: make the rumble audible, give each strike a real distance driving everything, then set the level.
+
+**Old model.** Lightning `power` = 0.5–1 × cloud cover. Thunder followed 0.8–3.5 s later regardless of power. The sound was three low-passed brown-noise bursts (90–160 Hz) plus a 1.4 kHz crack above power 0.75, panned at random. The 3 s noise buffers were not looped, so the bursts ran out of noise after 1–3 s and ended abruptly.
+
+Measured, at power 1 (the maximum): 77% of energy below 150 Hz and about 1.5% above 300 Hz. A-weighted, its loudest second was only **+1 dB over a heavy-rain storm bed**.
+
+**References** (Freesound, CC0, analysis only; `moodboard/sounds/refs/thunder/manifest.json`):
+
+| Recording               | Note                        |
+| ----------------------- | --------------------------- |
+| Fission9 534023         | strike about 1.6 km away    |
+| TRP 717907              | close crack                 |
+| cognito perceptu 347853 | close clap and rumble       |
+| bastipictures 243778    | close peal                  |
+| kangaroovindaloo 585077 | clap                        |
+| TRP 717845              | distant rolling             |
+| newlocknew 768076       | distant rolling (CC BY 4.0) |
+
+Measured with `tools/thunder_measure.py`:
+
+- **Low end:** real thunder is also mostly below 300 Hz by energy, so "too much bass" alone was not the problem.
+- **Mid band and crack:** in the first 1.5 s, the brighter close strikes put 13–24% of their energy in 300–800 Hz and up to 7.6% in 0.8–3 kHz (the tearing crackle).
+- **Build-up:** about 0.3 s from −30 dB to the main peak.
+- **Decay:** 0.8–2.4 s to −20 dB below the peak, and 3–13 s (typically about 6 s) to −30 dB.
+- **Roll:** 3–8 swells per 10 s, with 6–10 dB of fast, spiky fluctuation.
+- **Distant strikes:** slow builds, little above 1–2 kHz.
+
+**Model** (after Farnell, Designing Sound, [Practical 17](https://aspress.co.uk/sd/practical17.html): strike pattern, rumble with random sample-and-hold flutter, "box of delays" reflections band-passed at 400–800 Hz, a late sub "deep" boom, and a distance lowpass):
+
+- **Weather** (`sim/weather.ts`):
+  - Each strike gets a distance `0.5 + 5.5·r^0.8·(1.3 − 0.3·cloud)` km; the median is about 3.7 km, with about 12% within 1.5 km.
+  - Flash brightness is `cloud·(0.35 + 0.65·near)`.
+  - The bolt is drawn with probability `0.15 + 0.85·near`; far strikes are mostly sheet lightning.
+  - Thunder arrives `0.3 + 0.9·distance` s later (sound's ~3 s/km, compressed).
+  - Pan comes from the bolt's screen x.
+- **Audio** (`Soundscape.thunder(at, distance, pan)`):
+  - Strike gain `1/(1 + 0.3·(d − 0.5))`; distance lowpass `500 + 9000·near²` Hz.
+  - Close strikes (near > 0.55) start with 5–10 tearing band-passed noise bursts (0.5–5 kHz) spread over the first second or so.
+  - One long main peal: brown noise lowpassed at 180–300 Hz, plus band-passed white noise at 250–500 Hz, with a 0.3 s build.
+  - Later swells every 0.5–1.8 s, decaying with τ = 3–7 s.
+  - 14–23 scattered reflections at 400–900 Hz.
+  - A late 80 Hz boom.
+  - All rumble layers pass through a looping "flutter" envelope: random steps every 5–65 ms, mostly low, with occasional spikes, mean 1. They decay to −60 dB over 10–18 s.
+  - `burst()` now loops its noise and takes an optional attack and tail level. `audition('thunder')` plays a random distance each press and holds for its full length.
+
+**Results**, measured at 0.7, 1.5, 3 and 5 km:
+
+| Measure                                  | New thunder | References |
+| ---------------------------------------- | ----------- | ---------- |
+| Fade to −30 dB                           | 4–6 s       | 3–13 s     |
+| Swells per 10 s                          | 4–6         | 3–8        |
+| Fluctuation depth                        | 6–7 dB      | 6–10 dB    |
+| 0.7 km, first 1.5 s: share in 300–800 Hz | 15%         | up to 24%  |
+| 0.7 km, first 1.5 s: share in 0.8–3 kHz  | 7.4%        | up to 7.6% |
+
+Far strikes stay dull. Loudest A-weighted second over the heavy-rain bed: about +12 dB at 0.7 and 1.5 km, +5.5 dB at 3 km and +2.3 dB at 5 km (it varies a few dB between strikes).
+
+`tools/sound_render.ts … sim=1 storm=1` renders a storm with real strikes and logs their distances. Listening sheet: `~/Projects/dark-forest-moodboard/sounds/thunder-listening.html`. Awaiting operator review.

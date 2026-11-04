@@ -64,7 +64,7 @@ export const SOUND_SOURCES: { key: SoundKey; label: string; hint: string; rate?:
   // Keep the old 'drips' key for leaf taps so existing staged tuning still applies.
   { key: 'drips', label: 'leaf drops', hint: 'nearby leaf taps and splashes; off by default', rate: 'how many', pitch: 'pitch' },
   { key: 'pool', label: 'pool drips', hint: 'sparse, soft water drips from the pool, separate from the leaves', rate: 'how often', pitch: 'pitch' },
-  { key: 'thunder', label: 'thunder', hint: 'a rumble arriving after each flash', pitch: 'depth' },
+  { key: 'thunder', label: 'thunder', hint: 'rolls after each flash: near strikes crack sharply, far ones arrive later and muffled', pitch: 'depth' },
   { key: 'wind', label: 'wind', hint: 'in the trees; stronger with cloud and rain', rate: 'gustiness', pitch: 'tone' },
   { key: 'frog', label: 'frog', hint: 'a short, pulsed croak from the pool', pitch: 'pitch' },
   { key: 'crickets', label: 'crickets', hint: 'on clear dry nights', rate: 'how often', pitch: 'pitch' },

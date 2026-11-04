@@ -30,6 +30,8 @@ export class Soundscape {
   private meters = {} as Record<SoundKey, AnalyserNode>
   private white!: AudioBuffer
   private brown!: AudioBuffer
+  /** A positive, spiky random envelope (mean 1) that steps every few ms, for thunder's churning roll. */
+  private flutter!: AudioBuffer
   /** Crackle grains, quietest to loudest: a snap, then a noisy fizz (see buildCrackles). */
   private crackles: AudioBuffer[] = []
   private drops!: RainDrops
@@ -125,8 +127,8 @@ export class Soundscape {
         break
       }
       case 'thunder':
-        hold(7)
-        this.thunder(now, 1)
+        // A different distance each time: close and sharp, or far and soft.
+        hold(this.thunder(now, rnd(0.5, 5), rnd(-0.6, 0.6)) + 0.5)
         break
       case 'wind':
         hold(5, 1)
@@ -186,6 +188,22 @@ export class Soundscape {
       b = (b + 0.02 * wd[i]) / 1.02
       bd[i] = b * 3.5
     }
+    this.flutter = ctx.createBuffer(1, ctx.sampleRate * 4, ctx.sampleRate)
+    const fd = this.flutter.getChannelData(0)
+    const smooth = Math.exp(-1 / (ctx.sampleRate * 0.004))
+    let level = 1
+    let target = 1
+    let next = 0
+    let sum = 0
+    for (let i = 0; i < fd.length; i++) {
+      if (i >= next) {
+        target = 0.15 + 2.5 * Math.random() ** 3 // mostly low, now and then a spike
+        next = i + ctx.sampleRate * (0.005 + 0.06 * Math.random() ** 2)
+      }
+      level = smooth * level + (1 - smooth) * target
+      sum += fd[i] = level
+    }
+    for (let i = 0; i < fd.length; i++) fd[i] /= sum / fd.length
     this.buildCrackles()
     // the flames: a soft broadband breath (pink noise, rounded off at both ends), lapping slowly
     const pink = ctx.createBuffer(1, n, ctx.sampleRate)
@@ -295,17 +313,30 @@ export class Soundscape {
     src.start(at)
   }
 
-  /** A burst of filtered noise with a fast attack and a long tail (thunder). */
-  private burst(at: number, len: number, freq: number, q: number, gain: number, pan: number, type: BiquadFilterType, buf: AudioBuffer, out: AudioNode) {
+  /** A burst of filtered noise with an attack and a long exponential tail. */
+  private burst(
+    at: number,
+    len: number,
+    freq: number,
+    q: number,
+    gain: number,
+    pan: number,
+    type: BiquadFilterType,
+    buf: AudioBuffer,
+    out: AudioNode,
+    attack = Math.min(0.03, len / 4),
+    tail = 0.0001,
+  ) {
     const ctx = this.ctx!
     const src = ctx.createBufferSource()
     src.buffer = buf
+    src.loop = true // the noise buffers are 3 s; thunder rolls far longer
     const g = ctx.createGain()
     const p = ctx.createStereoPanner()
     p.pan.value = clamp(pan, -1, 1)
     g.gain.setValueAtTime(0, at)
-    g.gain.linearRampToValueAtTime(gain, at + Math.min(0.03, len / 4))
-    g.gain.exponentialRampToValueAtTime(0.0001, at + len)
+    g.gain.linearRampToValueAtTime(gain, at + attack)
+    g.gain.exponentialRampToValueAtTime(gain * tail, at + len)
     src
       .connect(this.filter(type, freq, q))
       .connect(g)
@@ -398,14 +429,108 @@ export class Soundscape {
     this.grain(bank[(Math.random() * bank.length) | 0], at, gain, this.pitch(key) * rnd(0.85, 1.15), pan, this.bus[key])
   }
 
-  /** A long low rumble (with a crack first, if it's close). */
-  private thunder(at: number, power: number) {
-    const out = this.bus.thunder
+  /**
+   * Thunder, after Farnell (Designing Sound, Practical 17) and measured recordings
+   * (docs/research/dark-forest-audio.md): a tearing strike for close bolts; one long main peal
+   * with later swells on top, all with a fast spiky flutter rather than smooth swells; reflections
+   * from the surroundings in the 400–900 Hz range (what carries on small speakers); a late
+   * sub-boom; all through one distance lowpass. `distance` in km: ~0.5 close … ~7 far.
+   * Returns how long it rolls (s).
+   */
+  private thunder(at: number, distance: number, pan: number) {
+    const ctx = this.ctx!
     const deep = 1 / this.pitch('thunder')
-    const len = 3 + power * 3
-    if (power > 0.75) this.burst(at, 0.25, 1400 * deep, 0.7, 0.45 * power, rnd(-0.6, 0.6), 'bandpass', this.white, out)
-    for (let k = 0; k < 3; k++)
-      this.burst(at + k * rnd(0.25, 0.75), len - k * 0.6, rnd(90, 160) * deep, 0.7, 0.9 * power, rnd(-0.3, 0.3), 'lowpass', this.brown, out)
+    const near = clamp(1 - (distance - 0.5) / 5.5, 0, 1)
+    const len = rnd(10, 14) + 4 * (1 - near)
+    // distance: quieter and duller (air and ground absorb the highs first)
+    const strike = ctx.createGain()
+    strike.gain.value = 1 / (1 + 0.3 * (distance - 0.5))
+    const muffle = this.filter('lowpass', (500 + 9000 * near ** 2) * deep, 0.7)
+    strike.connect(muffle).connect(this.bus.thunder)
+    const side = (spread: number) => clamp(pan + rnd(-spread, spread), -1, 1)
+    const mid = 0.4 + 0.6 * near // near thunder keeps more of its audible mid band
+    // the strike: a tearing pattern of noise bursts over the first second or two, only when it's close
+    if (near > 0.55) {
+      for (let t = 0, i = 0, n = 5 + ((Math.random() * 6) | 0); i < n; i++, t += rnd(0.02, 0.1) + 0.25 * Math.random() ** 3) {
+        const tear = clamp((Math.random() + 0.4) ** 5 * 0.2, 0.02, 0.6)
+        const gain = 1.6 * near ** 1.5 * (i === 0 ? 1 : rnd(0.25, 0.8))
+        this.burst(at + t, tear, (500 + 4500 * Math.random()) * deep, 1.2, gain, side(0.15), 'bandpass', this.white, strike, 0.002)
+      }
+    }
+    // the main peal: builds for ~0.3 s as the nearest parts of the channel arrive, then rolls on
+    const start = at + rnd(0.1, 0.2)
+    this.rumble(start, len * 0.9, rnd(180, 300) * deep, 0.7, 0.8, side(0.2), 'lowpass', this.brown, strike, 0.3)
+    this.rumble(start, len * 0.75, rnd(250, 500) * deep, 0.8, 0.8 * mid, side(0.2), 'bandpass', this.white, strike, 0.3)
+    // swells on top: arrivals from farther parts of the channel, a little later and weaker
+    const tau = rnd(3, 5) + 2 * (1 - near)
+    for (let t = rnd(0.6, 1.4); t < len * 0.7; t += rnd(0.5, 1.8)) {
+      const swell = rnd(0.3, 0.9) * Math.exp(-t / tau)
+      const body = rnd(1.5, 3.5)
+      const attack = rnd(0.08, 0.4)
+      this.rumble(at + t, body, rnd(120, 400) * deep, 0.7, 0.8 * swell, side(0.3), 'lowpass', this.brown, strike, attack)
+      this.rumble(at + t, body * 0.8, rnd(200, 700) * deep, 0.8, 0.7 * swell * mid, side(0.3), 'bandpass', this.white, strike, attack)
+    }
+    // reflections from the hills and trees around: later, scattered, in the mid band
+    for (let i = 0, n = 14 + ((Math.random() * 10) | 0); i < n; i++) {
+      const t = 0.4 + len * 0.85 * Math.random() ** 1.5
+      this.rumble(
+        at + t,
+        rnd(0.8, 2),
+        rnd(400, 900) * deep,
+        2,
+        0.2 * Math.exp(-t / (tau * 1.5)) * rnd(0.3, 1),
+        rnd(-0.8, 0.8),
+        'bandpass',
+        this.white,
+        strike,
+        rnd(0.05, 0.2),
+      )
+    }
+    // the deep boom: late, slow and long
+    this.burst(at + 0.6, len, 80 * deep, 0.7, 0.5, pan * 0.5, 'lowpass', this.brown, strike, 1.5, 0.001)
+    return len + 0.6
+  }
+
+  /**
+   * Filtered noise whose level flutters in fast random steps (Farnell's thunder rumble: noise
+   * sampled-and-held at a random rate), under an attack and a long tail to −60 dB.
+   */
+  private rumble(
+    at: number,
+    len: number,
+    freq: number,
+    q: number,
+    gain: number,
+    pan: number,
+    type: BiquadFilterType,
+    buf: AudioBuffer,
+    out: AudioNode,
+    attack: number,
+  ) {
+    const ctx = this.ctx!
+    const src = ctx.createBufferSource()
+    src.buffer = buf
+    src.loop = true
+    const flutter = ctx.createBufferSource()
+    flutter.buffer = this.flutter
+    flutter.loop = true
+    const rough = ctx.createGain()
+    rough.gain.value = 0
+    flutter.connect(rough.gain)
+    const env = ctx.createGain()
+    env.gain.setValueAtTime(0, at)
+    env.gain.linearRampToValueAtTime(gain, at + attack)
+    env.gain.exponentialRampToValueAtTime(gain * 0.001, at + len)
+    const p = ctx.createStereoPanner()
+    p.pan.value = clamp(pan, -1, 1)
+    src
+      .connect(this.filter(type, freq, q))
+      .connect(rough)
+      .connect(env)
+      .connect(p)
+      .connect(out)
+    src.start(at, Math.random() * 2, len + 0.05)
+    flutter.start(at, Math.random() * 3, len + 0.05)
   }
 
   /** Play one variant from a bank; returns how long it sounds (s). */
@@ -519,7 +644,7 @@ export class Soundscape {
     for (const th of w.weather.thunder) {
       if (th.at > w.t || this.heard.has(th.at)) continue
       this.heard.add(th.at)
-      this.thunder(now + 0.02, th.power)
+      this.thunder(now + 0.02, th.distance, th.pan)
     }
     if (this.heard.size > 50) this.heard = new Set([...this.heard].slice(-20))
 

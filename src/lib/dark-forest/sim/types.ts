@@ -50,8 +50,8 @@ export interface Weather {
   bolt: { x: number; seed: number; age: number } | null
   /** Seconds until the next lightning. */
   nextStrike: number
-  /** Thunder on its way: when it arrives (sim seconds) and how loud. */
-  thunder: { at: number; power: number }[]
+  /** Thunder on its way: when it arrives (sim seconds), how far away it struck (km) and where (pan −1..1). */
+  thunder: { at: number; distance: number; pan: number }[]
   /** Whether it counted as raining last tick (to announce the change). */
   raining: boolean
 }
