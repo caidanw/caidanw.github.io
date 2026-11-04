@@ -38,6 +38,7 @@ import {
   freshName,
   isElder,
   isRaining,
+  face,
   lightRadius,
   moveTo,
   restingStick,
@@ -335,9 +336,9 @@ export const mushMachine: Def<Mush, MushState> = {
         m.tz = ctx.w.knight.z + 3
         m.wait = 3
       },
-      update: (m, _ctx, dt) => {
+      update: (m, ctx, dt) => {
         if (!moveTo(m, 4 * pace(m), dt)) return
-        m.flip = true // face the knight
+        face(m, ctx.w.knight.x)
         return (m.wait -= dt) <= 0 ? 'departing' : undefined
       },
     },
@@ -382,7 +383,7 @@ export const mushMachine: Def<Mush, MushState> = {
       },
       update: (m, ctx, dt) => {
         if (!moveTo(m, 5 * pace(m), dt)) return
-        m.flip = true
+        face(m, GROVE.x) // toward the candles
         if ((m.wait -= dt) > 0) return
         const wasOut = ctx.w.candles.some((c) => !c.lit)
         for (const c of ctx.w.candles) {
@@ -408,7 +409,7 @@ export const mushMachine: Def<Mush, MushState> = {
       update: (m, ctx, dt) => {
         if (!ctx.w.memorials[m.spot ?? 0]) return 'idle'
         if (!moveTo(m, 4 * pace(m), dt)) return
-        m.flip = true // face the glowcap
+        face(m, ctx.w.memorials[m.spot ?? 0].x)
         return (m.wait -= dt) <= 0 ? 'idle' : undefined
       },
       exit: (m) => (m.spot = null),
@@ -423,7 +424,7 @@ export const mushMachine: Def<Mush, MushState> = {
       },
       update: (m, _ctx, dt) => {
         if (!moveTo(m, 4 * pace(m), dt)) return
-        m.flip = false
+        face(m, 0) // the fire
         return (m.wait -= dt) <= 0 ? 'idle' : undefined
       },
     },

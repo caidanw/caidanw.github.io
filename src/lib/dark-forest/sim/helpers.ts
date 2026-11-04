@@ -52,6 +52,11 @@ export const doorOpen = (w: World, hut: number): boolean => w.mush.some((m) => m
  * Walk toward (tx, tz), around obstacles; returns true on arrival. A path is found whenever the
  * target changes (nav.ts). `direct` walks a straight line instead, for stepping through doorways.
  */
+/** Turn to face a point (sprites face right unflipped). */
+export function face(e: Walker, x: number) {
+  if (Math.abs(x - e.x) > 0.1) e.flip = x < e.x
+}
+
 export function moveTo(e: Walker, speed: number, dt: number, direct = false): boolean {
   if (!direct) {
     const key = `${e.tx.toFixed(1)},${e.tz.toFixed(1)},${nav.version}`

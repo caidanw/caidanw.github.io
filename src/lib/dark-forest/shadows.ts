@@ -144,9 +144,13 @@ function splat(map: ShadowMap, l: Light, sil: Silhouette) {
   const dz = sil.z - l.z
   const d = Math.hypot(dx, dz)
   if (d < 0.5) return // the light is inside it
-  // the silhouette turned to face the light: its width runs across the light's direction
-  const px = -dz / d
-  const pz = dx / d
+  // the silhouette turned to face the light: its width runs across the light's direction,
+  // turned the short way (by at most 90°) from facing the camera, so the sprite's right
+  // stays on the +x side: a deer facing right casts a shadow facing right, whether it
+  // stands in front of the light or behind it
+  const side = dz >= 0 ? 1 : -1
+  const px = (side * dz) / d
+  const pz = (-side * dx) / d
   const ly = Math.max(0.5, l.shadowY ?? l.y)
   const half = (map.n * map.cell) / 2
   const runs = sil.runs

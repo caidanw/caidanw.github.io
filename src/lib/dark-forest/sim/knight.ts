@@ -14,7 +14,7 @@
 import { KNIGHT_GRAVE, PROPS } from '../world'
 import { rand } from '../util'
 import { fsm } from './fsm'
-import { isRaining, moveTo, tell } from './helpers'
+import { face, isRaining, moveTo, tell } from './helpers'
 import type { Def, Knight, KnightState, World } from './types'
 
 export const createKnight = (): Knight => ({
@@ -93,7 +93,7 @@ export const knightMachine: Def<Knight, KnightState> = {
       },
     },
     kneeling: {
-      enter: (e) => (e.flip = false),
+      enter: (e) => face(e, KNIGHT_GRAVE.x),
       update: (e, ctx) => {
         if (e.fsm.time < 5) return
         e.sword = 'laid'
