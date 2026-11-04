@@ -14,7 +14,7 @@
  * Light, flame and bloom all follow heat.
  */
 import { fsm } from './fsm'
-import { burst, isRaining, tell } from './helpers'
+import { burst, rainAmount, tell } from './helpers'
 import type { Fire, FireState, Ctx, Def } from './types'
 
 export const createFire = (): Fire => ({ fsm: fsm<FireState>('steady'), fuel: 0.7, heat: 0.7, flare: 0, lastBlaze: -999 })
@@ -27,7 +27,7 @@ const COOL_RATE = 2.2 // how quickly it falls
 
 const burn = (e: Fire, ctx: Ctx, dt: number) => {
   // a little all the time, and much more the bigger it burns; rain eats at it
-  const rate = (1 / 170 + 0.012 * e.fuel * e.fuel) * (isRaining(ctx.w) ? 2.6 : 1)
+  const rate = (1 / 170 + 0.012 * e.fuel * e.fuel) * (1 + 1.6 * rainAmount(ctx.w))
   e.fuel = Math.max(0.02, e.fuel - dt * rate)
   e.flare *= Math.exp(-dt / 1.4)
   const target = Math.min(MAX_FUEL, e.fuel + e.flare)

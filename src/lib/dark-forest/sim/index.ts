@@ -21,7 +21,7 @@ import type { Ctx, SimEvents, World } from './types'
 import { createWeather, weatherMachine } from './weather'
 
 export * from './types'
-export { doorOpen, hutOccupancy, isElder, isMoving, isRaining, lightRadius, perchPos, WALKING } from './helpers'
+export { doorOpen, hutOccupancy, isElder, isMoving, isRaining, lightRadius, perchPos, rainAmount, WALKING } from './helpers'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Agent = [MachineDef<any, Ctx, string, SimEvents>, { fsm: Fsm<string> }]

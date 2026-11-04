@@ -54,7 +54,7 @@ export const FLOAT_LAYERS = [
   'starB',
   'starPh',
 ] as const
-const BYTE_LAYERS = ['a', 'obj', 'pool', 'ra'] as const
+const BYTE_LAYERS = ['a', 'obj', 'pool', 'ra', 'sky'] as const
 const INT_LAYERS = ['hv', 'rhv'] as const
 const STATIC_FROM = FLOAT_LAYERS.indexOf('bgr') // these change only when the static layer is rebuilt
 const MAX_LIGHTS = 128
@@ -69,6 +69,9 @@ export interface GpuFrame {
   lights: Prepared[]
   t: number
   amb: number
+  /** Cloud cover and a lightning flash (the weather). */
+  cloud: number
+  flash: number
   moonK: number
   mistK: number
   mistColor: Color
@@ -103,7 +106,7 @@ uniform sampler2DArray uSh;
 uniform isampler2DArray uShO;
 uniform vec4 uShP[${MAX_MAPS}];
 uniform int uNL;
-uniform float uT, uAmb, uMoonK, uMistK, uRes, uRain;
+uniform float uT, uAmb, uMoonK, uMistK, uRes, uRain, uCloud, uFlash;
 uniform vec3 uMistC;
 uniform int uW, uH;
 uniform bool uNormals, uRefl, uEmis, uMist, uGlints, uStars;
@@ -233,12 +236,23 @@ vec3 gather(vec3 P, bool ground, float gr, vec3 N, bool hasN, int tag) {
   return acc;
 }
 
+// renderer.ts cloudAt()
+float cloudAt(float x, float y) {
+  if (uCloud <= 0.0) return 0.0;
+  float n = 0.6 * vnoise(x * 0.012 + uT * 0.02, y * 0.035) + 0.4 * vnoise(x * 0.031 - uT * 0.013, y * 0.08 + 3.0);
+  float d = clamp((n - (1.0 - uCloud) * 0.75 - 0.2) * 3.2, 0.0, 1.0);
+  return floor(d * 4.0) / 4.0;
+}
+const vec3 CLOUD = vec3(0.065, 0.075, 0.095);
+const vec3 CLOUD_RIM = vec3(0.17, 0.19, 0.24);
+const vec3 FLASH = vec3(0.5, 0.55, 0.7);
+
 // renderer.ts compose(): light()
 vec3 lightAt(vec3 P, bool ground, vec3 N, float spec, int tag) {
   float moon = 1.0;
   bool hasN = !ground && uNormals && N.z > 0.0;
   if (hasN) moon = 0.5 + 1.3 * max(0.0, dot(N, MOON));
-  vec3 Lc = vec3(0.15, 0.18, 0.27) * uAmb * moon * uMoonK;
+  vec3 Lc = (vec3(0.15, 0.18, 0.27) * uAmb * uMoonK + uFlash * vec3(0.35, 0.38, 0.5)) * moon;
   Lc += gather(P, ground, ground ? grain(P.x, P.z) : 0.5, N, hasN, tag);
   if (hasN && spec > 0.0 && uNL > 0) {
     // metal: a tight warm glint where the surface faces the fire, a cool rim toward the moon
@@ -292,12 +306,21 @@ void main() {
       float k = gl * 0.26 * uAmb * (1.0 - m) * (0.55 + 0.45 * sin(uT * 0.8 + x * 0.37 + y * 0.71));
       col += vec3(0.5, 0.68, 0.75) * k;
     }
-  } else col = vec3(F(31, p), F(32, p), F(33, p)) * uAmb;
+  } else {
+    // the sky, behind the clouds (a flash lights their undersides)
+    col = vec3(F(31, p), F(32, p), F(33, p)) * uAmb;
+    float cd = Bt(4, p) > 0.0 ? cloudAt(x, y) : 0.0;
+    if (cd > 0.0) {
+      bool edge = cd <= 0.25;
+      col = mix(col, (edge ? CLOUD_RIM : CLOUD) * uAmb + uFlash * FLASH * (edge ? 0.9 : 0.6), edge ? 0.55 : 0.8 + 0.15 * cd);
+    }
+    col += uFlash * 0.18 * FLASH;
+  }
   float fa = uEmis ? F(24, p) : 0.0;
   if (fa > 0.0) col = col * (1.0 - fa) + vec3(F(21, p), F(22, p), F(23, p)) * fa;
   if (!a && uStars) {
     float sb = F(34, p);
-    if (sb > 0.0) col += vec3(0.86, 0.88, 0.94) * sb * (0.55 + 0.45 * sin(uT * 1.3 + F(35, p))) * (uRain > 0.5 ? 0.2 : 1.0);
+    if (sb > 0.0) col += vec3(0.86, 0.88, 0.94) * sb * (0.55 + 0.45 * sin(uT * 1.3 + F(35, p))) * (1.0 - cloudAt(x, y));
   }
   o = vec4(col, 1.0);
 }
@@ -544,6 +567,8 @@ export class GpuCompositor {
     gl.uniform1f(this.u(p, 'uMistK'), f.mistK)
     gl.uniform1f(this.u(p, 'uRes'), f.res)
     gl.uniform1f(this.u(p, 'uRain'), f.raining ? 1 : 0)
+    gl.uniform1f(this.u(p, 'uCloud'), f.cloud)
+    gl.uniform1f(this.u(p, 'uFlash'), f.flash)
     gl.uniform3fv(this.u(p, 'uMistC'), f.mistColor)
     gl.uniform1i(this.u(p, 'uW'), this.w)
     gl.uniform1i(this.u(p, 'uH'), this.h)

@@ -4,15 +4,16 @@
  */
 import { clamp, rand, vnoise } from '../util'
 import { H, HORIZON, RES, W, inPool, project } from '../world'
-import { burst, isRaining, lightRadius, stickSpot } from './helpers'
+import { burst, isRaining, lightRadius, rainAmount, stickSpot } from './helpers'
 import type { World } from './types'
 
 export function stepAmbient(w: World, dt: number, isOpenWater: (sx: number, sy: number) => boolean) {
   const raining = isRaining(w)
+  const rain = rainAmount(w)
 
-  // the trigon stone's rune wakes in the rain; the pool rises with it and sinks slowly after
+  // the trigon stone's rune wakes in the rain; the pool rises with it (faster the harder it rains) and sinks slowly after
   w.rune = clamp(w.rune + dt * (raining ? 0.25 : -0.03))
-  w.poolLevel = Math.max(1, Math.min(1.28, w.poolLevel + dt * (raining ? 0.008 : -0.0025)))
+  w.poolLevel = Math.max(1, Math.min(1.28, w.poolLevel + dt * (rain > 0.05 ? 0.01 * rain : -0.0025)))
 
   // the grove candles burn down
   for (const c of w.candles) {
@@ -41,7 +42,7 @@ export function stepAmbient(w: World, dt: number, isOpenWater: (sx: number, sy: 
   w.puffs = w.puffs.filter((p) => (p.age += dt) < 0.9)
   stepFallingSticks(w, dt)
 
-  // fireflies: dry nights only, just outside the firelight
+  // fireflies: dry nights only, just outside the firelight (they hide as the clouds come in)
   const R = lightRadius(w)
   for (const f of w.flies) {
     const a = vnoise(f.seed, w.t * 0.06) * Math.PI * 4
@@ -49,19 +50,22 @@ export function stepAmbient(w: World, dt: number, isOpenWater: (sx: number, sy: 
     f.x = Math.cos(a) * r
     f.z = Math.sin(a) * r * 0.7
     f.y = 6 + vnoise(f.seed + 50, w.t * 0.3) * 20
-    f.a = raining ? 0 : Math.max(0, Math.sin(w.t * 1.7 + f.seed)) ** 3
+    f.a = (1 - Math.min(1, w.weather.cloud * 1.3)) * Math.max(0, Math.sin(w.t * 1.7 + f.seed)) ** 3
   }
 
   // a shooting star, now and then
-  if ((w.nextShoot -= dt) <= 0 && !raining) {
+  if ((w.nextShoot -= dt) <= 0 && w.weather.cloud < 0.2) {
     w.shooting = { x: rand(20, 260) * RES, y: rand(4, 30) * RES, age: 0 }
     w.nextShoot = rand(25, 60)
   }
   if (w.shooting && (w.shooting.age += dt) > 0.9) w.shooting = null
 
   // rain falls straight down, rippling where it lands on open water
-  if (raining) {
-    for (const r of w.drops) {
+  if (rain > 0) {
+    // only as many drops as the rain is heavy
+    const n = Math.round(w.drops.length * rain)
+    for (let k = 0; k < n; k++) {
+      const r = w.drops[k]
       r.y += r.v * dt
       if (r.y <= r.stop) continue
       if (isOpenWater(r.x | 0, r.stop | 0)) w.ripples.push({ x: r.x, y: r.stop, age: 0 })

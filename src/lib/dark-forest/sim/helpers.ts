@@ -4,7 +4,10 @@ import type { Fsm } from './fsm'
 import { findPath, nav, walkable } from './nav'
 import type { MushState, Stick, Walker, World } from './types'
 
-export const isRaining = (w: World): boolean => w.weather.fsm.state === 'raining'
+/** Raining enough to count (creatures shelter, candles go out, the rune wakes). */
+export const isRaining = (w: World): boolean => w.weather.rain > 0.3
+/** How hard it's raining, 0..1 (drops, the pool, the fire's struggle all follow this). */
+export const rainAmount = (w: World): number => w.weather.rain
 export const tell = (w: World, line: string) => w.story.push(line)
 /** A grove spot with no glowcap and nobody already heading to it. */
 export function freeGroveSpot(w: World): number | null {

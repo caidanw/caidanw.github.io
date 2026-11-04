@@ -32,12 +32,28 @@ export interface Walker extends Point {
 }
 
 // ---------- entities (each owns an fsm) ----------
-export type WeatherState = 'dry' | 'raining'
+export type WeatherState = 'dry' | 'gathering' | 'raining' | 'easing' | 'clearing'
 export interface Weather {
   fsm: Fsm<WeatherState>
   timer: number
   /** Once the visitor toggles rain by hand, the automatic cycle stops. */
   manual: boolean
+  /** Cloud cover (0..1): drifts in before the rain and away after it. */
+  cloud: number
+  /** How hard it's raining (0..1): eases in and out. Above 0.3 counts as raining. */
+  rain: number
+  /** How hard this rain will get at its heaviest. */
+  peak: number
+  /** A lightning flash's brightness (decays fast). */
+  flash: number
+  /** The bolt being drawn: where it strikes (screen x), its shape, and its age in seconds. */
+  bolt: { x: number; seed: number; age: number } | null
+  /** Seconds until the next lightning. */
+  nextStrike: number
+  /** Thunder on its way: when it arrives (sim seconds) and how loud. */
+  thunder: { at: number; power: number }[]
+  /** Whether it counted as raining last tick (to announce the change). */
+  raining: boolean
 }
 
 export type FireState = 'embers' | 'low' | 'steady' | 'roaring' | 'blazing'

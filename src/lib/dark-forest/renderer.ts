@@ -106,7 +106,7 @@ import { settings, type View } from './settings'
 import { walkable } from './sim/nav'
 import { cullLights, gatherLight, groundGrain, prepareLights, type Light, type Prepared } from './lights'
 import { BUDGET, ShadowMaps, SilhouetteRecorder, shadowAt } from './shadows'
-import { WALKING, doorOpen, hutOccupancy, isElder, isMoving, isRaining, lightRadius, perchPos, type Mush, type World } from './sim'
+import { WALKING, doorOpen, hutOccupancy, isElder, isMoving, isRaining, lightRadius, perchPos, rainAmount, type Mush, type World } from './sim'
 
 /** What the bushes are called on hover. */
 const BUSH_NAMES: [string, string][] = [
@@ -241,6 +241,22 @@ const SKY_DEPTH = -1e9
 /** Depth of the bare ground: anything standing on it is in front. */
 const GROUND_DEPTH = -1e8
 
+/**
+ * How much cloud covers this sky pixel (0..1): drifting value noise, thicker as the cover
+ * rises, in flat bands like the rest of the art. (gpu.ts cloudAt() ports this exactly.)
+ */
+function cloudAt(x: number, y: number, t: number, cover: number): number {
+  if (cover <= 0) return 0
+  const n = 0.6 * vnoise(x * 0.012 + t * 0.02, y * 0.035) + 0.4 * vnoise(x * 0.031 - t * 0.013, y * 0.08 + 3)
+  const d = clamp((n - (1 - cover) * 0.75 - 0.2) * 3.2)
+  return Math.floor(d * 4) / 4
+}
+/** The clouds: a pale moonlit rim at their edges, a dark body (before the ambient and any flash). */
+const CLOUD_RIM = [0.17, 0.19, 0.24]
+const CLOUD = [0.065, 0.075, 0.095]
+/** A lightning flash's colour. */
+const FLASH = [0.5, 0.55, 0.7]
+
 /** Light-culling tiles: 32x32 pixels. */
 const TILE_BITS = 5
 const TILES_X = Math.ceil(W / (1 << TILE_BITS))
@@ -336,6 +352,8 @@ function makeBuf() {
     bgr: f(),
     bgg: f(),
     bgb: f(),
+    // open sky (1) or something in the background standing in front of it (the ridge, far trees)
+    sky: u(),
     pool: u(),
   }
 }
@@ -1413,21 +1431,22 @@ export class Renderer {
     this.shadows.statics = []
     this.shadows.version++
     this.region = 0
-    const setBg = (x: number, y: number, c: Color) => {
+    const setBg = (x: number, y: number, c: Color, open = 0) => {
       if (x < 0 || x >= W || y < 0 || y >= H) return
       const i = y * W + x
       B.bgr[i] = c[0]
       B.bgg[i] = c[1]
       B.bgb[i] = c[2]
+      B.sky[i] = open
     }
     // sky, crescent moon, far ridge, distant tree silhouettes standing on the horizon
     for (let y = 0; y < H; y++) {
       const t = clamp(y / (72 * RES))
       const c = mix(hex('#04050a'), hex('#1b2535'), t * t)
-      for (let x = 0; x < W; x++) setBg(x, y, c)
+      for (let x = 0; x < W; x++) setBg(x, y, c, 1)
     }
-    disc((x, y) => setBg(x, y, hex('#e9e3d4')), 170 * RES, 16 * RES, 7 * RES, 7 * RES)
-    disc((x, y) => setBg(x, y, hex('#05070c')), 173 * RES, 14 * RES, 7 * RES, 7 * RES)
+    disc((x, y) => setBg(x, y, hex('#e9e3d4'), 1), 170 * RES, 16 * RES, 7 * RES, 7 * RES)
+    disc((x, y) => setBg(x, y, hex('#05070c'), 1), 173 * RES, 14 * RES, 7 * RES, 7 * RES)
     for (let x = 0; x < W; x++) {
       const top = HORIZON - (6 + vnoise((x / RES) * 0.03, 4) * 16) * RES
       for (let y = top | 0; y <= HORIZON; y++) setBg(x, y, mix(hex('#121a27'), hex('#1b2535'), (y - top) / (22 * RES)))
@@ -2010,8 +2029,25 @@ export class Renderer {
       )
     })
     this.tagged('fire', () => flame(true))
+    // a lightning bolt, far off behind the trees (sky depth: everything stands in front of it)
+    const bolt = w.weather.bolt
+    if (bolt) {
+      const a = (1 - bolt.age / 0.4) * (Math.sin(bolt.age * 90) > -0.3 ? 1 : 0.35)
+      const rng = rngFrom(bolt.seed)
+      const strand = (x0: number, y0: number, y1: number, k: number, depth: number) => {
+        let x = x0
+        for (let y = y0; y < y1; y++) {
+          if (y % 3 === 0) x += Math.round((rng() - 0.5) * 4)
+          this.putFx(x, y, [0.92, 0.95, 1], a * k, undefined, SKY_DEPTH / 2, 1)
+          this.putFx(x + 1, y, FLASH as Color, a * k * 0.4, undefined, SKY_DEPTH / 2, 1)
+          // now and then a branch
+          if (depth < 2 && rng() < 0.04) strand(x, y, Math.min(y1, y + 10 + rng() * 25), k * 0.6, depth + 1)
+        }
+      }
+      strand(bolt.x, 8 * RES, HORIZON + 2, 1, 0)
+    }
     // smoke when the fire is low or it's raining (steam)
-    const smoky = clamp((0.5 - heat) * 1.4) + (isRaining(w) ? 0.35 : 0)
+    const smoky = clamp((0.5 - heat) * 1.4) + rainAmount(w) * 0.45
     if (smoky > 0.02) {
       for (let i = 0; i < 10; i++) {
         const age = (t * 0.35 + i / 10) % 1
@@ -2291,7 +2327,9 @@ export class Renderer {
     const B = this.fb
     const fx = this.fx
     const out = this.out
-    const amb = isRaining(w) ? 0.8 : 1
+    const W8 = w.weather
+    const amb = 1 - 0.2 * W8.rain - 0.08 * W8.cloud
+    const flash = W8.flash
     const L = settings.layers
     const useNormals = L.normals
     const moonK = settings.ambient.moon
@@ -2338,9 +2376,10 @@ export class Renderer {
         normal = nrm
         moon = 0.5 + 1.3 * Math.max(0, nrm[0] * MOON[0] + nrm[1] * MOON[1] + nrm[2] * MOON[2])
       }
-      Lc[0] = 0.15 * amb * moon * moonK
-      Lc[1] = 0.18 * amb * moon * moonK
-      Lc[2] = 0.27 * amb * moon * moonK
+      // moonlight, and a lightning flash lights everything for a moment
+      Lc[0] = (0.15 * amb * moonK + flash * 0.35) * moon
+      Lc[1] = (0.18 * amb * moonK + flash * 0.38) * moon
+      Lc[2] = (0.27 * amb * moonK + flash * 0.5) * moon
       gatherLight(here, x, y, z, ground, ground ? groundGrain(x, z) : 0.5, normal, Lc, tag)
       if (normal && spec > 0) {
         // metal: a tight warm glint where the surface faces the fire, a cool rim toward the moon
@@ -2413,9 +2452,23 @@ export class Renderer {
             b += 0.75 * k
           }
         } else {
+          // the sky, behind the clouds (a flash lights their undersides)
+          const cd = B.sky[i] ? cloudAt(x, y, t, W8.cloud) : 0
           r = B.bgr[i] * amb
           g = B.bgg[i] * amb
           b = B.bgb[i] * amb
+          if (cd > 0) {
+            const edge = cd <= 0.25
+            const c = edge ? CLOUD_RIM : CLOUD
+            const k = edge ? 0.55 : 0.8 + 0.15 * cd
+            const f = flash * (edge ? 0.9 : 0.6)
+            r = r * (1 - k) + (c[0] * amb + f * FLASH[0]) * k
+            g = g * (1 - k) + (c[1] * amb + f * FLASH[1]) * k
+            b = b * (1 - k) + (c[2] * amb + f * FLASH[2]) * k
+          }
+          r += flash * 0.18 * FLASH[0]
+          g += flash * 0.18 * FLASH[1]
+          b += flash * 0.18 * FLASH[2]
         }
         if (view === 'light') {
           // the light arriving here, without the surface's own colour
@@ -2440,7 +2493,7 @@ export class Renderer {
       for (const s of STARS) {
         const i = s.y * W + s.x
         if (B.a[i]) continue
-        const a = s.b * (0.55 + 0.45 * Math.sin(t * 1.3 + s.ph)) * (isRaining(w) ? 0.2 : 1)
+        const a = s.b * (0.55 + 0.45 * Math.sin(t * 1.3 + s.ph)) * (1 - cloudAt(s.x, s.y, t, w.weather.cloud))
         out.r[i] += 0.86 * a
         out.g[i] += 0.88 * a
         out.b[i] += 0.94 * a
@@ -2478,7 +2531,9 @@ export class Renderer {
       staticVersion: this.shadows.version,
       lights: this.prepared,
       t: w.t,
-      amb: isRaining(w) ? 0.8 : 1,
+      amb: 1 - 0.2 * w.weather.rain - 0.08 * w.weather.cloud,
+      cloud: w.weather.cloud,
+      flash: w.weather.flash,
       moonK: settings.ambient.moon,
       mistK: settings.ambient.mist,
       mistColor: C.mist,
@@ -2792,7 +2847,7 @@ export class Renderer {
 
   /** What draws over the finished frame: rain, labels, debug text, the editor's overlays. */
   private drawOver(w: World) {
-    if (isRaining(w) && settings.layers.rain) this.drawRain(w)
+    if (rainAmount(w) > 0 && settings.layers.rain) this.drawRain(w)
     if (settings.layers.labels) this.drawHover()
     else this.hovered = null
     if (settings.overlays.states) this.drawDebug(w)
@@ -2804,8 +2859,11 @@ export class Renderer {
     const { ctx, scale: S } = this
     const thin = Math.max(1, Math.round(S / 4))
     ctx.save()
-    ctx.fillStyle = 'rgba(165,185,215,0.3)'
-    for (const r of w.drops) {
+    const rain = rainAmount(w)
+    ctx.fillStyle = `rgba(165,185,215,${0.16 + 0.18 * rain})`
+    const n = Math.round(w.drops.length * rain)
+    for (let k = 0; k < n; k++) {
+      const r = w.drops[k]
       const len = (r.v / 240) * 7 * S // faster drops streak longer
       ctx.fillRect(Math.round(r.x * S), Math.round(r.y * S - len), thin, len)
     }
