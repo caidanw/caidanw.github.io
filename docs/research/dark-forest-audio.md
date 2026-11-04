@@ -196,3 +196,15 @@ Operator review: the latch was inaudible, which was fine because the request was
 Checks: `voice-check.ts` now requires the crow trill band to be >5 dB clear of the 3.6–4.7 kHz gap and between −28 and −16 dB relative to the body. The previous crow fails this and the new one passes. Door checks require one 0.5–0.8 s squeak that does not break into blips and settles promptly. Accepted frog/owl buffers are still byte-for-byte unchanged; rain checks pass. A hardware-muted browser check confirmed both previews; that browser was closed.
 
 Listening sheet: `~/Projects/dark-forest-moodboard/sounds/squeak-trill-listening.html`, with variants A and B (B in the scene). Matching measured spectra does not prove the trill is perceived the same way; awaiting operator review.
+
+### Crow: smooth onset and the real fundamental (reference measurements)
+
+Operator review: the trill helped less than expected. The burst at the start of each caw is wrong (the reference is smoother), and the overall timbre is still off. Background research on crow synthesis and corvid caw acoustics is in [`crow-synthesis.md`](./crow-synthesis.md).
+
+Measurements of Freesound 75162 (five caws) against the current synth:
+
+- **Onset.** The reference rises over 84–203 ms (10–90%); the envelope peaks 135–333 ms in. Its first 40 ms are only 0.49–0.76× the steady level, and the onset is slightly _darker_ than the steady part (centroid about 1.6–1.9 kHz, against 1.8–2.0 kHz steady). The synth rises in about 9 ms. Its first 40 ms reach 1.3–1.8× the steady level, with a bright 3.7–4.1 kHz centroid. The noisy "ka" burst is therefore the opposite of the reference.
+- **Fundamental.** A narrowband (8192-point) analysis gives f0 ≈ 690–720 Hz in every caw. The fundamental is a weak line near 700 Hz, about 15–20 dB below the strongest harmonics. The 1.5–3.1 kHz harmonics are smeared into a dense plateau by rapid wobble, and the spectrum cuts off steeply above about 3.2–3.4 kHz. A component at f0/2 (360 Hz) appears only at about −75 dB. This matches Mates et al.'s American-crow mean of 604 Hz (95th percentile 697 Hz). The current 300–340 Hz pulse clock, taken from hooded-crow pulse-register data, is about an octave low.
+- **Texture.** The synth's spectrogram shows separate click groups with silent gaps about every 13 ms, ringing two narrow fixed resonances. The reference is a continuous, wobbling harmonic tone with no gaps.
+
+Plot: `~/Projects/dark-forest-moodboard/shots/crow-onset.png` and `crow-f0-narrowband.png`.
