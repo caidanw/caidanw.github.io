@@ -69,8 +69,8 @@ export const SOUND_SOURCES: { key: SoundKey; label: string; hint: string; rate?:
   { key: 'frog', label: 'frog', hint: 'a short, pulsed croak from the pool', pitch: 'pitch' },
   { key: 'crickets', label: 'crickets', hint: 'on clear dry nights', rate: 'how often', pitch: 'pitch' },
   { key: 'owl', label: 'owl', hint: 'a full hoot phrase, with a long pause and quavering reply (about 7 seconds)', rate: 'how often', pitch: 'pitch' },
-  { key: 'crow', label: 'crow', hint: 'two ka-aw caws with a rattling, pulse-clustered body', pitch: 'pitch' },
-  { key: 'door', label: 'hut doors', hint: 'a quiet wooden click and one quick creak', pitch: 'pitch' },
+  { key: 'crow', label: 'crow', hint: 'two ka-aw caws: a rattling pulse body with a flickering high trill', pitch: 'pitch' },
+  { key: 'door', label: 'hut doors', hint: 'one quiet wooden squeak, about half a second', pitch: 'pitch' },
 ]
 
 export interface SoundTune {

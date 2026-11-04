@@ -175,3 +175,24 @@ Checks: door buffers are one short movement with an early latch click, an audibl
 Tooling note: `node-web-audio-api` occasionally rejects a valid offline `suspend()` (`InvalidStateError`), even in a minimal graph with no forest code. Chaining suspends from inside a checkpoint fails reliably, so batch registration stays. `voice-check.ts` retries one affected render and logs the retry; rerun the other offline tools if they hit it.
 
 Listening sheet: `~/Projects/dark-forest-moodboard/sounds/quick-door-listening.html`. Awaiting perceptual review.
+
+### Half-second door squeak; crow high trill from measurement
+
+Operator review: the latch was inaudible, which was fine because the request was for one squeak. The squeak itself was good but too quick; it should last 0.5–0.8 seconds. The restored crow is better but still lacks the higher-pitched trilling heard in the reference.
+
+- **Door:** remove the latch impulse. Run the same single force/slip-rate swell over 0.5–0.8 s; the normalized contours stretch with the duration, so the liked squeak character is kept, just slower. Scene gain remains 0.08.
+- **Crow, measured:** comparing the reference (`crow-75162`) with the restored synth showed similar rattle rates in the body envelope (reference 65–75 Hz, synth 75–81 Hz). The difference is spectral:
+  - The reference has a separate high band peaking around 5.5–6.1 kHz, about 23–30 dB below the 0.7–3.5 kHz body.
+  - That band stands 8–16 dB (up to 41 dB) above an empty 3.6–4.7 kHz gap.
+  - Its envelope flickers only partly with the body; correlation is 0.4–0.6, and about 0 in one call.
+  - The synth had no distinct band. Its 2nd-order resonator skirts and click spillover filled the gap, so the "high" region was 5 dB _below_ the gap and locked to the clicks (correlation 0.66). Removing individual components did not open the gap.
+- **Crow, change:**
+  - Keep the restored pulse body, ka attack and envelope.
+  - Pass the body through an 8th-order 3.3 kHz Butterworth lowpass (two RBJ pairs), leaving the ka burst unfiltered.
+  - Add a trill band: two cascaded bandpasses (Q 4) at 5.6–6.1 kHz, driven mostly by the pressure pulses plus a little noise. Its gain flickers to random 0.1–1 levels every 8–16 ms, smoothed over 2 ms.
+  - The bank now measures: trill −21.6 dB below the body, 8.7 dB above the gap, envelope correlation 0.55, peak around 5.7–5.9 kHz. These are within the reference ranges.
+  - Alternative **A** keeps the unfiltered body and needs the trill at about −15 dB to clear the leaked energy. It is rendered for comparison only.
+
+Checks: `voice-check.ts` now requires the crow trill band to be >5 dB clear of the 3.6–4.7 kHz gap and between −28 and −16 dB relative to the body. The previous crow fails this and the new one passes. Door checks require one 0.5–0.8 s squeak that does not break into blips and settles promptly. Accepted frog/owl buffers are still byte-for-byte unchanged; rain checks pass. A hardware-muted browser check confirmed both previews; that browser was closed.
+
+Listening sheet: `~/Projects/dark-forest-moodboard/sounds/squeak-trill-listening.html`, with variants A and B (B in the scene). Matching measured spectra does not prove the trill is perceived the same way; awaiting operator review.

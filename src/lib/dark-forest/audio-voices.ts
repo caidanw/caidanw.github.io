@@ -116,6 +116,8 @@ function owl(ctx: BaseAudioContext) {
  * Crow pulse register: short pressure openings in groups of two or three, with longer
  * closures between groups, exciting a damp tract resonance. This creates the rattling
  * interior of a caw at the source, rather than adding vibrato to a smooth sung vowel.
+ * Above it, a separate band near 6 kHz flickers on its own clock (~60–120 Hz), as
+ * measured in the reference recording: the high trill over the caw.
  * Physically informed, not a full syrinx simulation (research notes cite the observations).
  */
 function crow(ctx: BaseAudioContext) {
@@ -137,15 +139,30 @@ function crow(ctx: BaseAudioContext) {
   const upper = bandpass(rnd(2600, 2900), 7, sr)
   const burst = bandpass(rnd(3200, 4200), 0.85, sr)
   const air = bandpass(2300, 0.7, sr)
+  const trillHz = rnd(5600, 6100)
+  const trill = [bandpass(trillHz, 4, sr), bandpass(trillHz, 4, sr)]
+  // The caw's body stops short of ~3.5 kHz (8th order), leaving a clear gap below the trill.
+  const gap = [lowpass(3300, 0.54, sr), lowpass(3300, 1.31, sr), lowpass(3300, 0.54, sr), lowpass(3300, 1.31, sr)]
+  const flickerSmoothing = Math.exp(-1 / (sr * 0.002))
+  let flicker = 0
+  let flickerTarget = 1
+  let nextFlicker = 0
   let index = 0
   return render(ctx, duration + 0.045, (t) => {
+    if (t >= nextFlicker) {
+      flickerTarget = rnd(0.1, 1)
+      nextFlicker = t + rnd(0.008, 0.016)
+    }
+    flicker = flickerSmoothing * flicker + (1 - flickerSmoothing) * flickerTarget
     while (index + 1 < pulses.length && pulses[index + 1].at <= t) index++
     const p = pulses[index]
     const age = t - p.at
     const pressure = age > 0 && age < p.width ? (1 - Math.exp(-age / 0.00004)) * Math.exp(-age / (p.width * 0.28)) * p.gain : 0
     const voice = tract(pressure) * 3.2 + upper(pressure) * 2 + pressure * 0.12
     const breath = air(Math.random() * 2 - 1) * 0.015
-    const body = (voice + breath) * envelope(t - 0.006, duration - 0.006, 0.008, 0.07)
+    // Driven mostly by the pulses (so it partly follows the rattle), with a little noise.
+    const high = trill[1](trill[0]((Math.random() * 2 - 1) * 0.2 + pressure * 30)) * flicker * 0.035
+    const body = (gap[3](gap[2](gap[1](gap[0](voice + breath)))) + high) * envelope(t - 0.006, duration - 0.006, 0.008, 0.07)
     const ka = burst(Math.random() * 2 - 1) * 0.24 * envelope(t, 0.032, 0.002, 0.025)
     return ka + body
   })
@@ -154,13 +171,13 @@ function crow(ctx: BaseAudioContext) {
 /**
  * Force → near-periodic stick/slip releases → material modes → panel reflections.
  * The source becomes a pitched creak as releases bunch together, not random gravel
- * and not a drawn audio-frequency whistle. One short movement follows a wooden latch
- * click; keep the liked material response without the long or repeated pull.
+ * and not a drawn audio-frequency whistle. One squeak: a single swell of force and slip
+ * rate over half a second or so, without a catch or a repeated pull.
  * This event model is lighter than an elasto-plastic contact solver.
  */
 function door(ctx: BaseAudioContext) {
   const sr = ctx.sampleRate
-  const duration = rnd(0.26, 0.33)
+  const duration = rnd(0.5, 0.8)
   const size = rnd(0.94, 1.06)
   const wood = [175, 370, 620, 910, 1350].map((f, i) => bandpass(f * size, 2 + i * 0.5, sr))
   const woodGains = [0.08, 0.14, 0.2, 0.3, 0.38]
@@ -215,12 +232,10 @@ function door(ctx: BaseAudioContext) {
     } else clock = 0
     const pulse = slipAge < slipLife ? slipGain * (1 - slipAge / slipLife) ** 2 * Math.min(1, (slipAge * sr) / 3) : 0
     slipAge += 1 / sr
-    const latchAge = t - 0.003
-    const latch = latchAge > 0 ? 0.35 * (1 - Math.exp(-latchAge / 0.0003)) * Math.exp(-latchAge / 0.002) : 0
     let body = 0
-    for (let i = 0; i < wood.length; i++) body += wood[i](pulse + latch) * woodGains[i]
+    for (let i = 0; i < wood.length; i++) body += wood[i](pulse) * woodGains[i]
     const edge = hinge[0](pulse) * 2.4 + hinge[1](pulse) * 1.5
-    const material = body + edge + pulse * 0.04 + latch * 0.08
+    const material = body + edge + pulse * 0.04
     let reflected = 0
     for (const delay of panel) reflected += delay(material)
     return (material * 0.7 + reflected * 0.16) * envelope(t, duration + 0.1, 0.008, 0.1)
@@ -249,6 +264,26 @@ function contour(u: number, points: readonly [number, number][]) {
     return previous + (value - previous) * t
   }
   return points[points.length - 1][1]
+}
+
+/** RBJ lowpass; two in series with Q 0.54/1.31 form a steep 4th-order Butterworth. */
+function lowpass(hz: number, q: number, sr: number) {
+  const w = (TAU * hz) / sr
+  const a = Math.sin(w) / (2 * q)
+  const c = Math.cos(w)
+  const a0 = 1 + a
+  let x1 = 0,
+    x2 = 0,
+    y1 = 0,
+    y2 = 0
+  return (x: number) => {
+    const y = (((1 - c) / 2) * (x + x2) + (1 - c) * x1 + 2 * c * y1 - (1 - a) * y2) / a0
+    x2 = x1
+    x1 = x
+    y2 = y1
+    y1 = y
+    return y
+  }
 }
 
 /** Constant-peak RBJ bandpass, used as a material/throat band rather than a pitched voice. */
