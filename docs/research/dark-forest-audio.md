@@ -46,7 +46,7 @@ A soft, broad noise wash stays central (the operator's preference). Add many low
 ### Rain implementation and checks
 
 - `audio-rain.ts`: independent 17/19-second granular white-noise washes; short, damp leaf impacts and a small proportion of pool drops. No recorded samples are bundled. Close impacts use a rounded contact and noisy splash tail; they are no longer the fire's tiny crackle grains.
-- Editor buses: **rain** (wash/brightness), **leaf drops** and **pool drips** (each level/rate/pitch). All support independent on/off, solo and example playback. Leaves remain off by default; pool drips are enabled quietly.
+- Editor buses: **rain** (wash/brightness), **leaf drops** and **pool drips** (each level/rate/pitch). All support independent on/off, solo and example playback. Leaf and pool foreground drops are both off by default; the accepted rain wash stays on.
 - Final tuning: drizzle has distinguishable close taps; the diffuse wash grows faster than the foreground drop rate, so heavy rain overlaps into a continuous texture. Reference-like contrast is a tuning aid, not a claim of exact acoustic equivalence.
 - Deterministic offline checks at 44.1 and 48 kHz: dry output is zero; light/medium/heavy overall RMS increases; channels are decorrelated; grains have rounded beginnings and decayed ends; clearing and source mute settle to silence; min/max editor pitch and rate remain finite and below clipping at default levels. Tests live at `~/Projects/dark-forest-moodboard/tools/rain-check.ts`, run there with `node --no-warnings --import ./hook.mjs rain-check.ts`.
 - Initial combined-drop mix at 44.1 kHz (before the operator muted foreground drops): stereo left-channel RMS 0.0030 / 0.0066 / 0.0098 for intensity 0.2 / 0.6 / 1.0; heavy peak 0.154. Historical implementation checks, not current defaults or loudness targets for every source.
@@ -56,7 +56,7 @@ Listening files under `sounds/synth/`: `rain-after-0.2.wav`, `rain-after-0.6.wav
 
 ### Pool drips: separated from leaf taps
 
-The operator liked the rain wash but disliked the mixed foreground pops. The old `drips` tuning key now controls **only leaves**, keeping its disabled default. A new `pool` key controls sparse water drips (enabled at gain 0.65), with its own clock, rate, pitch, meter and preview. Existing staged leaf tuning does not become pool tuning. The wash generator and its level/brightness curves are unchanged.
+The operator liked the rain wash but disliked the mixed foreground pops. The old `drips` tuning key now controls **only leaves**, keeping its disabled default. A new `pool` key controls sparse water drips (now off by default; gain 0.65 if enabled), with its own clock, rate, pitch, meter and preview. Existing staged leaf tuning does not become pool tuning. The wash generator and its level/brightness curves are unchanged.
 
 Additional primary references (analysis-only downloads, both CC0):
 
@@ -65,6 +65,8 @@ Additional primary references (analysis-only downloads, both CC0):
 - [Farnell, Bubbles practical](https://aspress.co.uk/sd/practical12.html): bubble/drip generators combine changing oscillator frequency with short amplitude envelopes. The cave-drip example adds reverberation separately; we do not add that cave treatment to the pool.
 
 Our implementation choice: water has a faint noisy contact followed by a short, damp, slightly rising bubble chirp, rather than the leaf's dominant noisy splash. Generated carrier starts around 1.4–2.8 kHz, with a 10–24 ms decay constant and a smooth attack. These are chosen tuning ranges guided by the recordings, not universal physical values. Events are sparse (2/s at full rain and default rate, fewer in drizzle), spatially anchored across the pool. Pool and leaf source mute/solo, sample-rate extremes and staged-data round trips are covered by the local regression checks. No other sound source changed.
+
+Operator review: the revised pool drips still read as animal squeaks, so this model is parked, not accepted. Do not retune it during the animal pass.
 
 Listening files: `sounds/synth/pool-drips-solo.wav` and `sounds/synth/rain-with-pool-drips.wav` in the moodboard workspace.
 
