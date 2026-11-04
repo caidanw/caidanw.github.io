@@ -9,6 +9,7 @@
  * fire. Browsers only allow sound after a click or a key, so it starts off (see start()).
  */
 import { rainDrops, rainWash, type RainDrops } from './audio-rain'
+import { buildVoices, type VoiceBank, type VoiceKey } from './audio-voices'
 import { doorOpen, isRaining, perchPos, type World } from './sim'
 import { SOUND_SOURCES, settings, type SoundKey } from './settings'
 import { vnoise } from './util'
@@ -32,6 +33,7 @@ export class Soundscape {
   /** Crackle grains, quietest to loudest: a snap, then a noisy fizz (see buildCrackles). */
   private crackles: AudioBuffer[] = []
   private drops!: RainDrops
+  private voices!: VoiceBank
   private flamesBed!: GainNode
   private flamesTone!: BiquadFilterNode
   /** Crackles waiting to sound: the clusters' follow-ups (time, loudness). */
@@ -62,7 +64,7 @@ export class Soundscape {
       this.live = true
       this.build(new AudioContext())
     }
-    void (this.ctx as AudioContext).resume()
+    if (this.live) void (this.ctx as AudioContext).resume()
   }
 
   stop() {
@@ -135,15 +137,15 @@ export class Soundscape {
         for (let i = 0; i < 3; i++) this.cricket(now + i * 0.8, i, 1)
         break
       case 'owl':
-        hold(2.5)
+        hold(7.5 / (T.pitch * 0.97))
         this.owl(now, -0.5, 1)
         break
       case 'crow':
-        hold(1.5)
+        hold(2.2 / (T.pitch * 0.97))
         this.crow(now, 0.4)
         break
       case 'door':
-        hold(1)
+        hold(1.8 / (T.pitch * 0.97))
         this.door(now, 0, 1)
         break
     }
@@ -214,6 +216,7 @@ export class Soundscape {
     this.windBed.gain.value = 0
     this.windBed.connect(this.bus.wind)
     this.loop(this.brown, [this.windTone], this.windBed)
+    this.voices = buildVoices(ctx)
   }
 
   /**
@@ -309,7 +312,7 @@ export class Soundscape {
     src.start(at, Math.random() * 2, len + 0.05)
   }
 
-  /** A pitched voice: an oscillator with an envelope and a glide, through a filter; `trem` adds a buzzy flutter. */
+  /** A pitched voice with an envelope and glide, for log thumps and crickets. */
   private voice(
     at: number,
     len: number,
@@ -320,7 +323,6 @@ export class Soundscape {
     pan: number,
     out: AudioNode,
     filt?: [BiquadFilterType, number, number],
-    trem = 0,
   ) {
     const ctx = this.ctx!
     const o = ctx.createOscillator()
@@ -333,19 +335,6 @@ export class Soundscape {
     g.gain.exponentialRampToValueAtTime(0.0001, at + len)
     let node: AudioNode = o
     if (filt) node = node.connect(this.filter(...filt))
-    if (trem) {
-      const am = ctx.createGain()
-      am.gain.value = 0.5
-      const lfo = ctx.createOscillator()
-      lfo.type = 'square'
-      lfo.frequency.value = trem
-      const depth = ctx.createGain()
-      depth.gain.value = 0.5
-      lfo.connect(depth).connect(am.gain)
-      lfo.start(at)
-      lfo.stop(at + len + 0.05)
-      node = node.connect(am)
-    }
     const p = ctx.createStereoPanner()
     p.pan.value = clamp(pan, -1, 1)
     node.connect(g).connect(p).connect(out)
@@ -417,9 +406,13 @@ export class Soundscape {
       this.burst(at + k * rnd(0.25, 0.75), len - k * 0.6, rnd(90, 160) * deep, 0.7, 0.9 * power, rnd(-0.3, 0.3), 'lowpass', this.brown, out)
   }
 
+  private playVoice(key: VoiceKey, at: number, gain: number, pan: number) {
+    const bank = this.voices[key]
+    this.grain(bank[(Math.random() * bank.length) | 0], at, gain, this.pitch(key) * rnd(0.97, 1.03), pan, this.bus[key])
+  }
+
   private frog(at: number, pan: number, g: number) {
-    const p = this.pitch('frog')
-    for (const k of [0, 0.16]) this.voice(at + k, 0.11, 'sawtooth', 460 * p, 400 * p, 0.22 * g, pan, this.bus.frog, ['bandpass', 900 * p, 2], 38)
+    this.playVoice('frog', at, 0.2 * g, pan)
   }
 
   private cricket(at: number, i: number, g: number) {
@@ -429,25 +422,16 @@ export class Soundscape {
   }
 
   private owl(at: number, pan: number, g: number) {
-    const p = this.pitch('owl')
-    const out = this.bus.owl
-    const lp: [BiquadFilterType, number, number] = ['lowpass', 900 * p, 0.7]
-    this.voice(at, 0.45, 'sine', 400 * p, 370 * p, 0.16 * g, pan, out, lp)
-    this.voice(at + 0.7, 0.25, 'sine', 410 * p, 385 * p, 0.13 * g, pan, out, lp)
-    this.voice(at + 1.0, 0.5, 'sine', 400 * p, 360 * p, 0.15 * g, pan, out, lp)
+    this.playVoice('owl', at, 0.18 * g, pan)
   }
 
   private crow(at: number, pan: number) {
-    const p = this.pitch('crow')
-    for (const k of [0, 0.32]) {
-      this.voice(at + k, 0.24, 'sawtooth', 720 * p, 560 * p, 0.12, pan, this.bus.crow, ['bandpass', 1300 * p, 1.5])
-      this.burst(at + k, 0.2, 1500 * p, 1, 0.05, pan, 'bandpass', this.white, this.bus.crow)
-    }
+    this.playVoice('crow', at, 0.2, pan)
+    this.playVoice('crow', at + rnd(0.85, 1.05) / this.pitch('crow'), 0.16, pan)
   }
 
   private door(at: number, pan: number, g: number) {
-    const p = this.pitch('door')
-    this.voice(at, 0.35, 'triangle', rnd(340, 460) * p, 520 * p, 0.12 * g, pan, this.bus.door, ['bandpass', 700 * p, 4], 22)
+    this.playVoice('door', at, 0.16 * g, pan)
   }
 
   /** Where something is, for the ears: pan from its screen x, and a gain falling off with distance from the fire. */
@@ -547,7 +531,7 @@ export class Soundscape {
         const [pan, gain] = t ? this.place(...t) : [-0.6, 0.4]
         this.owl(now, pan, gain)
       }
-      this.nextOwl = now + rnd(25, 70) / S.owl.rate
+      this.nextOwl = now + 7.2 / this.pitch('owl') + rnd(25, 70) / S.owl.rate
     }
     // ---- the crow takes off
     if (w.crow.fsm.state === 'flying' && this.last.crow !== 'flying') {

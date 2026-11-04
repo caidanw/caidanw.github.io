@@ -66,11 +66,11 @@ export const SOUND_SOURCES: { key: SoundKey; label: string; hint: string; rate?:
   { key: 'pool', label: 'pool drips', hint: 'sparse, soft water drips from the pool, separate from the leaves', rate: 'how often', pitch: 'pitch' },
   { key: 'thunder', label: 'thunder', hint: 'a rumble arriving after each flash', pitch: 'depth' },
   { key: 'wind', label: 'wind', hint: 'in the trees; stronger with cloud and rain', rate: 'gustiness', pitch: 'tone' },
-  { key: 'frog', label: 'frog', hint: 'a ribbit when the frog croaks', pitch: 'pitch' },
+  { key: 'frog', label: 'frog', hint: 'a short, pulsed croak from the pool', pitch: 'pitch' },
   { key: 'crickets', label: 'crickets', hint: 'on clear dry nights', rate: 'how often', pitch: 'pitch' },
-  { key: 'owl', label: 'owl', hint: 'hoo… hoo-hoo, now and then on clear nights', rate: 'how often', pitch: 'pitch' },
-  { key: 'crow', label: 'crow', hint: 'a caw as it takes off', pitch: 'pitch' },
-  { key: 'door', label: 'hut doors', hint: 'a creak as a door opens', pitch: 'pitch' },
+  { key: 'owl', label: 'owl', hint: 'a full hoot phrase, with a long pause and quavering reply (about 7 seconds)', rate: 'how often', pitch: 'pitch' },
+  { key: 'crow', label: 'crow', hint: 'two rough, swelling caws as it takes off', pitch: 'pitch' },
+  { key: 'door', label: 'hut doors', hint: 'a short friction creak, with a wooden body and a rough hinge rub', pitch: 'pitch' },
 ]
 
 export interface SoundTune {

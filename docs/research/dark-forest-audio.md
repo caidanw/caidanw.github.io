@@ -70,9 +70,9 @@ Operator review: the revised pool drips still read as animal squeaks, so this mo
 
 Listening files: `sounds/synth/pool-drips-solo.wav` and `sounds/synth/rain-with-pool-drips.wav` in the moodboard workspace.
 
-## Animal, door and cricket reference set (next pass)
+## Animal, door and cricket reference set
 
-Downloaded for the next round; **no animal, cricket or door synthesis changed in the rain commit**. The reference species are starting points for the scene's character, not a claim that this fantasy clearing has a particular geography. Uploader species labels have not been independently verified.
+**No animal, cricket or door synthesis changed in the rain commit**; these references guide the subsequent voice pass. The reference species are starting points for the scene's character, not a claim that this fantasy clearing has a particular geography. Uploader species labels have not been independently verified.
 
 | Sound   | Primary recording and local file under `sounds/refs/`                                                                                                                                          | License on source page |
 | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
@@ -84,9 +84,9 @@ Downloaded for the next round; **no animal, cricket or door synthesis changed in
 
 The local `refs/animals-and-doors.json` manifest records the source page, preview URL and license link for each download. These are analysis copies, not proposed bundled assets.
 
-### What to model next
+### Initial diagnosis
 
-Initial measurements of the downloaded previews (not universal species constants):
+Measurements and proposed directions before the voice pass (not universal species constants):
 
 - **Owl:** this male tawny reference has its strongest sustained energy in roughly the 0.7–0.9 kHz region, quite unlike the current repeated 400 Hz glides. Next: measure one complete phrase's contours and gaps, then model rounded breath/envelope and slight instability instead of three identical whistles. Do not simply transpose every owl to one frequency.
 - **Crow:** the reference concentrates energy around 1.5–2.1 kHz with structured harmonics. These are spectral peaks, not necessarily its fundamental. Next: measure the underlying pulse rate, formants and onset/offset of one caw, retaining roughness without making a generic sawtooth buzz. [Farnell's Birds practical](https://aspress.co.uk/sd/practical28.html) explicitly separates modulation, tracheal formants and overall envelope; it is a synthesis framework, not an owl/crow-specific preset. [Cornell's American Crow sound archive](https://www.allaboutbirds.org/guide/American_Crow/sounds) provides identified recording context and examples for a second cross-check; it is not the species ID of the Freesound crow.
@@ -94,4 +94,22 @@ Initial measurements of the downloaded previews (not universal species constants
 - **Door:** the recording has high squeaking bands near 3–5 kHz as well as lower body sound; the current 700 Hz-filtered tone is missing the friction cue. [Farnell's original Creaking Door practical](https://aspress.co.uk/sd/practical09.html) supplies a concrete alternative: irregular stick-slip pulses under changing force, exciting wood bands and a panel response. Next: a short, restrained friction creak, not a horror-door recording or a pitched beep.
 - **Cricket:** this recording's strongest narrow band is around 4.6 kHz, already inside the current 4.3–5.1 kHz range. Keep its liked character; inspect within-chirp pulses and pauses before deciding whether any change is warranted. [Farnell's Insects practical](https://aspress.co.uk/sd/practical27.html) has distinct cricket-chirp and stridulation models, with carrier and pulse/envelope structure rather than undifferentiated noise.
 
-Full-recording spectra above contain background and processing. Single-call spectrograms and matched-level listening should guide the next implementation, not these summary numbers alone. Thunder and flames are accepted and remain untouched.
+Full-recording spectra above contain background and processing. Single-call spectrograms and matched-level listening guide implementation, not these summary numbers alone. Thunder and flames are accepted and remain untouched.
+
+### Reference-based voice pass
+
+`audio-voices.ts` generates variant banks from synthesis equations, never decoded recording data. `audio.ts` plays them through the existing per-source buses with position, distance, gain, pitch, solo and mute. Natural world triggers are unchanged: the frog croaks, crow takes flight, hut door opens, and owl calls occasionally in dry weather.
+
+Additional frog reference: [daveincamas, Pacific Chorus Frog solo](https://freesound.org/people/daveincamas/sounds/32807/) (CC BY 4.0), local `refs/frog-chorus-solo-32807.mp3`. The recordist identifies a close solo male, with house echo and distant frogs, and notes low-frequency cleanup. This is a clearer individual call than the earlier common-frog chorus. It is a sound-design reference, not a species assignment for the scene's frog.
+
+Local measurements and synthesis choices:
+
+- **Frog:** reference foreground calls around 0.2–0.3 seconds, strongest bands near 1.1 and 2.4 kHz, envelope pulses around 60–70 Hz in the selected excerpt. New synthesis uses short damp throat/sac modes in an irregular pulse train, a swelling syllable envelope and very faint breath. No low sawtooth with square-wave gating, and no mandatory double "ribbit".
+- **Owl:** in the first measured phrase, the first hoot spans roughly 1.94–2.77 seconds; a short pickup is near 6.76 seconds, and the response near 7.53–8.67 seconds. The new full phrase includes that long pause, rounded onset/release, a curved 0.7–0.9 kHz contour, weak harmonics/breath and a quavering response. It is deliberately not three equally spaced descending sines. The editor preview keeps the whole phrase audible, including at low pitch; automatic scheduling leaves a gap after the complete phrase.
+- **Crow:** the reference caws range roughly 0.35–0.8 seconds, with a quick rise, ragged held middle and a fall. The new harmonic source has pressure-dependent pitch, small random frequency perturbations, throat bands around 1.1/1.85/2.65 kHz and a little air. Two caws vary in duration and strength; they no longer use a short uniform sawtooth glide.
+- **Door:** irregular force-dependent stick/slip impulses excite several damp wood modes; a rough high-frequency hinge rub supplies the friction cue. The old triangle-note bend is gone. The model is intentionally a short, restrained hut creak, not a long horror-door sample. Spectral balance was checked against the recorded door, but the result still needs perceptual review.
+- **Crickets:** the existing liked synthesis is retained. Its carrier range already overlaps the field-cricket reference; no change made merely to make it different.
+
+Checks: finite, tapered, normalized voice buffers and routed previews at 44.1/48 kHz; each source audible independently even when off during audition; pitch-range extremes; complete owl responses rather than truncated previews; world event triggers; mute and return to silence. Local command: from `~/Projects/dark-forest-moodboard/tools/`, `node --no-warnings --import ./hook.mjs voice-check.ts`. Rain regression checks also pass. Strict TypeScript and the Astro build pass. Browser checks confirm trusted-click previews, the owl's late response, per-source tuning and solo, and sound stopping when disabled; the hardware-muted test browser was closed afterwards. The accepted fire/log/thunder/cricket methods and rain-material module were also compared against their previous source to catch unintended retuning. Spectral/envelope comparison is a diagnostic tool, not a substitute for listening.
+
+Listening sheet: `~/Projects/dark-forest-moodboard/sounds/voices-listening.html` (reference / previous synth / new synth, approximately matched by active sound level). Raw individual previews and an actual-level scene mix are in `sounds/synth/`. Nothing autoplays.
