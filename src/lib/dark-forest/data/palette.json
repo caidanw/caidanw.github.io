@@ -75,5 +75,20 @@
   "relicWood": "#5e4632",
   "relicWoodHi": "#8a6c4e",
   "relicIron": "#7c7468",
-  "relicIronHi": "#b0a694"
+  "relicIronHi": "#b0a694",
+  "fern": "#40603c",
+  "fernHi": "#5e8450",
+  "fernD": "#2c4430",
+  "foxglove": "#b0679a",
+  "foxgloveD": "#7a4268",
+  "grassTall": "#46663e",
+  "grassTip": "#7a9460",
+  "mushPale": "#d8cbb0",
+  "mushTan": "#a8845e",
+  "owl": "#2a221c",
+  "owlD": "#18130f",
+  "bat": "#0a0a0d",
+  "moth": "#d8d2c0",
+  "ridgeFar": "#1a2331",
+  "ridgeMid": "#161e2b"
 }

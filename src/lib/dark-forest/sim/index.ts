@@ -72,6 +72,20 @@ export function createWorld(): World {
     flies: Array.from({ length: 12 }, (_, i) => ({ seed: i * 13.7, x: 0, y: 0, z: 0, a: 0 })),
     shooting: null,
     nextShoot: 20,
+    bats: [],
+    nextBats: rand(15, 40),
+    moths: Array.from({ length: 9 }, (_, i) => ({ seed: i * 7.31, at: i < 6 ? 'fire' : 'lantern', x: 0, y: 0, z: 0 })),
+    farFlies: Array.from({ length: 18 }, (_, i) => {
+      const swarm = [
+        [-110, -70],
+        [70, -80],
+        [130, -55],
+      ][i % 3]
+      return { seed: i * 3.17, cx: swarm[0], cz: swarm[1], x: 0, y: 0, z: 0, a: 0 }
+    }),
+    owl: { blink: 2, away: 0 },
+    farDeer: null,
+    nextFarDeer: rand(40, 90),
     cursor: null,
     queue: [],
   }

@@ -60,6 +60,8 @@ export interface Layout {
   hearthstones: (Spot & { h: number; w: number; lean: number; carved: boolean })[]
   trees: (Spot & { h: number; w: number; seed: number; tone: number })[]
   bushes: (Spot & { w: number; h: number; seed: number; lobes: number })[]
+  /** Small things: ferns, grass, foxgloves, rocks, stumps, fallen logs, mushroom clusters. */
+  details: (Spot & { kind: string; size: number; seed: number })[]
 }
 
 /** The raw data, exactly what's in data/*.json. The editor edits this and saves it. */

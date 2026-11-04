@@ -219,6 +219,18 @@ export interface World {
   flies: { seed: number; x: number; y: number; z: number; a: number }[]
   shooting: { x: number; y: number; age: number } | null
   nextShoot: number
+  /** Bats crossing the sky (screen space: x, y, speed, wingbeat phase). */
+  bats: { x: number; y: number; vx: number; ph: number }[]
+  nextBats: number
+  /** Moths circling a light (world space), and which light. */
+  moths: { seed: number; at: 'fire' | 'lantern'; x: number; y: number; z: number }[]
+  /** Firefly swarms deep in the trees (world space). */
+  farFlies: { seed: number; cx: number; cz: number; x: number; y: number; z: number; a: number }[]
+  /** The owl on its branch: blinking, and now and then looking away. */
+  owl: { blink: number; away: number }
+  /** A deer far off, crossing the back of the wood now and then. */
+  farDeer: { x: number; z: number; dir: number; step: number } | null
+  nextFarDeer: number
   cursor: Point | null
   /** Events emitted this tick, delivered to every agent at the end of the tick. */
   queue: SimEvent[]

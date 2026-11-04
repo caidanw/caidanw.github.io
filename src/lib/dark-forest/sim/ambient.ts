@@ -3,7 +3,7 @@
  * decisions to make. They read entity state but don't need a machine.
  */
 import { clamp, rand, vnoise } from '../util'
-import { H, HORIZON, RES, W, inPool, project } from '../world'
+import { H, HORIZON, PROPS, RES, W, inPool, project } from '../world'
 import { burst, isRaining, lightRadius, rainAmount, stickSpot } from './helpers'
 import type { World } from './types'
 
@@ -59,6 +59,60 @@ export function stepAmbient(w: World, dt: number, isOpenWater: (sx: number, sy: 
     w.nextShoot = rand(25, 60)
   }
   if (w.shooting && (w.shooting.age += dt) > 0.9) w.shooting = null
+
+  // bats, now and then, across the sky on a clear night
+  if ((w.nextBats -= dt) <= 0) {
+    w.nextBats = rand(30, 90)
+    if (w.weather.cloud < 0.5) {
+      const dir = Math.random() < 0.5 ? 1 : -1
+      const y = rand(10, 40) * RES
+      for (let i = 0; i < 1 + ((Math.random() * 3) | 0); i++)
+        w.bats.push({ x: dir > 0 ? -10 - i * rand(8, 20) : W + 10 + i * rand(8, 20), y: y + rand(-6, 6) * RES, vx: dir * rand(70, 110), ph: Math.random() * 6 })
+    }
+  }
+  for (const b of w.bats) {
+    b.x += b.vx * dt
+    b.ph += dt * 14
+    b.y += Math.sin(b.ph * 0.35) * 12 * dt // they flutter as they go
+  }
+  w.bats = w.bats.filter((b) => b.x > -40 && b.x < W + 40)
+
+  // moths about the fire and the lantern (not in the rain)
+  for (const m of w.moths) {
+    const c = m.at === 'fire' ? { x: 0, y: 9, z: 0, r: 5 + w.fire.heat * 5 } : { x: PROPS.lantern.x + 3.3, y: 15, z: PROPS.lantern.z, r: 2.5 }
+    const a = w.t * (1.6 + (m.seed % 1.3)) + m.seed
+    m.x = c.x + Math.cos(a) * c.r * (0.6 + 0.4 * vnoise(m.seed, w.t * 0.8))
+    m.z = c.z + Math.sin(a) * c.r * 0.6
+    m.y = raining ? -100 : c.y + Math.sin(a * 1.7) * 3 + vnoise(m.seed + 3, w.t * 1.3) * 4
+  }
+
+  // firefly swarms deep in the trees (dry nights)
+  for (const f of w.farFlies) {
+    f.x = f.cx + (vnoise(f.seed, w.t * 0.05) - 0.5) * 30
+    f.z = f.cz + (vnoise(f.seed + 4, w.t * 0.05) - 0.5) * 16
+    f.y = 4 + vnoise(f.seed + 8, w.t * 0.2) * 18
+    f.a = (1 - Math.min(1, w.weather.cloud * 1.3)) * Math.max(0, Math.sin(w.t * 1.3 + f.seed * 2)) ** 4
+  }
+
+  // the owl blinks, and now and then looks away
+  if ((w.owl.blink -= dt) < -0.15) w.owl.blink = rand(2, 6)
+  if (w.owl.away > 0) w.owl.away -= dt
+  else if (Math.random() < dt / 25) w.owl.away = rand(2, 5)
+
+  // a deer far off at the back of the wood, crossing now and then
+  if (!w.farDeer && (w.nextFarDeer -= dt) <= 0 && !raining) {
+    const dir = Math.random() < 0.5 ? 1 : -1
+    w.farDeer = { x: dir > 0 ? -175 : 175, z: rand(-92, -84), dir, step: 0 }
+  }
+  if (w.farDeer) {
+    const d = w.farDeer
+    d.x += d.dir * 5 * dt
+    d.step += dt
+    if (Math.abs(d.x) > 180) {
+      w.farDeer = null
+      w.nextFarDeer = rand(120, 260)
+    }
+  }
 
   // rain falls straight down, rippling where it lands on open water
   if (rain > 0) {

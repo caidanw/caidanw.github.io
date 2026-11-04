@@ -140,6 +140,26 @@ export interface Bush extends Point {
  */
 export const BUSHES: Bush[] = DATA.layout.bushes
 
+/** Small things about the wood: ferns, grass, foxgloves, rocks, stumps, fallen logs, mushroom clusters. */
+export type DetailKind = 'fern' | 'grass' | 'foxglove' | 'rock' | 'stump' | 'log' | 'mushrooms'
+export type Detail = Point & { kind: DetailKind; size: number; seed: number }
+export const DETAILS = DATA.layout.details as Detail[]
+
+/** The undergrowth at the back of the wood: small bushes in the mist along the horizon (a backdrop, seeded). */
+export const UNDERGROWTH: Bush[] = (() => {
+  const rng = rngFrom(77)
+  const out: Bush[] = []
+  for (const row of [-93, -86, -80]) {
+    for (let x = -215; x < 215; x += 7 + rng() * 8) {
+      const z = row + (rng() - 0.5) * 4
+      if (Math.abs(x - PROPS.trigon.x) < 9 && z > PROPS.trigon.z - 2) continue // keep the trigon's foot clear
+      const w = 3 + rng() * 4.5
+      out.push({ x: x + (rng() - 0.5) * 4, z, w, h: w * (0.5 + rng() * 0.3), seed: (rng() * 1e6) | 0, lobes: 2 + ((rng() * 2) | 0) })
+    }
+  }
+  return out
+})()
+
 export const TUFTS = (() => {
   const rng = rngFrom(9)
   const out: (Point & { n: number; flower: boolean; s: number })[] = []

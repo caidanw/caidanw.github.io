@@ -57,6 +57,10 @@ import {
   STONE_RING,
   TREES,
   BUSHES,
+  DETAILS,
+  UNDERGROWTH,
+  type Detail,
+  type DetailKind,
   type Bush,
   TUFTS,
   W,
@@ -107,6 +111,37 @@ import { walkable } from './sim/nav'
 import { cullLights, gatherLight, groundGrain, prepareLights, type Light, type Prepared } from './lights'
 import { BUDGET, ShadowMaps, SilhouetteRecorder, shadowAt } from './shadows'
 import { WALKING, doorOpen, hutOccupancy, isElder, isMoving, isRaining, lightRadius, perchPos, rainAmount, type Mush, type World } from './sim'
+
+/** What the small things are called on hover. */
+const DETAIL_NAMES: Record<DetailKind, [string, string]> = {
+  fern: ['a fern', 'curled tight at the tips'],
+  grass: ['tall grass', 'it whispers when the wind comes'],
+  foxglove: ['foxgloves', 'pretty, and poisonous'],
+  rock: ['a mossy stone', 'cold, even by the fire'],
+  stump: ['an old stump', 'something lives inside'],
+  log: ['a fallen log', 'soft with moss'],
+  mushrooms: ['little mushrooms', "the village's cousins"],
+}
+
+/** The owl: a small dark body with ear tufts, perched (pixels from its eye line). */
+const OWL: [number, number, string][] = (() => {
+  const rows = ['d...d', 'ddddd', 'd...d', 'ooooo', 'ooooo', '.ooo.', '.ooo.', '..d..']
+  const out: [number, number, string][] = []
+  rows.forEach((row, r) => [...row].forEach((ch, c) => ch !== '.' && out.push([c - 2, r - 6, ch])))
+  return out
+})()
+/** The tree the owl perches in: one at the edge of the clearing, on the left. */
+const owlTree = () =>
+  TREES.reduce<(typeof TREES)[number] | null>(
+    (best, t) => (Math.hypot(t.x + 78, t.z + 42) < (best ? Math.hypot(best.x + 78, best.z + 42) : 1e9) ? t : best),
+    null,
+  )
+
+/** Bats, wings up and wings down. */
+const BAT: string[][] = [
+  ['b...b', 'bb.bb', '.bbb.'],
+  ['.....', 'bbbbb', 'b.b.b'],
+]
 
 /** What the bushes are called on hover. */
 const BUSH_NAMES: [string, string][] = [
@@ -618,6 +653,8 @@ export class Renderer {
   private tileBoxes = new Float32Array(TILES * 6)
   /** Every shadow caster's silhouette, and each light's shadow map (shadows.ts). */
   readonly shadows = new ShadowMaps()
+  /** Glowing caps among the mushroom clusters (screen pixels, found while drawing the static layer). */
+  private detailGlows: { x: number; y: number; dep: number; ph: number; tag: number }[] = []
   /** The caster being drawn right now: put() records its pixels. */
   private recorder: SilhouetteRecorder | null = null
   private prepared: Prepared[] = []
@@ -1137,6 +1174,167 @@ export class Renderer {
     })
   }
 
+  /**
+   * The small things about the wood, each drawn at full resolution from its seed: ferns,
+   * tall grass, foxgloves, mossy rocks, stumps, fallen logs, little mushroom clusters (some
+   * of them faintly glowing, like the village's cousins).
+   */
+  private drawDetail(B: Buf, d: Detail) {
+    const [bx, by, s] = project(d.x, 0, d.z)
+    const rng = rngFrom(d.seed)
+    const dep = d.z
+    const plant = (px: number, py: number, c: Color, nrm: Normal = [0, 0.35, 0.94]) =>
+      this.put(B, px, py, c, d.x + (px - bx) / s, d.z, (by - py) / s, by, dep, false, nrm)
+    this.region++
+    switch (d.kind) {
+      case 'fern': {
+        // fronds arching out from the middle, leaflets in pairs, lighter toward the tips
+        const n = 5 + (d.seed % 3)
+        const len = (4.2 + rng() * 1.8) * d.size * s
+        for (let i = 0; i < n; i++) {
+          const th = -1.2 + (2.4 * i) / (n - 1) + (rng() - 0.5) * 0.25
+          const droop = 0.25 + Math.abs(th) * 0.35
+          const steps = Math.round(len * 1.2)
+          for (let k = 0; k <= steps; k++) {
+            const u = k / steps
+            const x = bx + Math.round(Math.sin(th) * len * u * (1 + 0.3 * u))
+            const y = by - Math.round(Math.cos(th) * len * u - droop * len * u * u)
+            const c = u > 0.7 ? C.fernHi : u < 0.2 ? C.fernD : C.fern
+            plant(x, y, c)
+            if (k % 2 === 0 && u > 0.12 && u < 0.95) {
+              const leaf = u < 0.6 ? 2 : 1
+              for (let j = 1; j <= leaf; j++) {
+                plant(x - j, y - (j > 1 ? 1 : 0), c)
+                plant(x + j, y - (j > 1 ? 1 : 0), c)
+              }
+            }
+          }
+        }
+        break
+      }
+      case 'grass': {
+        // a clump of tall blades, leaning, their tips paler
+        const n = 7 + (d.seed % 5)
+        for (let i = 0; i < n; i++) {
+          const h = Math.round((2.6 + rng() * 3.2) * d.size * s)
+          const lean = (rng() - 0.5) * 0.8
+          const ox = Math.round((i - n / 2) * 1.3 + (rng() - 0.5) * 2)
+          for (let j = 0; j < h; j++) plant(bx + ox + Math.round((lean * j * j) / h), by - j, j > h * 0.72 ? C.grassTip : j < h * 0.25 ? C.fernD : C.grassTall)
+        }
+        break
+      }
+      case 'foxglove': {
+        // a few tall stalks of bells over a rosette of leaves
+        for (let k = -3; k <= 3; k++) for (let j = 0; j < 2; j++) plant(bx + k, by - j, j ? C.fernHi : C.fern)
+        const n = 1 + (d.seed % 3)
+        for (let i = 0; i < n; i++) {
+          const ox = (i - (n - 1) / 2) * 3
+          const h = Math.round((6.5 + rng() * 3) * d.size * s)
+          for (let j = 2; j < h; j++) {
+            plant(bx + ox, by - j, C.fern)
+            if (j > h * 0.35 && j % 2 === 0) {
+              const side = (j >> 1) % 2 ? 1 : -1
+              plant(bx + ox + side, by - j, C.foxglove)
+              plant(bx + ox + side * 2, by - j, C.foxglove)
+              plant(bx + ox + side, by - j + 1, C.foxgloveD)
+            }
+          }
+          plant(bx + ox, by - h, C.foxglove)
+        }
+        break
+      }
+      case 'rock': {
+        // a mossy stone, grainy, half sunk in the ground
+        const rx = Math.max(3, Math.round(1.7 * d.size * s))
+        const ry = Math.max(2, Math.round(rx * 0.62))
+        disc(
+          (px, py, u, v) => {
+            let c = v < -0.35 && hash(px, py * 3) < 0.7 ? C.moss2 : hash(px * 3 + d.seed, py) < 0.3 ? C.stoneD : C.stone
+            if (v < -0.1 && u < -0.3 && c !== C.moss2) c = C.stoneHi
+            this.put(B, px, py, c, d.x + (px - bx) / s, d.z, (by - py) / s, by, dep, false, shape.dome(u, v), micro.stone(px, py, d.seed), WEIGHT.stone)
+          },
+          bx,
+          by - Math.round(ry * 0.55),
+          rx,
+          ry,
+        )
+        break
+      }
+      case 'stump': {
+        // an old stump: bark sides, a pale cut top with rings, moss, roots
+        const hw = Math.max(3, Math.round(1.3 * d.size * s))
+        const ht = Math.round(1.3 * d.size * s)
+        for (let r = 0; r < ht; r++)
+          for (let k = -hw; k <= hw; k++) {
+            const u = k / hw
+            const c = r < 2 && hash(k, r + d.seed) < 0.5 ? C.moss2 : u < -0.6 ? C.trunkRim : hash(k * 5, r * 3 + d.seed) < 0.3 ? C.stickD : C.log
+            this.put(B, bx + k, by - r, c, d.x + k / s, d.z, r / s, by, dep, false, shape.cylinder(u), micro.bark(bx + k, by - r, d.seed), WEIGHT.bark)
+          }
+        disc(
+          (px, py, u, v) => {
+            const ring = Math.hypot(u, v * 1.6)
+            const c = ring > 0.85 ? C.stickD : Math.round(ring * 4) % 2 ? C.logEnd : C.logLit
+            this.put(B, px, py, c, d.x + (px - bx) / s, d.z, ht / s, by, dep + 0.01, false, [0, 0.9, 0.44])
+          },
+          bx,
+          by - ht,
+          hw,
+          Math.max(1, Math.round(hw * 0.4)),
+        )
+        for (const k of [-hw - 1, hw + 1, -hw - 2]) plant(bx + k, by, C.stickD)
+        break
+      }
+      case 'log': {
+        // a fallen log, moss along its back, its cut end to one side
+        const half = Math.round(2.3 * d.size * s)
+        const th = Math.max(3, Math.round(0.85 * d.size * s))
+        const dir = d.seed % 2 ? 1 : -1
+        for (let k = -half; k <= half; k++)
+          for (let r = 0; r < th; r++) {
+            const v = (r / (th - 1)) * 2 - 1 // top to bottom: -1 .. 1, as a dome across it
+            let c = v < -0.5 && hash(k, d.seed + r) < 0.75 ? C.moss2 : v > 0.5 ? C.stickD : hash(k * 3, r * 5 + d.seed) < 0.25 ? C.stickD : C.log
+            if (k * dir >= half - 1) c = Math.abs(v) < 0.4 ? C.logEnd : C.logLit // the cut end
+            this.put(
+              B,
+              bx + k,
+              by - th + 1 + r,
+              c,
+              d.x + k / s,
+              d.z,
+              (th - r) / s,
+              by,
+              dep,
+              false,
+              shape.dome(0, v),
+              micro.bark(bx + k, by - r, d.seed),
+              WEIGHT.bark,
+            )
+          }
+        break
+      }
+      case 'mushrooms': {
+        // three to five little mushrooms; some of them glow
+        const n = 3 + (d.seed % 3)
+        for (let i = 0; i < n; i++) {
+          const ox = Math.round((rng() - 0.5) * 8 * d.size)
+          const oz = rng() * 1.2
+          const [mx, my] = project(d.x + ox / s, 0, d.z + oz)
+          const h = 2 + ((rng() * 3) | 0)
+          const w = 1 + ((rng() * 2) | 0)
+          const glow = rng() < 0.45
+          for (let j = 0; j < h; j++) this.put(B, mx, my - j, C.mushPale, d.x, d.z + oz, j / s, my, d.z + oz, false, shape.cylinder(0))
+          for (let k = -w; k <= w; k++) {
+            this.put(B, mx + k, my - h, glow ? C.mushPale : C.mushTan, d.x, d.z + oz, h / s, my, d.z + oz, false, shape.dome(k / (w + 1), -0.3))
+            if (Math.abs(k) < w)
+              this.put(B, mx + k, my - h - 1, glow ? C.mushPale : C.mushTan, d.x, d.z + oz, (h + 1) / s, my, d.z + oz, false, shape.dome(k / (w + 1), -0.8))
+            if (glow) this.detailGlows.push({ x: mx + k, y: my - h - (Math.abs(k) < w ? 1 : 0), dep: d.z + oz + 0.01, ph: rng() * 6, tag: this.tag })
+          }
+        }
+        break
+      }
+    }
+  }
+
   /** A bush: a mound of overlapping lobes sitting on the ground, dotted along their rims. */
   private drawBush(B: Buf, b: Bush) {
     const [bx, by, s] = project(b.x, 0, b.z)
@@ -1424,10 +1622,13 @@ export class Renderer {
 
   private buildStatic(lvl: number) {
     const B = this.st
+    const ridgeFar = C.ridgeFar
+    const ridgeMid = C.ridgeMid
     this.bakedLevel = lvl
     for (const k in B) (B[k as keyof Buf] as Float32Array).fill(0)
     B.dep.fill(SKY_DEPTH)
     B.rdep.fill(SKY_DEPTH)
+    this.detailGlows = []
     this.shadows.statics = []
     this.shadows.version++
     this.region = 0
@@ -1447,6 +1648,21 @@ export class Renderer {
     }
     disc((x, y) => setBg(x, y, hex('#e9e3d4'), 1), 170 * RES, 16 * RES, 7 * RES, 7 * RES)
     disc((x, y) => setBg(x, y, hex('#05070c'), 1), 173 * RES, 14 * RES, 7 * RES, 7 * RES)
+    // two farther treelines, paler with distance: rounded crowns in the haze
+    for (const [n, hi, rad, col, seed] of [
+      [70, 26, 7, ridgeFar, 31],
+      [55, 16, 5, ridgeMid, 32],
+    ] as [number, number, number, Color, number][]) {
+      const rr = rngFrom(seed)
+      for (let i = 0; i < n; i++) {
+        const x = rr() * W
+        const cy = HORIZON - (4 + rr() * hi) * RES
+        const rd = (2 + rr() * rad) * RES
+        disc((px, py) => py <= HORIZON && setBg(px, py, col), x | 0, cy | 0, rd | 0, (rd * 1.15) | 0)
+        for (let y = cy | 0; y <= HORIZON; y++) for (let k = -RES; k <= RES; k++) setBg((x | 0) + k, y, col)
+      }
+      for (let x = 0; x < W; x++) for (let y = HORIZON - 3 * RES; y <= HORIZON; y++) setBg(x, y, col)
+    }
     for (let x = 0; x < W; x++) {
       const top = HORIZON - (6 + vnoise((x / RES) * 0.03, 4) * 16) * RES
       for (let y = top | 0; y <= HORIZON; y++) setBg(x, y, mix(hex('#121a27'), hex('#1b2535'), (y - top) / (22 * RES)))
@@ -1501,6 +1717,8 @@ export class Renderer {
     const statics: { z: number; draw: () => void }[] = [
       ...TREES.map((t, i) => ({ z: t.z, draw: () => this.tagged(`tree${i}`, () => this.casting(B, t.x, t.z, () => this.drawTree(B, t))) })),
       ...BUSHES.map((b, i) => ({ z: b.z, draw: () => this.tagged(`bush${i}`, () => this.casting(B, b.x, b.z, () => this.drawBush(B, b))) })),
+      ...UNDERGROWTH.map((b) => ({ z: b.z, draw: () => this.tagged('undergrowth', () => this.drawBush(B, b)) })),
+      ...DETAILS.map((d, i) => ({ z: d.z, draw: () => this.tagged(`detail${i}`, () => this.casting(B, d.x, d.z, () => this.drawDetail(B, d))) })),
       ...PROPS.huts.map((h, i) => ({ z: h.z, draw: () => this.tagged(`hut${i}`, () => this.casting(B, h.x, h.z, () => this.drawHut(B, h))) })),
       ...PROPS.graves.map((g, i) => ({ z: g.z, draw: () => this.tagged('grove', () => this.casting(B, g.x, g.z, () => this.drawGrave(B, g, i))) })),
       { z: PROPS.lantern.z, draw: () => this.tagged('lantern', () => this.drawLanternPost(B, PROPS.lantern)) },
@@ -1740,6 +1958,11 @@ export class Renderer {
     this.say('foxfire', 'foxfire', 'a fungus that glows on rotting wood')
     this.say('relic', RELICS[this.relic].name, RELICS[this.relic].sub)
     BUSHES.forEach((b, i) => this.say(`bush${i}`, ...BUSH_NAMES[b.seed % BUSH_NAMES.length]))
+    DETAILS.forEach((d, i) => this.say(`detail${i}`, ...DETAIL_NAMES[d.kind]))
+    this.say('undergrowth', 'the deep wood', 'it goes on further than anyone has walked')
+    this.say('owl', 'an owl', w.owl.away > 0 ? 'looking off into the dark' : 'it watches the fire with you')
+    this.say('fardeer', 'a deer, far off', 'crossing the back of the wood')
+    this.say('bats', 'bats', 'out hunting moths')
 
     // ---- objects first (they fill the depth buffer that emissives test against)
     const [fireX, fireY] = this.tagged('fire', () => this.drawCampfire(B, w))
@@ -1829,6 +2052,15 @@ export class Renderer {
       hover: { key: 'frog', name: 'the frog', sub: 'unimpressed' },
       parts: FROG_PARTS,
     })
+
+    // a deer far off, at the back of the wood (the mist takes most of it)
+    if (w.farDeer) {
+      const fd = w.farDeer
+      this.sprite(B, DEER.walk[((fd.step * 4) % 2) | 0], fd.x, fd.z, DEER_PAL, fd.dir < 0, {
+        hover: { key: 'fardeer', name: 'a deer, far off', sub: 'crossing the back of the wood' },
+        parts: DEER_PARTS,
+      })
+    }
 
     // crow on the trigon stone (in flight it's drawn with the emissives, over the sky)
     const K = w.crow
@@ -2029,6 +2261,43 @@ export class Renderer {
       )
     })
     this.tagged('fire', () => flame(true))
+    // little glowing mushrooms about the wood
+    for (const g of this.detailGlows) {
+      this.tag = g.tag
+      this.putFx(g.x, g.y, GLOW.memorial, 0.35 + 0.25 * Math.sin(t * 0.7 + g.ph), undefined, g.dep, 0.5)
+    }
+    this.tag = 0
+    // fireflies deep in the trees
+    for (const f of w.farFlies) {
+      if (f.a <= 0.02) continue
+      const [px, py] = project(f.x, f.y, f.z)
+      this.putFx(px, py, GLOW.firefly, f.a * 0.8, undefined, f.z, 0.8)
+    }
+    // moths about the fire and the lantern
+    for (const m of w.moths) {
+      if (m.y < 0) continue
+      const [px, py] = project(m.x, m.y, m.z)
+      this.putFx(px, py, C.moth, 0.85, undefined, m.z + 0.5, 0)
+      if (Math.sin(t * 40 + m.seed * 9) > 0) this.putFx(px + 1, py, C.moth, 0.5, undefined, m.z + 0.5, 0)
+    }
+    // bats across the sky (behind the trees)
+    this.tagged('bats', () => {
+      for (const b of w.bats) {
+        const frame = BAT[Math.sin(b.ph) > 0 ? 0 : 1]
+        frame.forEach((row, r) =>
+          [...row].forEach((ch, c) => ch !== '.' && this.putFx(b.x + (b.vx > 0 ? c : 4 - c) - 2, b.y + r - 1, C.bat, 1, undefined, SKY_DEPTH / 2, 0)),
+        )
+      }
+    })
+    // the owl on its branch: a dark shape, and its eyes (blinking, and now and then turned away)
+    const ot = owlTree()
+    if (ot) {
+      const [ox, oy] = project(ot.x + ot.w * 0.9, 24, ot.z)
+      this.tagged('owl', () => {
+        for (const [dx, dy, c] of OWL) this.putFx(ox + dx, oy + dy, c === 'd' ? C.owlD : C.owl, 1, undefined, ot.z + 0.05, 0)
+        if (w.owl.away <= 0 && w.owl.blink > 0) for (const dx of [-1, 1]) this.putFx(ox + dx, oy - 4, GLOW.eye, 0.9, undefined, ot.z + 0.06, 0.6)
+      })
+    }
     // a lightning bolt, far off behind the trees (sky depth: everything stands in front of it)
     const bolt = w.weather.bolt
     if (bolt) {
