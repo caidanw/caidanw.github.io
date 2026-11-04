@@ -54,10 +54,11 @@ export interface LightTune {
 }
 
 /** Every sound source, each on its own bus: on/off, solo, level, how often, pitch or tone. */
-export type SoundKey = 'crackle' | 'log' | 'rain' | 'drips' | 'thunder' | 'wind' | 'frog' | 'crickets' | 'owl' | 'crow' | 'door'
+export type SoundKey = 'crackle' | 'flames' | 'log' | 'rain' | 'drips' | 'thunder' | 'wind' | 'frog' | 'crickets' | 'owl' | 'crow' | 'door'
 
 export const SOUND_SOURCES: { key: SoundKey; label: string; hint: string; rate?: string; pitch: string }[] = [
   { key: 'crackle', label: 'fire crackle', hint: 'clicks and pops, busier the bigger the fire', rate: 'busyness', pitch: 'pitch' },
+  { key: 'flames', label: 'flames', hint: 'the soft broadband breath under the crackling', pitch: 'brightness' },
   { key: 'log', label: 'log landing', hint: 'a thump and a burst of crackling when wood goes on', pitch: 'pitch' },
   { key: 'rain', label: 'rain', hint: 'a hush of white noise, as loud as the rain is heavy', pitch: 'brightness' },
   { key: 'drips', label: 'rain ticks', hint: 'single drops on leaves and the pool', rate: 'how many', pitch: 'pitch' },

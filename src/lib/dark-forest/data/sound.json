@@ -5,6 +5,12 @@
     "rate": 1,
     "pitch": 1
   },
+  "flames": {
+    "on": true,
+    "gain": 1,
+    "rate": 1,
+    "pitch": 1
+  },
   "log": {
     "on": true,
     "gain": 0.8,

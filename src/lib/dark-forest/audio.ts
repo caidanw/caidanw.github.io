@@ -10,6 +10,7 @@
  */
 import { doorOpen, isRaining, perchPos, type World } from './sim'
 import { SOUND_SOURCES, settings, type SoundKey } from './settings'
+import { vnoise } from './util'
 import { PADS, PROPS, TREES, W, project } from './world'
 
 const clamp = (v: number, a = 0, b = 1) => Math.max(a, Math.min(b, v))
@@ -18,16 +19,23 @@ const rnd = (a: number, b: number) => a + Math.random() * (b - a)
 const wait = (rate: number) => (rate > 0 ? -Math.log(1 - Math.random()) / rate : 1e9)
 
 export class Soundscape {
-  private ctx: AudioContext | null = null
+  private ctx: BaseAudioContext | null = null
+  /** A live AudioContext (not an offline render). */
+  private live = false
   private master!: GainNode
   private masterMeter!: AnalyserNode
   private bus = {} as Record<SoundKey, GainNode>
   private meters = {} as Record<SoundKey, AnalyserNode>
   private white!: AudioBuffer
   private brown!: AudioBuffer
-  /** Short crackle grains: sharp clicks, and ringing pops. */
-  private clicks: AudioBuffer[] = []
-  private pops: AudioBuffer[] = []
+  /** Crackle grains, quietest to loudest: a snap, then a noisy fizz (see buildCrackles). */
+  private crackles: AudioBuffer[] = []
+  /** Single drops: tiny noisy ticks. */
+  private ticks: AudioBuffer[] = []
+  private flamesBed!: GainNode
+  private flamesTone!: BiquadFilterNode
+  /** Crackles waiting to sound: the clusters' follow-ups (time, loudness). */
+  private pending: { at: number; amp: number; pan: number }[] = []
   private rainBed!: GainNode
   private rainTone: BiquadFilterNode[] = []
   private windBed!: GainNode
@@ -50,12 +58,20 @@ export class Soundscape {
 
   /** Start (from a click or a key). */
   start() {
-    if (!this.ctx) this.build()
-    void this.ctx!.resume()
+    if (!this.ctx) {
+      this.live = true
+      this.build(new AudioContext())
+    }
+    void (this.ctx as AudioContext).resume()
   }
 
   stop() {
-    void this.ctx?.suspend()
+    if (this.live) void (this.ctx as AudioContext).suspend()
+  }
+
+  /** Render into an offline context instead (tools: compare against recordings). */
+  attach(ctx: BaseAudioContext) {
+    this.build(ctx)
   }
 
   setVolume(v: number) {
@@ -82,10 +98,13 @@ export class Soundscape {
     const hold = (s: number, level = 1) => (this.hold[key] = { until: now + s, level })
     switch (key) {
       case 'crackle': {
-        hold(3)
-        for (let at = now; at < now + 2.8; at += wait((0.6 + 9 * 0.8) * T.rate)) this.crackle(at, 0.8, 0)
+        hold(3.2)
+        for (let at = now; at < now + 3; at += wait((1 + 14 * 0.7 ** 1.5) * 0.55 * T.rate)) this.crackleStart(at, 0.7, 0)
         break
       }
+      case 'flames':
+        hold(4, 1)
+        break
       case 'log':
         hold(2.5)
         this.logLands(now)
@@ -127,8 +146,7 @@ export class Soundscape {
     }
   }
 
-  private build() {
-    const ctx = new AudioContext()
+  private build(ctx: BaseAudioContext) {
     this.ctx = ctx
     const comp = ctx.createDynamicsCompressor()
     comp.threshold.value = -14
@@ -161,7 +179,18 @@ export class Soundscape {
       b = (b + 0.02 * wd[i]) / 1.02
       bd[i] = b * 3.5
     }
-    this.buildGrains()
+    this.buildCrackles()
+    // the flames: a soft broadband breath (pink noise, rounded off at both ends), lapping slowly
+    const pink = ctx.createBuffer(1, n, ctx.sampleRate)
+    // mostly pink, a little white: real fire beds are soft, rolling off above ~7 kHz
+    const pd = pink.getChannelData(0)
+    pinkNoise(pd)
+    for (let i = 0; i < n; i++) pd[i] = pd[i] * 0.85 + wd[i] * 0.15
+    this.flamesTone = this.filter('lowpass', 6000, 0.5)
+    this.flamesBed = ctx.createGain()
+    this.flamesBed.gain.value = 0
+    this.flamesBed.connect(this.bus.flames)
+    this.loop(pink, [this.filter('highpass', 120, 0.6), this.flamesTone], this.flamesBed)
     // rain: white noise, two decorrelated loops spread left and right, gently rounded off
     this.rainBed = ctx.createGain()
     this.rainBed.gain.value = 0
@@ -182,37 +211,51 @@ export class Soundscape {
   }
 
   /**
-   * Crackle grains, made once: clicks are a few milliseconds of noise dying away fast (the
-   * snap of sap and splitting wood); pops ring a little, a tone inside the noise.
+   * Crackle grains, made once, measured against recordings of real campfires (see
+   * dark-forest-moodboard/sounds/NOTES.md): every crackle is a broadband snap (well under
+   * a millisecond, all frequencies at once), then a noisy fizz dying away, brightest
+   * around 2-9 kHz, longer the louder the crackle (a few ms for the small ones, up to
+   * ~150 ms for a big split); the big ones have a little low body, the wood itself. No
+   * tones anywhere: that's what made the old ones sound like pachinko.
    */
-  private buildGrains() {
+  private buildCrackles() {
     const sr = this.ctx!.sampleRate
-    for (let k = 0; k < 32; k++) {
-      const len = Math.round(sr * rnd(0.0015, 0.007))
+    const N = 96
+    for (let k = 0; k < N; k++) {
+      const size = k / (N - 1) // 0 small .. 1 big
+      const tau = (rnd(0.8, 4) + size ** 2 * rnd(15, 45)) / 1000
+      const len = Math.round(sr * (0.002 + tau * 5))
       const buf = this.ctx!.createBuffer(1, len, sr)
       const d = buf.getChannelData(0)
-      const tau = len / rnd(3, 6)
-      let prev = 0
+      const snap = Math.round(sr * rnd(0.0003, 0.002))
+      const bp = biquad('bandpass', Math.exp(rnd(Math.log(500), Math.log(7000 - 3500 * size))), rnd(0.5, 1.1), sr) // big ones fizz darker
+      // some snaps are duller than others (wetter wood, further in)
+      const dull = Math.exp((-2 * Math.PI * Math.exp(rnd(Math.log(2500), Math.log(20000)))) / sr)
+      let lp = 0
+      const body = biquad('lowpass', rnd(500, 1200), 0.7, sr)
+      const bodyTau = sr * rnd(0.002, 0.006)
+      const tailGain = rnd(0.06, 0.2) * (1 - 0.4 * size) // the fizz is ~20 dB under the snap
+      const raw = rnd(0.15, 0.45)
+      let peak = 0
       for (let i = 0; i < len; i++) {
-        const x = (Math.random() * 2 - 1) * Math.exp(-i / tau)
-        d[i] = x - 0.7 * prev // a touch of high-pass: crisp, not thuddy
-        prev = x
+        const w = Math.random() * 2 - 1
+        lp = (1 - dull) * w + dull * lp
+        const s1 = i < snap ? (lp / Math.sqrt(Math.max(0.05, 1 - dull))) * Math.exp((-3 * i) / snap) : 0
+        const tail = (bp(w) + raw * w) * tailGain * Math.exp(-i / sr / tau) * Math.min(1, i / (snap + 1))
+        const b = size > 0.6 ? body(w) * (size - 0.6) * 1.5 * Math.exp(-i / bodyTau) : 0
+        d[i] = s1 + tail + b
+        peak = Math.max(peak, Math.abs(d[i]))
       }
-      this.clicks.push(buf)
+      for (let i = 0; i < len; i++) d[i] /= peak
+      this.crackles.push(buf)
     }
-    for (let k = 0; k < 12; k++) {
-      const len = Math.round(sr * rnd(0.02, 0.05))
+    for (let k = 0; k < 24; k++) {
+      const len = Math.round(sr * rnd(0.003, 0.012))
       const buf = this.ctx!.createBuffer(1, len, sr)
       const d = buf.getChannelData(0)
-      const f = rnd(500, 1500)
-      const tau = len / 5
-      const ph = Math.random() * 6
-      for (let i = 0; i < len; i++) {
-        const env = Math.exp(-i / tau)
-        const snap = i < sr * 0.001 ? 1.5 : 0.35
-        d[i] = env * ((Math.random() * 2 - 1) * snap + 0.6 * Math.sin((2 * Math.PI * f * i) / sr + ph))
-      }
-      this.pops.push(buf)
+      const bp = biquad('bandpass', rnd(2500, 7000), 1, sr)
+      for (let i = 0; i < len; i++) d[i] = bp(Math.random() * 2 - 1) * Math.exp((-5 * i) / len) * 3
+      this.ticks.push(buf)
     }
   }
 
@@ -316,39 +359,45 @@ export class Soundscape {
 
   private pitch = (key: SoundKey) => settings.sound.sources[key].pitch
 
-  /** One crackle: a little cluster of clicks (sometimes a pop), louder for a bigger fire. */
-  private crackle(at: number, heat: number, rain: number) {
-    const out = this.bus.crackle
-    const pitch = this.pitch('crackle')
-    const base = 0.55 * (0.35 + 0.65 * heat) * (1 - 0.4 * rain)
-    const pan = rnd(-0.15, 0.15)
-    let t = at
-    const n = 1 + Math.min(5, Math.floor(-Math.log(1 - Math.random()) / 0.8))
-    for (let i = 0; i < n; i++) {
-      const g = base * (0.2 + 0.8 * Math.random() ** 2)
-      this.grain(this.clicks[(Math.random() * this.clicks.length) | 0], t, g, pitch * rnd(0.8, 1.25), pan + rnd(-0.05, 0.05), out)
-      t += rnd(0.006, 0.05)
-    }
-    if (Math.random() < 0.06 + 0.1 * heat)
-      this.grain(this.pops[(Math.random() * this.pops.length) | 0], t, base * rnd(0.5, 0.9), pitch * rnd(0.85, 1.2), pan, out)
+  /**
+   * The fire's crackling, as a self-exciting process (like the recordings: about half the
+   * gaps under 40 ms, the rest long and irregular): crackles start at a rate the fire sets,
+   * and each one may set off a few quieter follow-ups a few tens of ms later. Loudness is
+   * heavy-tailed: mostly small ticks, now and then a big split (up to ~35 dB louder).
+   */
+  private crackleStart(at: number, heat: number, rain: number) {
+    const db = Math.min(40, -Math.log(1 - Math.random()) * 12)
+    this.crackleAt(at, 10 ** (-db / 20), rnd(-0.25, 0.25), heat, rain)
   }
 
-  /** A log lands on the fire: a soft thump, then a scatter of crackling as it catches. */
+  private crackleAt(at: number, amp: number, pan: number, heat: number, rain: number) {
+    const gain = 0.6 * amp * (0.55 + 0.45 * heat) * (1 - 0.35 * rain)
+    // louder crackles use the longer, fuller grains
+    const k = Math.min(this.crackles.length - 1, Math.floor((amp ** 2.5 * 0.9 + Math.random() * 0.1) * this.crackles.length))
+    this.grain(this.crackles[k], at, gain, this.pitch('crackle') * rnd(0.9, 1.1), pan, this.bus.crackle)
+    // follow-ups: on average about one, quieter, soon after
+    const kids = poisson(0.45)
+    for (let i = 0; i < kids; i++)
+      this.pending.push({ at: at + 0.01 + -Math.log(1 - Math.random()) * 0.045, amp: amp * rnd(0.25, 0.9), pan: pan + rnd(-0.08, 0.08) })
+  }
+
+  /** A log lands on the fire: a soft thump, then a flurry of crackling as it catches. */
   private logLands(at: number) {
     const out = this.bus.log
     const pitch = this.pitch('log')
-    this.voice(at, 0.32, 'sine', 85 * pitch, 40 * pitch, 0.5, 0.05, out, ['lowpass', 220 * pitch, 1])
-    this.burst(at, 0.12, 900 * pitch, 0.8, 0.12, 0, 'lowpass', this.brown, out)
-    for (let i = 0; i < 14; i++) {
-      const t = at + 0.08 + Math.random() ** 1.5 * 1.6
-      const pool = Math.random() < 0.25 ? this.pops : this.clicks
-      this.grain(pool[(Math.random() * pool.length) | 0], t, rnd(0.15, 0.5), pitch * rnd(0.8, 1.25), rnd(-0.2, 0.2), out)
+    this.voice(at, 0.3, 'sine', 80 * pitch, 42 * pitch, 0.4, 0.05, out, ['lowpass', 200 * pitch, 0.7])
+    this.burst(at, 0.09, 700 * pitch, 0.7, 0.1, 0, 'lowpass', this.brown, out)
+    for (let i = 0; i < 22; i++) {
+      const t = at + 0.1 + Math.random() ** 1.6 * 2
+      const amp = 10 ** (-Math.min(30, -Math.log(1 - Math.random()) * 8) / 20)
+      const k = Math.floor(amp ** 0.6 * (this.crackles.length - 1))
+      this.grain(this.crackles[k], t, 0.6 * amp, pitch * rnd(0.9, 1.1), rnd(-0.25, 0.25), out)
     }
   }
 
-  /** A drop on a leaf or the pool: a tiny, high tick. */
+  /** A drop on a leaf or the pool: a tiny noisy tick. */
   private drip(at: number) {
-    this.grain(this.clicks[(Math.random() * this.clicks.length) | 0], at, rnd(0.05, 0.2), this.pitch('drips') * rnd(1.6, 2.6), rnd(-1, 1), this.bus.drips)
+    this.grain(this.ticks[(Math.random() * this.ticks.length) | 0], at, rnd(0.04, 0.16), this.pitch('drips') * rnd(0.8, 1.3), rnd(-1, 1), this.bus.drips)
   }
 
   /** A long low rumble (with a crack first, if it's close). */
@@ -403,7 +452,7 @@ export class Soundscape {
   /** Listen to the world: call every frame. */
   update(w: World) {
     const ctx = this.ctx
-    if (!ctx || ctx.state !== 'running') return
+    if (!ctx || (this.live && ctx.state !== 'running')) return
     const now = ctx.currentTime
     const S = settings.sound.sources
     const held = (k: SoundKey) => (this.hold[k] && this.hold[k]!.until > now ? this.hold[k]!.level : 0)
@@ -427,12 +476,25 @@ export class Soundscape {
     this.windBed.gain.setTargetAtTime(0.2 * windLevel * (0.4 + gust), now, 1.2)
     this.windTone.frequency.setTargetAtTime((300 + 260 * gust + 200 * rain) * S.wind.pitch, now, 1.5)
 
-    // ---- the fire: crackling, busier the bigger it burns (fewer in the rain)
+    // ---- the fire: crackling, busier the bigger it burns (fewer in the rain): ~2/s from
+    // embers, ~9/s for a steady fire, ~20/s blazing (counting the follow-ups, which more
+    // than double the starts)
     if (this.nextCrackle < now - 0.2) this.nextCrackle = now
+    const starts = (1 + 14 * heat ** 1.5) * 0.55 * S.crackle.rate * (1 - 0.6 * rain)
     while (this.nextCrackle < now + 0.05) {
-      this.crackle(Math.max(now, this.nextCrackle), heat, rain)
-      this.nextCrackle += wait((0.6 + 9 * heat ** 1.3) * S.crackle.rate * (1 - 0.6 * rain))
+      this.crackleStart(Math.max(now, this.nextCrackle), heat, rain)
+      this.nextCrackle += wait(starts)
     }
+    for (let i = this.pending.length - 1; i >= 0; i--) {
+      const p = this.pending[i]
+      if (p.at > now + 0.05) continue
+      this.pending.splice(i, 1)
+      if (p.at > now - 0.1) this.crackleAt(Math.max(now, p.at), p.amp, p.pan, heat, rain)
+    }
+    // the flames' breath: lapping slowly, louder for a bigger fire
+    const lap = 0.6 + 0.8 * vnoise(1.7, w.t * 1.1) ** 2
+    this.flamesBed.gain.setTargetAtTime(Math.max((0.001 + 0.01 * heat ** 1.5) * lap, held('flames') * 0.012), now, 0.12)
+    this.flamesTone.frequency.setTargetAtTime(clamp(7000 * S.flames.pitch, 500, 20000), now, 0.3)
     // a log lands on the fire
     if (this.last.fuel >= 0 && w.fire.fuel > this.last.fuel + 0.05) this.logLands(now)
     this.last.fuel = w.fire.fuel
@@ -501,4 +563,57 @@ const owlAt = (): [number, number, number] | null => {
   let best: (typeof TREES)[number] | null = null
   for (const t of TREES) if (!best || Math.hypot(t.x + 78, t.z + 42) < Math.hypot(best.x + 78, best.z + 42)) best = t
   return best ? [best.x, 24, best.z] : null
+}
+
+/** Poisson-distributed count with this mean. */
+function poisson(mean: number) {
+  const L = Math.exp(-mean)
+  let k = 0
+  for (let p = Math.random(); p > L; p *= Math.random()) k++
+  return k
+}
+
+/** Pink noise (Paul Kellet's filter), normalised. */
+function pinkNoise(d: Float32Array) {
+  let b0 = 0,
+    b1 = 0,
+    b2 = 0,
+    b3 = 0,
+    b4 = 0,
+    b5 = 0,
+    b6 = 0
+  for (let i = 0; i < d.length; i++) {
+    const w = Math.random() * 2 - 1
+    b0 = 0.99886 * b0 + w * 0.0555179
+    b1 = 0.99332 * b1 + w * 0.0750759
+    b2 = 0.969 * b2 + w * 0.153852
+    b3 = 0.8665 * b3 + w * 0.3104856
+    b4 = 0.55 * b4 + w * 0.5329522
+    b5 = -0.7616 * b5 - w * 0.016898
+    d[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.11
+    b6 = w * 0.115926
+  }
+}
+
+/** A biquad filter in plain JS (RBJ cookbook), for shaping grains before they're buffers. */
+function biquad(type: 'lowpass' | 'bandpass', f: number, q: number, sr: number) {
+  const w0 = (2 * Math.PI * Math.min(f, sr * 0.45)) / sr
+  const al = Math.sin(w0) / (2 * q)
+  const cw = Math.cos(w0)
+  const [b0, b1, b2] = type === 'lowpass' ? [(1 - cw) / 2, 1 - cw, (1 - cw) / 2] : [al, 0, -al]
+  const a0 = 1 + al
+  const a1 = -2 * cw
+  const a2 = 1 - al
+  let x1 = 0,
+    x2 = 0,
+    y1 = 0,
+    y2 = 0
+  return (x: number) => {
+    const y = (b0 * x + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0
+    x2 = x1
+    x1 = x
+    y2 = y1
+    y1 = y
+    return y
+  }
 }
