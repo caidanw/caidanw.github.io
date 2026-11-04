@@ -8,10 +8,11 @@
  * Sounds are panned by where they are on screen and quieter the further they are from the
  * fire. Browsers only allow sound after a click or a key, so it starts off (see start()).
  */
+import { rainDrops, rainWash, type RainDrops } from './audio-rain'
 import { doorOpen, isRaining, perchPos, type World } from './sim'
 import { SOUND_SOURCES, settings, type SoundKey } from './settings'
 import { vnoise } from './util'
-import { PADS, PROPS, TREES, W, project } from './world'
+import { PADS, POOL, PROPS, TREES, W, project } from './world'
 
 const clamp = (v: number, a = 0, b = 1) => Math.max(a, Math.min(b, v))
 const rnd = (a: number, b: number) => a + Math.random() * (b - a)
@@ -30,13 +31,12 @@ export class Soundscape {
   private brown!: AudioBuffer
   /** Crackle grains, quietest to loudest: a snap, then a noisy fizz (see buildCrackles). */
   private crackles: AudioBuffer[] = []
-  /** Single drops: tiny noisy ticks. */
-  private ticks: AudioBuffer[] = []
+  private drops!: RainDrops
   private flamesBed!: GainNode
   private flamesTone!: BiquadFilterNode
   /** Crackles waiting to sound: the clusters' follow-ups (time, loudness). */
   private pending: { at: number; amp: number; pan: number }[] = []
-  private rainBed!: GainNode
+  private rainLanes: GainNode[] = []
   private rainTone: BiquadFilterNode[] = []
   private windBed!: GainNode
   private windTone!: BiquadFilterNode
@@ -114,7 +114,7 @@ export class Soundscape {
         break
       case 'drips':
         hold(2.5)
-        for (let at = now; at < now + 2.2; at += wait(40 * 0.6 * T.rate)) this.drip(at)
+        for (let at = now; at < now + 2.2; at += wait(25 * 0.6 ** 0.8 * T.rate)) this.drip(at)
         break
       case 'thunder':
         hold(7)
@@ -191,16 +191,19 @@ export class Soundscape {
     this.flamesBed.gain.value = 0
     this.flamesBed.connect(this.bus.flames)
     this.loop(pink, [this.filter('highpass', 120, 0.6), this.flamesTone], this.flamesBed)
-    // rain: white noise, two decorrelated loops spread left and right, gently rounded off
-    this.rainBed = ctx.createGain()
-    this.rainBed.gain.value = 0
-    this.rainBed.connect(this.bus.rain)
-    for (const pan of [-0.55, 0.55]) {
-      const lp = this.filter('lowpass', 9000, 0.5)
+    // Rain: independent, long left/right textures of unresolved impacts. No short shared
+    // noise loop; foreground leaf and pool drops keep a separate bus for editor balancing.
+    this.drops = rainDrops(ctx)
+    for (const [i, pan] of [-0.75, 0.75].entries()) {
+      const lp = this.filter('lowpass', 5500, 0.55)
       this.rainTone.push(lp)
       const p = ctx.createStereoPanner()
       p.pan.value = pan
-      this.loop(this.white, [this.filter('highpass', 180, 0.5), lp, p], this.rainBed)
+      const g = ctx.createGain()
+      g.gain.value = 0
+      g.connect(this.bus.rain)
+      this.rainLanes.push(g)
+      this.loop(rainWash(ctx, 17 + i * 2), [this.filter('highpass', 120, 0.5), lp, p], g)
     }
     // wind in the trees: deep noise through a slowly wandering band
     this.windTone = this.filter('bandpass', 420, 0.8)
@@ -248,14 +251,6 @@ export class Soundscape {
       }
       for (let i = 0; i < len; i++) d[i] /= peak
       this.crackles.push(buf)
-    }
-    for (let k = 0; k < 24; k++) {
-      const len = Math.round(sr * rnd(0.003, 0.012))
-      const buf = this.ctx!.createBuffer(1, len, sr)
-      const d = buf.getChannelData(0)
-      const bp = biquad('bandpass', rnd(2500, 7000), 1, sr)
-      for (let i = 0; i < len; i++) d[i] = bp(Math.random() * 2 - 1) * Math.exp((-5 * i) / len) * 3
-      this.ticks.push(buf)
     }
   }
 
@@ -395,9 +390,14 @@ export class Soundscape {
     }
   }
 
-  /** A drop on a leaf or the pool: a tiny noisy tick. */
+  /** Nearby drops: usually on leaves, occasionally on the pool, each a little different. */
   private drip(at: number) {
-    this.grain(this.ticks[(Math.random() * this.ticks.length) | 0], at, rnd(0.04, 0.16), this.pitch('drips') * rnd(0.8, 1.3), rnd(-1, 1), this.bus.drips)
+    const water = Math.random() < 0.12
+    const bank = water ? this.drops.water : this.drops.leaves
+    const [pan, distance] = water ? this.place(POOL.x, 0, POOL.z) : [rnd(-0.95, 0.95), rnd(0.5, 1)]
+    // Many faint taps, fewer close splashes: less extreme than the fire's loudness spread.
+    const gain = (0.015 + 0.48 * Math.random() ** 3) * distance
+    this.grain(bank[(Math.random() * bank.length) | 0], at, gain, this.pitch('drips') * rnd(0.85, 1.15), pan, this.bus.drips)
   }
 
   /** A long low rumble (with a crack first, if it's close). */
@@ -468,8 +468,12 @@ export class Soundscape {
 
     // ---- the beds
     const rainLevel = Math.max(rain, held('rain'))
-    this.rainBed.gain.setTargetAtTime(0.2 * rainLevel, now, 0.4)
-    for (const f of this.rainTone) f.frequency.setTargetAtTime(clamp(6500 * S.rain.pitch * (0.75 + 0.35 * rainLevel), 800, 18000), now, 0.5)
+    this.rainLanes.forEach((lane, i) => {
+      // Small irregular swells in different parts of the wood, never a periodic wind-like whoosh.
+      const variation = 0.85 + 0.3 * vnoise(51 + i * 17, w.t * 0.35)
+      lane.gain.setTargetAtTime(0.04 * rainLevel ** 1.2 * variation, now, 0.25)
+    })
+    for (const f of this.rainTone) f.frequency.setTargetAtTime(clamp(7000 * S.rain.pitch * (0.85 + 0.25 * rainLevel), 800, 18000), now, 0.5)
     const g = w.t * S.wind.rate
     const gust = 0.5 + 0.5 * Math.sin(g * 0.13) * Math.sin(g * 0.071 + 1)
     const windLevel = Math.max(0.15 + 0.5 * cloud + 0.4 * rain, held('wind'))
@@ -501,10 +505,10 @@ export class Soundscape {
 
     // ---- rain: drops ticking on the pool and the leaves
     if (this.nextDrip < now - 0.2) this.nextDrip = now
-    if (rain > 0.05)
+    if (rain > 0.001)
       while (this.nextDrip < now + 0.05) {
         this.drip(Math.max(now, this.nextDrip))
-        this.nextDrip += wait(40 * rain * S.drips.rate)
+        this.nextDrip += wait(25 * rain ** 0.8 * S.drips.rate)
       }
     // ---- thunder, when it arrives
     for (const th of w.weather.thunder) {
