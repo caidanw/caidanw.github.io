@@ -98,6 +98,9 @@ export class Soundscape {
     const now = ctx.currentTime + 0.03
     const T = settings.sound.sources[key]
     const hold = (s: number, level = 1) => (this.hold[key] = { until: now + s, level })
+    // The first ▶ creates/resumes the context; update() can't open the bus until it runs,
+    // which would swallow a short cue like the door. Open it for the example directly.
+    this.bus[key].gain.setValueAtTime(T.gain, now)
     switch (key) {
       case 'crackle': {
         hold(3.2)
@@ -431,7 +434,7 @@ export class Soundscape {
   }
 
   private door(at: number, pan: number, g: number) {
-    this.playVoice('door', at, 0.16 * g, pan)
+    this.playVoice('door', at, 0.08 * g, pan)
   }
 
   /** Where something is, for the ears: pan from its screen x, and a gain falling off with distance from the fire. */

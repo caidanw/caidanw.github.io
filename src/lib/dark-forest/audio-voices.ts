@@ -133,26 +133,20 @@ function crow(ctx: BaseAudioContext) {
     }
     at += rnd(0.003, 0.005) // a missing opening: the longer closure makes the group audible
   }
-  const chest = bandpass(rnd(700, 950), 1.3, sr)
-  const tract = bandpass(rnd(1550, 1750), rnd(9, 12), sr)
-  const upper = bandpass(rnd(2600, 2900), 4, sr)
-  const burst = bandpass(rnd(2800, 3600), 0.85, sr)
+  const tract = bandpass(rnd(1550, 1750), rnd(12, 16), sr)
+  const upper = bandpass(rnd(2600, 2900), 7, sr)
+  const burst = bandpass(rnd(3200, 4200), 0.85, sr)
   const air = bandpass(2300, 0.7, sr)
-  const rounding = Math.exp((-TAU * 3900) / sr)
-  let rounded = 0
   let index = 0
   return render(ctx, duration + 0.045, (t) => {
     while (index + 1 < pulses.length && pulses[index + 1].at <= t) index++
     const p = pulses[index]
     const age = t - p.at
-    // Smooth both edges of each opening; the previous hard truncation sounded crushed.
-    const close = Math.min(1, Math.max(0, (p.width - age) / 0.00015))
-    const pressure = age > 0 && age < p.width ? (1 - Math.exp(-age / 0.0001)) * Math.exp(-age / (p.width * 0.32)) * close * p.gain : 0
-    const voice = chest(pressure) * 0.8 + tract(pressure) * 3.2 + upper(pressure) * 1.5 + pressure * 0.025
+    const pressure = age > 0 && age < p.width ? (1 - Math.exp(-age / 0.00004)) * Math.exp(-age / (p.width * 0.28)) * p.gain : 0
+    const voice = tract(pressure) * 3.2 + upper(pressure) * 2 + pressure * 0.12
     const breath = air(Math.random() * 2 - 1) * 0.015
-    rounded = rounding * rounded + (1 - rounding) * (voice + breath)
-    const body = rounded * envelope(t - 0.006, duration - 0.006, 0.045, 0.018)
-    const ka = burst(Math.random() * 2 - 1) * 0.17 * envelope(t, 0.048, 0.014, 0.025)
+    const body = (voice + breath) * envelope(t - 0.006, duration - 0.006, 0.008, 0.07)
+    const ka = burst(Math.random() * 2 - 1) * 0.24 * envelope(t, 0.032, 0.002, 0.025)
     return ka + body
   })
 }
@@ -160,13 +154,13 @@ function crow(ctx: BaseAudioContext) {
 /**
  * Force → near-periodic stick/slip releases → material modes → panel reflections.
  * The source becomes a pitched creak as releases bunch together, not random gravel
- * and not a drawn audio-frequency whistle. Motion rate is separate from pressure: a
- * slow, continuous pull can speed up and strain without becoming two gated bass blips.
+ * and not a drawn audio-frequency whistle. One short movement follows a wooden latch
+ * click; keep the liked material response without the long or repeated pull.
  * This event model is lighter than an elasto-plastic contact solver.
  */
 function door(ctx: BaseAudioContext) {
   const sr = ctx.sampleRate
-  const duration = rnd(2.8, 3.3)
+  const duration = rnd(0.26, 0.33)
   const size = rnd(0.94, 1.06)
   const wood = [175, 370, 620, 910, 1350].map((f, i) => bandpass(f * size, 2 + i * 0.5, sr))
   const woodGains = [0.08, 0.14, 0.2, 0.3, 0.38]
@@ -174,27 +168,19 @@ function door(ctx: BaseAudioContext) {
   const panel = [4.7, 6.4, 8.3, 11.7].map((ms) => reflection(ms, sr))
   const force: [number, number][] = [
     [0, 0],
-    [0.06, 0.22],
-    [0.16, 0.72],
-    [0.3, 0.66],
-    [0.39, 0.35],
-    [0.5, 0.58],
-    [0.67, 0.63],
-    [0.83, 0.46],
-    [0.94, 0.2],
+    [0.08, 0.68],
+    [0.22, 0.75],
+    [0.55, 0.5],
+    [0.8, 0.24],
     [1, 0],
   ]
   const rate: [number, number][] = [
-    [0, 70],
-    [0.09, 160],
-    [0.23, 620],
-    [0.34, 470],
-    [0.42, 210],
-    [0.56, 560],
-    [0.7, 410],
-    [0.84, 240],
-    [0.96, 85],
-    [1, 45],
+    [0, 180],
+    [0.16, 500],
+    [0.28, 610],
+    [0.58, 420],
+    [0.82, 230],
+    [1, 130],
   ]
   const smoothing = Math.exp(-1 / (sr * 0.025))
   let pressure = 0
@@ -229,13 +215,15 @@ function door(ctx: BaseAudioContext) {
     } else clock = 0
     const pulse = slipAge < slipLife ? slipGain * (1 - slipAge / slipLife) ** 2 * Math.min(1, (slipAge * sr) / 3) : 0
     slipAge += 1 / sr
+    const latchAge = t - 0.003
+    const latch = latchAge > 0 ? 0.35 * (1 - Math.exp(-latchAge / 0.0003)) * Math.exp(-latchAge / 0.002) : 0
     let body = 0
-    for (let i = 0; i < wood.length; i++) body += wood[i](pulse) * woodGains[i]
+    for (let i = 0; i < wood.length; i++) body += wood[i](pulse + latch) * woodGains[i]
     const edge = hinge[0](pulse) * 2.4 + hinge[1](pulse) * 1.5
-    const material = body + edge + pulse * 0.04
+    const material = body + edge + pulse * 0.04 + latch * 0.08
     let reflected = 0
     for (const delay of panel) reflected += delay(material)
-    return (material * 0.7 + reflected * 0.16) * envelope(t, duration + 0.1, 0.02, 0.15)
+    return (material * 0.7 + reflected * 0.16) * envelope(t, duration + 0.1, 0.008, 0.1)
   })
 }
 

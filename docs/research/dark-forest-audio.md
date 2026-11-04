@@ -161,3 +161,17 @@ Operator review: the pulse-source crow improved, but needed a slightly longer at
 Updated checks require a growing crow onset and quick release, retain grouped body texture, require a roughly three-second continuous door motion, detect changing cadence in separate portions of the pull, and check that late door audio survives the full preview at pitch extremes. The obsolete zero-energy catch requirement was removed because the operator explicitly rejected the two-blip shape. Other accepted sounds remain untouched; the accepted frog/owl buffers still compare byte-for-byte at 44.1/48 kHz. Strict TypeScript, Astro build and rain regressions pass. A hardware-muted browser check confirmed the door remains audible after two seconds in the editor preview and stops when sound is switched off; that test browser was closed.
 
 Focused listening sheet: `~/Projects/dark-forest-moodboard/sounds/envelope-motion-listening.html`, comparing the previous pulse versions with this refinement. Reference recordings and raw scene-level previews are included, with no autoplay. Awaiting perceptual review; passing waveform checks does not establish realism.
+
+### Operator verdict: restore the crow, shorten the door
+
+Operator review of the envelope/body refinement: the crow went the wrong way, and the previous pulse version was better. The long door's creak sounded good but was much too long. The requested direction was a single short squeak rather than repeated slips, closer to a game's quick, subtle door-open click (for example Minecraft) than a full recorded door.
+
+- **Crow:** `crow()` is restored exactly to the `43dd133` pulse-source version: 8 ms body attack, 70 ms release, no chest band, no rounding filter. The softer-attack/fuller-body variant is rejected and should not be revisited without a new request.
+- **Door:** keep the liked stick/slip material model (wood and hinge bands, panel reflections), but run one short movement of 0.26–0.33 s with a single force swell. The slip rate rises quickly to about 600 releases/second, then falls; there is no catch or second pull. A small wooden latch impulse 3 ms in, through the same wood bands, gives the opening click. The tail is shortened to 100 ms, and the scene gain is halved to 0.08 so it reads as an incidental cue.
+- **Editor preview:** source buses start at zero and were opened only by `update()`, which waits for a running context. The first ▶ after page load could therefore swallow a short sound before the bus opened; the three-second door had hidden this. `audition()` now opens its bus at the example's start time. This is a preview gating fix and does not alter any voice synthesis.
+
+Checks: door buffers are one short movement with an early latch click, an audible creak and prompt settling; door previews have no second event and are quiet by default. The crow keeps its earlier ka-attack check. Accepted frog/owl buffers are still byte-for-byte unchanged. A hardware-muted browser check confirmed the door is audible on the first click after load, silent after one second, and that sound stops on toggle.
+
+Tooling note: `node-web-audio-api` occasionally rejects a valid offline `suspend()` (`InvalidStateError`), even in a minimal graph with no forest code. Chaining suspends from inside a checkpoint fails reliably, so batch registration stays. `voice-check.ts` retries one affected render and logs the retry; rerun the other offline tools if they hit it.
+
+Listening sheet: `~/Projects/dark-forest-moodboard/sounds/quick-door-listening.html`. Awaiting perceptual review.
