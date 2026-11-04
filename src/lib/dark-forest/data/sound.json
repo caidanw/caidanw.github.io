@@ -72,7 +72,7 @@
     "pitch": 1
   },
   "door": {
-    "on": true,
+    "on": false,
     "gain": 0.7,
     "rate": 1,
     "pitch": 1
