@@ -215,7 +215,7 @@ export class Soundscape {
 
   /**
    * Crackle grains, made once, measured against recordings of real campfires (see
-   * dark-forest-moodboard/sounds/NOTES.md): every crackle is a broadband snap (well under
+   * docs/research/dark-forest-audio.md): every crackle is a broadband snap (well under
    * a millisecond, all frequencies at once), then a noisy fizz dying away, brightest
    * around 2-9 kHz, longer the louder the crackle (a few ms for the small ones, up to
    * ~150 ms for a big split); the big ones have a little low body, the wood itself. No

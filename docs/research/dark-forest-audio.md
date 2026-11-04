@@ -54,6 +54,28 @@ A soft, broad noise wash stays central (the operator's preference). Add many low
 
 Listening files under `sounds/synth/`: `rain-after-0.2.wav`, `rain-after-0.6.wav`, `rain-after-1.wav`, `rain-coming-and-going.wav`, and `rain-with-fire.wav`. Compare the last two for the actual in-scene balance; compare loudness-matched references for texture only.
 
-## Next research pass
+## Animal, door and cricket reference set (next pass)
 
-After rain is reviewed: frog, owl, crow and wooden door creaks need species/material-specific references. Crickets are liked already; compare references before changing their character. Thunder and flames are accepted and should remain untouched.
+Downloaded for the next round; **no animal, cricket or door synthesis changed in the rain commit**. The reference species are starting points for the scene's character, not a claim that this fantasy clearing has a particular geography. Uploader species labels have not been independently verified.
+
+| Sound   | Primary recording and local file under `sounds/refs/`                                                                                                                                          | License on source page |
+| ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| Owl     | [sean.townsend, Tawny Owl — Male](https://freesound.org/people/sean.townsend/sounds/202917/), a night field recording; `owl-male-202917.mp3`                                                   | CC BY 3.0              |
+| Crow    | [nigelcoop, crow.wav](https://freesound.org/people/nigelcoop/sounds/75162/), cawing while flying off, background filtered by the recordist; `crow-75162.mp3`                                   | CC0                    |
+| Frog    | [IchBinChrist, Common Frog call](https://freesound.org/people/IchBinChrist/sounds/424288/), field recording labeled common frog in Arnsberg; `frog-common-424288.mp3`                          | CC0                    |
+| Door    | [TheBuilder15, Wooden door creaking](https://freesound.org/people/TheBuilder15/sounds/367052/), wooden door slowly opening; `door-367052.mp3`                                                  | CC0                    |
+| Cricket | [albertogalka, European field cricket](https://freesound.org/people/albertogalka/sounds/555199/), southern Poland in May, Zoom recorder and slight noise reduction; `cricket-field-555199.mp3` | CC0                    |
+
+The local `refs/animals-and-doors.json` manifest records the source page, preview URL and license link for each download. These are analysis copies, not proposed bundled assets.
+
+### What to model next
+
+Initial measurements of the downloaded previews (not universal species constants):
+
+- **Owl:** this male tawny reference has its strongest sustained energy in roughly the 0.7–0.9 kHz region, quite unlike the current repeated 400 Hz glides. Next: measure one complete phrase's contours and gaps, then model rounded breath/envelope and slight instability instead of three identical whistles. Do not simply transpose every owl to one frequency.
+- **Crow:** the reference concentrates energy around 1.5–2.1 kHz with structured harmonics. These are spectral peaks, not necessarily its fundamental. Next: measure the underlying pulse rate, formants and onset/offset of one caw, retaining roughness without making a generic sawtooth buzz. [Farnell's Birds practical](https://aspress.co.uk/sd/practical28.html) explicitly separates modulation, tracheal formants and overall envelope; it is a synthesis framework, not an owl/crow-specific preset. [Cornell's American Crow sound archive](https://www.allaboutbirds.org/guide/American_Crow/sounds) provides identified recording context and examples for a second cross-check; it is not the species ID of the Freesound crow.
+- **Frog:** prominent lower bands around 0.4–0.65 kHz in this recording. Next: isolate single calls, measure their pulse spacing and harmonic/formant envelopes. The current square-wave amplitude modulation of a sawtooth is only a placeholder. Do not infer all frogs have a Hollywood double "ribbit" from this file's tags.
+- **Door:** the recording has high squeaking bands near 3–5 kHz as well as lower body sound; the current 700 Hz-filtered tone is missing the friction cue. [Farnell's original Creaking Door practical](https://aspress.co.uk/sd/practical09.html) supplies a concrete alternative: irregular stick-slip pulses under changing force, exciting wood bands and a panel response. Next: a short, restrained friction creak, not a horror-door recording or a pitched beep.
+- **Cricket:** this recording's strongest narrow band is around 4.6 kHz, already inside the current 4.3–5.1 kHz range. Keep its liked character; inspect within-chirp pulses and pauses before deciding whether any change is warranted. [Farnell's Insects practical](https://aspress.co.uk/sd/practical27.html) has distinct cricket-chirp and stridulation models, with carrier and pulse/envelope structure rather than undifferentiated noise.
+
+Full-recording spectra above contain background and processing. Single-call spectrograms and matched-level listening should guide the next implementation, not these summary numbers alone. Thunder and flames are accepted and remain untouched.
