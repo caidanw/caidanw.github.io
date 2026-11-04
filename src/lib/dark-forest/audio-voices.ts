@@ -113,72 +113,120 @@ function owl(ctx: BaseAudioContext) {
 }
 
 /**
- * Crow: a rough harmonic voice, strongest around the throat bands at ~1.1/1.8/2.6 kHz.
- * Pressure rises into a held, ragged caw, then falls. Frequency jitter, breath and changing
- * harmonic balance are deliberate; this is not a clean sawtooth swept through one filter.
+ * Crow: a clipped, noisy "ka" opening into a coarse caw. No rising/falling vowel arch
+ * (the previous version read as a baby crying), and no regular singing vibrato.
  */
 function crow(ctx: BaseAudioContext) {
   const sr = ctx.sampleRate
-  const duration = rnd(0.46, 0.7)
-  const base = rnd(335, 365)
-  const roughRate = rnd(65, 85)
-  const air = bandpass(1900, 0.8, sr)
-  const jitterDecay = Math.exp((-TAU * 100) / sr)
+  const duration = rnd(0.38, 0.52)
+  const base = rnd(305, 335)
+  const burst = bandpass(rnd(3200, 4200), 0.85, sr)
+  const air = bandpass(2400, 0.75, sr)
+  const jitterDecay = Math.exp((-TAU * 130) / sr)
+  const pressureDecay = Math.exp((-TAU * 65) / sr)
   let jitter = 0
+  let pressure = 0
   let phase = 0
   return render(ctx, duration + 0.035, (t) => {
     const u = Math.min(1, t / duration)
     jitter = jitterDecay * jitter + (1 - jitterDecay) * (Math.random() * 2 - 1)
-    const hz = base * (0.88 + 0.21 * Math.sin(Math.PI * u) - 0.12 * u ** 4 + jitter * 0.7)
+    pressure = pressureDecay * pressure + (1 - pressureDecay) * (Math.random() * 2 - 1)
+    // Almost level pitch through the body; a short downward break only as the beak closes.
+    const hz = base * (1.035 - 0.055 * u - 0.12 * u ** 6 + jitter * 1.2)
     phase += (TAU * hz) / sr
+    const opening = Math.exp(-t / 0.028)
     let voice = 0
-    for (let h = 1; h <= 12; h++) {
+    for (let h = 1; h <= 14; h++) {
       const f = hz * h
-      const throat = Math.exp(-0.5 * ((f - 1850) / 370) ** 2)
-      const lower = 0.3 * Math.exp(-0.5 * ((f - 1050) / 240) ** 2)
-      const upper = 0.18 * Math.exp(-0.5 * ((f - 2650) / 380) ** 2)
+      const throat = Math.exp(-0.5 * ((f - (1850 + 420 * opening)) / 450) ** 2)
+      const lower = 0.12 * Math.exp(-0.5 * ((f - 1050) / 240) ** 2)
+      const upper = 0.35 * Math.exp(-0.5 * ((f - 2900) / 550) ** 2)
       voice += (Math.sin(h * phase + h * 0.14) * (throat + lower + upper)) / Math.sqrt(h)
     }
-    const rasp = 0.7 + 0.3 * Math.sin(TAU * roughRate * t + 0.4 * Math.sin(TAU * 11 * t)) ** 2
-    return (voice * rasp + air(Math.random() * 2 - 1) * 0.11) * envelope(t, duration, 0.055, 0.14)
+    const rasp = Math.max(0.3, Math.min(1.3, 0.85 + pressure * 3))
+    const vowel = (voice * rasp + air(Math.random() * 2 - 1) * 0.16) * envelope(t - 0.006, duration - 0.006, 0.008, 0.075)
+    // A brief unvoiced opening, not a loud digital click. It precedes and overlaps the caw.
+    const ka = burst(Math.random() * 2 - 1) * 0.85 * envelope(t, 0.032, 0.002, 0.025)
+    return ka + vowel
   })
 }
 
 /**
- * A small wooden door: irregular stick-slip impulses excite damp wood modes; a short,
- * noisy hinge rub rides above them. Inspired by Farnell's force → stick-slip → panel
- * model, not by bending a triangle oscillator into a beep. No horror-door reverb or slam.
+ * A door catches, squeaks, then strains lower as it is pulled open. Two slipping hinge
+ * surfaces make an unstable, overtone-rich squeal; just a few loads excite the wood.
+ * The old continuous band of noise and many little impacts sounded like gravel.
  */
 function door(ctx: BaseAudioContext) {
   const sr = ctx.sampleRate
-  const duration = rnd(0.85, 1.25)
+  const duration = rnd(1.05, 1.25)
+  const size = rnd(0.9, 1.05)
   const wood = [125, 250, 395, 560, 790].map((f) => bandpass(f * rnd(0.95, 1.05), 3, sr))
-  const hinge = bandpass(rnd(3200, 4600), rnd(8, 14), sr)
-  let nextSlip = 0.025
-  let slipAge = 1
-  let slipLength = 0.002
-  let slipGain = 0
-  let force = 0
-  const forceDecay = Math.exp(-1 / (sr * 0.007))
+  const air = bandpass(3400, 0.85, sr)
+  const pitch: [number, number][] = [
+    [0, 900],
+    [0.08, 1550],
+    [0.2, 2350],
+    [0.29, 2250],
+    [0.35, 2150],
+    [0.4, 1850],
+    [0.6, 1050],
+    [0.82, 470],
+    [1, 200],
+  ]
+  const force: [number, number][] = [
+    [0, 0],
+    [0.06, 0.25],
+    [0.14, 1],
+    [0.26, 0.55],
+    [0.31, 0.015],
+    [0.35, 0.015],
+    [0.39, 0.7],
+    [0.55, 0.5],
+    [0.75, 0.32],
+    [0.94, 0.04],
+    [1, 0],
+  ]
+  const loads = [
+    { at: 0.025, gain: 0.6 },
+    { at: duration * 0.37, gain: 1 },
+    { at: duration * 0.94, gain: 0.4 },
+  ]
+  const jitterDecay = Math.exp((-TAU * 45) / sr)
+  const detune = rnd(1.018, 1.038)
+  let phase = 0
+  let otherPhase = 0
+  let jitter = 0
   return render(ctx, duration + 0.12, (t) => {
     const u = Math.min(1, t / duration)
-    const speed = Math.sin(Math.PI * u) ** 0.7
-    if (t < duration && t >= nextSlip) {
-      slipAge = 0
-      slipLength = rnd(0.001, 0.004)
-      slipGain = rnd(0.4, 1) * (0.3 + 0.7 * speed)
-      // It sticks briefly then slips again; the uneven gaps are the friction cue.
-      nextSlip = t + rnd(0.003, 0.012) + (1 - speed) * rnd(0.012, 0.045)
+    jitter = jitterDecay * jitter + (1 - jitterDecay) * (Math.random() * 2 - 1)
+    const hz = contour(u, pitch) * size * (1 + jitter * 0.55 + 0.008 * Math.sin(TAU * 19 * t))
+    phase += (TAU * hz) / sr
+    otherPhase += (TAU * hz * detune) / sr
+    const strain = contour(u, force)
+    const chatter = 0.82 + 0.18 * Math.sin(TAU * (23 * t + 12 * t * t)) ** 2
+    const squeak = 0.24 * Math.sin(phase) + 0.65 * Math.sin(2 * phase) + 0.12 * Math.sin(3 * phase) + 0.17 * Math.sin(2 * otherPhase)
+    let load = 0
+    for (const p of loads) {
+      const age = t - p.at
+      if (age >= 0) load += p.gain * (1 - Math.exp(-age / 0.0005)) * Math.exp(-age / 0.004)
     }
-    const pulse = slipAge < slipLength ? (1 - slipAge / slipLength) ** 2 * slipGain : 0
-    slipAge += 1 / sr
-    force = forceDecay * force + (1 - forceDecay) * pulse
     let panel = 0
-    for (const mode of wood) panel += mode(pulse)
-    const rub = hinge((Math.random() * 2 - 1) * Math.min(1, force * 8))
-    const roughEnvelope = 0.45 + 0.55 * Math.sin(Math.PI * Math.min(1, u * 2.4)) ** 2
-    return (panel * 0.16 + rub * 3 * roughEnvelope) * envelope(t, duration + 0.1, 0.035, 0.18)
+    for (const mode of wood) panel += mode(load)
+    const breath = air(Math.random() * 2 - 1) * 0.025 * strain
+    return ((squeak * chatter * strain + breath) * 0.7 + panel * 0.13) * envelope(t, duration + 0.1, 0.025, 0.15)
   })
+}
+
+/** Piecewise motion/pressure: a catch is a real pause, not a smooth singing vibrato. */
+function contour(u: number, points: readonly [number, number][]) {
+  for (let i = 1; i < points.length; i++) {
+    const [end, value] = points[i]
+    if (u > end) continue
+    const [start, previous] = points[i - 1]
+    const t = Math.max(0, (u - start) / (end - start))
+    return previous + (value - previous) * t
+  }
+  return points[points.length - 1][1]
 }
 
 /** Constant-peak RBJ bandpass, used as a material/throat band rather than a pitched voice. */

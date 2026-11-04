@@ -98,6 +98,8 @@ Full-recording spectra above contain background and processing. Single-call spec
 
 ### Reference-based voice pass
 
+Operator review: **frog and owl accepted**. The first crow sounded like a baby crying; the first door sounded like dragging a stick through gravel. The crow and door descriptions below record that initial pass; the next section records their revisions. Preserve the accepted frog/owl synthesis.
+
 `audio-voices.ts` generates variant banks from synthesis equations, never decoded recording data. `audio.ts` plays them through the existing per-source buses with position, distance, gain, pitch, solo and mute. Natural world triggers are unchanged: the frog croaks, crow takes flight, hut door opens, and owl calls occasionally in dry weather.
 
 Additional frog reference: [daveincamas, Pacific Chorus Frog solo](https://freesound.org/people/daveincamas/sounds/32807/) (CC BY 4.0), local `refs/frog-chorus-solo-32807.mp3`. The recordist identifies a close solo male, with house echo and distant frogs, and notes low-frequency cleanup. This is a clearer individual call than the earlier common-frog chorus. It is a sound-design reference, not a species assignment for the scene's frog.
@@ -112,4 +114,15 @@ Local measurements and synthesis choices:
 
 Checks: finite, tapered, normalized voice buffers and routed previews at 44.1/48 kHz; each source audible independently even when off during audition; pitch-range extremes; complete owl responses rather than truncated previews; world event triggers; mute and return to silence. Local command: from `~/Projects/dark-forest-moodboard/tools/`, `node --no-warnings --import ./hook.mjs voice-check.ts`. Rain regression checks also pass. Strict TypeScript and the Astro build pass. Browser checks confirm trusted-click previews, the owl's late response, per-source tuning and solo, and sound stopping when disabled; the hardware-muted test browser was closed afterwards. The accepted fire/log/thunder/cricket methods and rain-material module were also compared against their previous source to catch unintended retuning. Spectral/envelope comparison is a diagnostic tool, not a substitute for listening.
 
-Listening sheet: `~/Projects/dark-forest-moodboard/sounds/voices-listening.html` (reference / previous synth / new synth, approximately matched by active sound level). Raw individual previews and an actual-level scene mix are in `sounds/synth/`. Nothing autoplays.
+Listening sheet for the initial pass: `~/Projects/dark-forest-moodboard/sounds/voices-listening.html` (reference / previous synth / new synth, approximately matched by active sound level). Raw individual previews and an actual-level scene mix are in `sounds/synth/`. Nothing autoplays.
+
+### Crow and door: articulation revision
+
+Same primary recordings as above. Looking at selected single-event spectrograms and 2 ms envelopes, rather than just the whole-file spectrum, showed the missing cues:
+
+- The old crow had a clean rising/falling harmonic arch and a swelling vowel onset. The operator specifically wanted the "ka" part. Revision: a brief band-limited noisy opening overlapping a fast voiced onset, shorter coarse body, irregular pressure rather than periodic vibrato, nearly level pitch with a small terminal break. The higher opening band settles into the caw. "Ka" is a perceptual analogy for the desired attack, not a claim about crow speech articulation.
+- The old door had a nearly stationary noise band and many little impacts, consistent with the operator hearing gravel. The reference's initial squeak has visible moving harmonic bands and distinct catches, followed by a lower strained pull. Revision: two slightly detuned, overtone-rich hinge-slip voices follow an uneven motion/pressure contour. A brief pressure catch separates the initial squeak from the downward pull. Only three small loads excite the wooden body; broadband friction noise is now faint, not the main sound. No reverb or slam.
+
+No accepted sound was retuned. All frog/owl variant buffers compare byte-for-byte with the saved accepted module under the same random seed at 44.1 and 48 kHz (`accepted-voices-check.ts` in the local tools workspace). Existing voice checks now also require an audible early crow attack, a pressure catch in the door, an audible pull after it, and a lower crossing rate during that pull. These are structural checks, not a guarantee of perceptual success.
+
+Focused listening sheet: `~/Projects/dark-forest-moodboard/sounds/crow-door-listening.html`. It presents each reference, the rejected first pass and the revision at approximately matched active levels, plus raw scene-level previews. No autoplay.
