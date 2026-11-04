@@ -251,3 +251,7 @@ Reference lengths (envelope above 10%): 0.78, 0.60, 0.48, 0.51 and 0.49 s. Onset
 Checks: the crow banks must have their target lengths, an onset that grows in (no burst), the rough wobble texture, a high band clear of the 3.6–4.7 kHz gap and little energy below 550 Hz. The crow preview must play 2–4 caws, opening with the longest, with the last one fading rather than cut off, at all pitch settings. Accepted frog/owl buffers are unchanged; the rain checks and build pass. A hardware-muted browser preview gave a 0.79 s caw followed by a 0.49 s caw; the browser was closed afterwards.
 
 Listening sheet: `~/Projects/dark-forest-moodboard/sounds/crow-series-listening.html`. Awaiting operator review.
+
+### Accepted: crow series and door squeak
+
+The operator accepted the crow series in `9d6f6b1` ("sounds good") and the single 0.5–0.8 s door squeak ("good for now"). Treat both as accepted. Do not retune them while working on other sounds, and keep their voice-check assertions.
