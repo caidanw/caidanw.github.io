@@ -144,8 +144,7 @@ export class Soundscape {
         this.owl(now, -0.5, 1)
         break
       case 'crow':
-        hold(2.2 / (T.pitch * 0.97))
-        this.crow(now, 0.4)
+        hold(this.crow(now, 0.4) + 0.1)
         break
       case 'door':
         hold(Math.max(...this.voices.door.map((voice) => voice.duration)) / (T.pitch * 0.97) + 0.1)
@@ -409,9 +408,12 @@ export class Soundscape {
       this.burst(at + k * rnd(0.25, 0.75), len - k * 0.6, rnd(90, 160) * deep, 0.7, 0.9 * power, rnd(-0.3, 0.3), 'lowpass', this.brown, out)
   }
 
-  private playVoice(key: VoiceKey, at: number, gain: number, pan: number) {
-    const bank = this.voices[key]
-    this.grain(bank[(Math.random() * bank.length) | 0], at, gain, this.pitch(key) * rnd(0.97, 1.03), pan, this.bus[key])
+  /** Play one variant from a bank; returns how long it sounds (s). */
+  private playVoice(key: VoiceKey, at: number, gain: number, pan: number, bank = this.voices[key]) {
+    const buf = bank[(Math.random() * bank.length) | 0]
+    const rate = this.pitch(key) * rnd(0.97, 1.03)
+    this.grain(buf, at, gain, rate, pan, this.bus[key])
+    return buf.duration / rate
   }
 
   private frog(at: number, pan: number, g: number) {
@@ -428,9 +430,16 @@ export class Soundscape {
     this.playVoice('owl', at, 0.18 * g, pan)
   }
 
+  /** A series, like the reference: one long caw, then one to three shorter ones. Returns its length (s). */
   private crow(at: number, pan: number) {
-    this.playVoice('crow', at, 0.2, pan)
-    this.playVoice('crow', at + rnd(0.85, 1.05) / this.pitch('crow'), 0.16, pan)
+    const pitch = this.pitch('crow')
+    let t = at + this.playVoice('crow', at, 0.2, pan, this.voices.crowOpening) + rnd(0.3, 0.4) / pitch
+    const more = 1 + ((Math.random() * 3) | 0)
+    for (let i = 0; i < more; i++) {
+      t += this.playVoice('crow', t, 0.16 * rnd(0.85, 1), pan)
+      if (i < more - 1) t += rnd(0.22, 0.32) / pitch
+    }
+    return t - at
   }
 
   private door(at: number, pan: number, g: number) {

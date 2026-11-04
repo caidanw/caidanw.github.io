@@ -237,3 +237,17 @@ Measured medians, five caws each (reference / current scene crow / prototype 1):
 | Wobble rate (Hz) / depth         | 65 / 0.39 | 83 / 0.43 | 65 / 0.36   |
 
 The remaining measured differences are a slightly less steep cliff above 3.3 kHz and a main peak 1.66 kHz versus 1.79. Listening sheet: `~/Projects/dark-forest-moodboard/sounds/crow-proto-listening.html`; spectrograms: `shots/crow-prototypes.png`. These measurements do not establish perceptual likeness. The scene still uses the current crow until a prototype is chosen by ear.
+
+### Prototype 1 in the scene, with reference-like caw lengths
+
+Operator review: prototype 1 (smooth) is the preferred direction, but its caws were too short. The reference opens with a longer caw, followed by several shorter ones.
+
+Reference lengths (envelope above 10%): 0.78, 0.60, 0.48, 0.51 and 0.49 s. Onsets are 1.13 s apart after the opening caw and 0.77–0.83 s apart after that. Prototype 1 caws measured only 0.38–0.52 s.
+
+- `crow(ctx, duration)` is now the prototype 1 voice, ported unchanged from `tools/crow-proto.ts`. The bank holds 12 shorter caws (0.55–0.70 s synthesis length) and a separate `crowOpening` bank of 6 long caws (0.82–0.92 s).
+- `Soundscape.crow()` plays a series: one opening caw; then, after 0.30–0.40 s, one to three shorter caws separated by 0.22–0.32 s. All gaps are divided by the pitch setting. It returns the series length, so the editor preview holds the bus open for exactly as long as needed.
+- Rendered scene previews measure opening caws of 0.77–0.83 s and shorter caws of 0.50–0.63 s. Onsets are 1.2–1.26 s apart after the opening and about 0.87 s apart after that. Per-caw spectral, onset and wobble measurements stay those of prototype 1.
+
+Checks: the crow banks must have their target lengths, an onset that grows in (no burst), the rough wobble texture, a high band clear of the 3.6–4.7 kHz gap and little energy below 550 Hz. The crow preview must play 2–4 caws, opening with the longest, with the last one fading rather than cut off, at all pitch settings. Accepted frog/owl buffers are unchanged; the rain checks and build pass. A hardware-muted browser preview gave a 0.79 s caw followed by a 0.49 s caw; the browser was closed afterwards.
+
+Listening sheet: `~/Projects/dark-forest-moodboard/sounds/crow-series-listening.html`. Awaiting operator review.

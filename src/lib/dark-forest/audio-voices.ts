@@ -4,7 +4,8 @@
  * Short variant banks are generated once; the soundscape places them in the scene.
  */
 export type VoiceKey = 'frog' | 'owl' | 'crow' | 'door'
-export type VoiceBank = Record<VoiceKey, AudioBuffer[]>
+/** `crow` holds the shorter caws; `crowOpening` the long caw that starts a series. */
+export type VoiceBank = Record<VoiceKey, AudioBuffer[]> & { crowOpening: AudioBuffer[] }
 const rnd = (a: number, b: number) => a + Math.random() * (b - a)
 const TAU = Math.PI * 2
 
@@ -12,8 +13,9 @@ export function buildVoices(ctx: BaseAudioContext): VoiceBank {
   return {
     frog: Array.from({ length: 12 }, () => frog(ctx)),
     owl: Array.from({ length: 6 }, () => owl(ctx)),
-    crow: Array.from({ length: 12 }, () => crow(ctx)),
+    crow: Array.from({ length: 12 }, () => crow(ctx, rnd(0.55, 0.7))),
     door: Array.from({ length: 10 }, () => door(ctx)),
+    crowOpening: Array.from({ length: 6 }, () => crow(ctx, rnd(0.82, 0.92))),
   }
 }
 
@@ -113,59 +115,87 @@ function owl(ctx: BaseAudioContext) {
 }
 
 /**
- * Crow pulse register: short pressure openings in groups of two or three, with longer
- * closures between groups, exciting a damp tract resonance. This creates the rattling
- * interior of a caw at the source, rather than adding vibrato to a smooth sung vowel.
- * Above it, a separate band near 6 kHz flickers on its own clock (~60–120 Hz), as
- * measured in the reference recording: the high trill over the caw.
- * Physically informed, not a full syrinx simulation (research notes cite the observations).
+ * Crow caw, after the American-crow measurements and research in docs/research/crow-synthesis.md.
+ * Voice: a continuous smooth pulse (Farnell's vposc, 1/(1+(pw·cos θ)²)) near 700 Hz, with every
+ * other pulse weakened so a ~350 Hz subharmonic stack appears, as in the reference recording.
+ * Closure (pulse sharpness, hence brightness) follows loudness: the caw starts soft and a little
+ * dark and brightens, with no noise burst. Linked, uneven pitch/amplitude wobble at 55–75 Hz.
+ * Tract: one closed–open tube (negative-feedback comb) with f1 ≈ 2 kHz, a steep cliff above
+ * ~3.3 kHz, and the tube's own third resonance as the faint high band near 6 kHz.
+ * `duration`: a series opens with one long caw, then shorter ones (see Soundscape.crow).
  */
-function crow(ctx: BaseAudioContext) {
+function crow(ctx: BaseAudioContext, duration: number) {
   const sr = ctx.sampleRate
-  const duration = rnd(0.46, 0.59)
-  const interval = 1 / rnd(300, 340)
-  const pulses: { at: number; width: number; gain: number }[] = []
-  let at = 0.008
-  while (at < duration - 0.02) {
-    const count = Math.random() < 0.7 ? 3 : 2
-    const groupGain = rnd(0.8, 1)
-    for (let i = 0; i < count; i++) {
-      pulses.push({ at, width: rnd(0.0005, 0.0008), gain: groupGain * (i === 1 ? rnd(0.6, 0.8) : rnd(0.85, 1)) })
-      at += interval * rnd(0.94, 1.06)
-    }
-    at += rnd(0.003, 0.005) // a missing opening: the longer closure makes the group audible
-  }
-  const tract = bandpass(rnd(1550, 1750), rnd(12, 16), sr)
-  const upper = bandpass(rnd(2600, 2900), 7, sr)
-  const burst = bandpass(rnd(3200, 4200), 0.85, sr)
-  const air = bandpass(2300, 0.7, sr)
-  const trillHz = rnd(5600, 6100)
-  const trill = [bandpass(trillHz, 4, sr), bandpass(trillHz, 4, sr)]
-  // The caw's body stops short of ~3.5 kHz (8th order), leaving a clear gap below the trill.
-  const gap = [lowpass(3300, 0.54, sr), lowpass(3300, 1.31, sr), lowpass(3300, 0.54, sr), lowpass(3300, 1.31, sr)]
-  const flickerSmoothing = Math.exp(-1 / (sr * 0.002))
-  let flicker = 0
-  let flickerTarget = 1
-  let nextFlicker = 0
-  let index = 0
-  return render(ctx, duration + 0.045, (t) => {
-    if (t >= nextFlicker) {
-      flickerTarget = rnd(0.1, 1)
-      nextFlicker = t + rnd(0.008, 0.016)
-    }
-    flicker = flickerSmoothing * flicker + (1 - flickerSmoothing) * flickerTarget
-    while (index + 1 < pulses.length && pulses[index + 1].at <= t) index++
-    const p = pulses[index]
-    const age = t - p.at
-    const pressure = age > 0 && age < p.width ? (1 - Math.exp(-age / 0.00004)) * Math.exp(-age / (p.width * 0.28)) * p.gain : 0
-    const voice = tract(pressure) * 3.2 + upper(pressure) * 2 + pressure * 0.12
-    const breath = air(Math.random() * 2 - 1) * 0.015
-    // Driven mostly by the pulses (so it partly follows the rattle), with a little noise.
-    const high = trill[1](trill[0]((Math.random() * 2 - 1) * 0.2 + pressure * 30)) * flicker * 0.035
-    const body = (gap[3](gap[2](gap[1](gap[0](voice + breath)))) + high) * envelope(t - 0.006, duration - 0.006, 0.008, 0.07)
-    const ka = burst(Math.random() * 2 - 1) * 0.24 * envelope(t, 0.032, 0.002, 0.025)
-    return ka + body
+  const base = rnd(670, 730)
+  const attack = 0.13 * rnd(0.8, 1.3)
+  const release = 0.3
+  const wobbleRate = rnd(55, 75)
+  const rateDrift = drift(sr, [0.01, 0.03], 0.01)
+  const pitchDrift = drift(sr, [0.03, 0.08], 0.03)
+  const subDrift = drift(sr, [0.04, 0.12], 0.03)
+  const cycleAmp = drift(sr, [0.012, 0.02], 0.004)
+  const cycleJitter = drift(sr, [0.0012, 0.0016], 0.0002)
+  const tubeDelay = sr / (2 * 2050 * rnd(0.97, 1.03))
+  const tubeLoss = lowpass(6000, 0.6, sr)
+  const tube = new Float32Array(256)
+  let write = 0
+  // 12th-order Butterworth (Q pairs for n = 12): the reference has a cliff near 3.3 kHz.
+  const cliff = [0.5176, 0.7071, 1.9319, 0.5176, 0.7071, 1.9319].map((q) => lowpass(3250, q, sr))
+  const lowCut = [highpass(1300, 0.54, sr), highpass(1300, 1.31, sr)]
+  const third = (3 * sr) / (2 * tubeDelay)
+  const high = [bandpass(third, 5, sr), bandpass(third, 5, sr)]
+  const breathBand = highpass(1500, 0.7, sr)
+  let theta = 0
+  let phaseW = rnd(0, TAU)
+  return render(ctx, duration + 0.02, (t) => {
+    const u = t / duration
+    const env = Math.min(smooth(t / attack), smooth((duration - t) / release))
+    const closure = env ** 1.5 // brightness lags loudness
+    // Pitch arch, peaking a little before mid-call (Mates et al.).
+    const arch = u < 0.4 ? 0.95 + 0.07 * smooth(u / 0.4) : 1.02 - 0.12 * smooth((u - 0.4) / 0.6)
+    phaseW += (TAU * wobbleRate * (1 + 0.35 * rateDrift(t))) / sr
+    const f0 = base * arch * (1 + 0.06 * Math.sin(phaseW) + 0.015 * pitchDrift(t) + 0.02 * cycleJitter(t))
+    theta += (Math.PI * f0) / sr // half rate: vposc peaks twice per cycle, so pulses at f0
+    const pw = 5 + 17 * closure
+    const c = pw * Math.cos(theta)
+    const mean = 1 / Math.sqrt(1 + pw * pw)
+    const pulse = (1 / (1 + c * c) - mean) / (1 - mean)
+    const sub = Math.min(0.97, 0.8 + 0.15 * subDrift(t))
+    const alternate = 1 - sub * (0.5 - 0.5 * Math.sin(theta)) // every other pulse weaker
+    const wobble = 1 - 0.95 * (0.5 + 0.5 * Math.sin(phaseW + 0.7)) * (0.65 + 0.35 * cycleAmp(t))
+    const breath = breathBand(Math.random() * 2 - 1) * 0.04 * (1 - closure)
+    const source = (pulse * alternate * wobble + breath) * env
+    // Closed–open tube: p = s − g·LP(p delayed by D), resonances at f1, 3f1, ...
+    const at = (write - tubeDelay + 256) % 256
+    const i0 = Math.floor(at)
+    const delayed = tube[i0 % 256] * (1 - (at - i0)) + tube[(i0 + 1) % 256] * (at - i0)
+    const p = source - 0.7 * tubeLoss(delayed)
+    tube[write] = p
+    write = (write + 1) % 256
+    let body = p
+    for (const f of cliff) body = f(body)
+    return lowCut[1](lowCut[0](body)) + high[1](high[0](p)) * 0.3
   })
+}
+
+/** Raised-cosine ramp from 0 to 1. */
+function smooth(u: number) {
+  return u <= 0 ? 0 : u >= 1 ? 1 : 0.5 - 0.5 * Math.cos(Math.PI * u)
+}
+
+/** Smoothed random wander in [−1, 1]: a new target every `hold` seconds, glided over `glide`. */
+function drift(sr: number, hold: [number, number], glide: number) {
+  const k = Math.exp(-1 / (sr * glide))
+  let value = 0
+  let target = rnd(-1, 1)
+  let next = 0
+  return (t: number) => {
+    if (t >= next) {
+      target = rnd(-1, 1)
+      next = t + rnd(hold[0], hold[1])
+    }
+    return (value = k * value + (1 - k) * target)
+  }
 }
 
 /**
@@ -278,6 +308,26 @@ function lowpass(hz: number, q: number, sr: number) {
     y2 = 0
   return (x: number) => {
     const y = (((1 - c) / 2) * (x + x2) + (1 - c) * x1 + 2 * c * y1 - (1 - a) * y2) / a0
+    x2 = x1
+    x1 = x
+    y2 = y1
+    y1 = y
+    return y
+  }
+}
+
+/** RBJ highpass; pairs with Q 0.54/1.31 form a 4th-order Butterworth. */
+function highpass(hz: number, q: number, sr: number) {
+  const w = (TAU * hz) / sr
+  const a = Math.sin(w) / (2 * q)
+  const c = Math.cos(w)
+  const a0 = 1 + a
+  let x1 = 0,
+    x2 = 0,
+    y1 = 0,
+    y2 = 0
+  return (x: number) => {
+    const y = (((1 + c) / 2) * (x + x2) - (1 + c) * x1 + 2 * c * y1 - (1 - a) * y2) / a0
     x2 = x1
     x1 = x
     y2 = y1
