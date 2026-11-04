@@ -53,6 +53,36 @@ export interface LightTune {
   shadows: 'default' | 'on' | 'off'
 }
 
+/** Every sound source, each on its own bus: on/off, solo, level, how often, pitch or tone. */
+export type SoundKey = 'crackle' | 'log' | 'rain' | 'drips' | 'thunder' | 'wind' | 'frog' | 'crickets' | 'owl' | 'crow' | 'door'
+
+export const SOUND_SOURCES: { key: SoundKey; label: string; hint: string; rate?: string; pitch: string }[] = [
+  { key: 'crackle', label: 'fire crackle', hint: 'clicks and pops, busier the bigger the fire', rate: 'busyness', pitch: 'pitch' },
+  { key: 'log', label: 'log landing', hint: 'a thump and a burst of crackling when wood goes on', pitch: 'pitch' },
+  { key: 'rain', label: 'rain', hint: 'a hush of white noise, as loud as the rain is heavy', pitch: 'brightness' },
+  { key: 'drips', label: 'rain ticks', hint: 'single drops on leaves and the pool', rate: 'how many', pitch: 'pitch' },
+  { key: 'thunder', label: 'thunder', hint: 'a rumble arriving after each flash', pitch: 'depth' },
+  { key: 'wind', label: 'wind', hint: 'in the trees; stronger with cloud and rain', rate: 'gustiness', pitch: 'tone' },
+  { key: 'frog', label: 'frog', hint: 'a ribbit when the frog croaks', pitch: 'pitch' },
+  { key: 'crickets', label: 'crickets', hint: 'on clear dry nights', rate: 'how often', pitch: 'pitch' },
+  { key: 'owl', label: 'owl', hint: 'hoo… hoo-hoo, now and then on clear nights', rate: 'how often', pitch: 'pitch' },
+  { key: 'crow', label: 'crow', hint: 'a caw as it takes off', pitch: 'pitch' },
+  { key: 'door', label: 'hut doors', hint: 'a creak as a door opens', pitch: 'pitch' },
+]
+
+export interface SoundTune {
+  on: boolean
+  gain: number
+  /** How often (one-shots) or how restless (beds): a multiplier. */
+  rate: number
+  /** Pitch, or tone for the beds: a multiplier. */
+  pitch: number
+}
+
+/** A source's tuning as saved in data/sound.json. */
+export const defaultSoundTune = (key: SoundKey): SoundTune => ({ on: true, gain: 1, rate: 1, pitch: 1, ...(DATA.sound[key] as Partial<SoundTune>) })
+export const soundDefaults = () => Object.fromEntries(SOUND_SOURCES.map(({ key }) => [key, defaultSoundTune(key)])) as Record<SoundKey, SoundTune>
+
 /** A kind's tuning as saved in data/lights.json (the editor's 'save as defaults'). */
 const tune = (kind: LightKind): LightTune => ({
   on: true,
@@ -116,7 +146,7 @@ function defaults() {
     /** Light the frame on the GPU (WebGL2) when it can; the CPU path is the reference. */
     gpu: true,
     /** The soundscape (browsers only allow it after a click or a key). */
-    sound: { on: false, volume: 0.7 },
+    sound: { on: false, volume: 0.7, sources: soundDefaults(), solo: null as SoundKey | null },
   }
 }
 

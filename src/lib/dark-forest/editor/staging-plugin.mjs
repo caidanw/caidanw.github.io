@@ -14,7 +14,7 @@ import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
-const FILES = new Set(['sprites', 'props', 'palette', 'lights', 'layout'])
+const FILES = new Set(['sprites', 'props', 'palette', 'lights', 'layout', 'sound'])
 
 /**
  * How data files are written: small things (a tree, a part, a position) on one line, bigger

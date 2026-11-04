@@ -102,6 +102,9 @@ html.dfe-on, html.dfe-on body { overflow: hidden; }
 .dfe .light.open { border-color: #3a3e45; }
 .dfe .light .title { display: flex; align-items: center; gap: 6px; padding: 4px 6px; cursor: pointer; }
 .dfe .light .title .count { margin-left: auto; }
+.dfe .sound .title .meter { margin-left: auto; }
+.dfe .sound .title button { padding: 0 6px; }
+.dfe .sound.muted { opacity: 0.45; }
 .dfe .light .body { padding: 2px 8px 8px; display: grid; gap: 4px; }
 .dfe .instances { margin: 4px 0 0; padding: 0; list-style: none; max-height: 120px; overflow: auto; }
 

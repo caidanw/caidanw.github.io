@@ -1,0 +1,68 @@
+{
+  "crackle": {
+    "on": true,
+    "gain": 1,
+    "rate": 1,
+    "pitch": 1
+  },
+  "log": {
+    "on": true,
+    "gain": 0.8,
+    "rate": 1,
+    "pitch": 1
+  },
+  "rain": {
+    "on": true,
+    "gain": 0.8,
+    "rate": 1,
+    "pitch": 1
+  },
+  "drips": {
+    "on": true,
+    "gain": 0.5,
+    "rate": 1,
+    "pitch": 1
+  },
+  "thunder": {
+    "on": true,
+    "gain": 0.9,
+    "rate": 1,
+    "pitch": 1
+  },
+  "wind": {
+    "on": true,
+    "gain": 0.5,
+    "rate": 1,
+    "pitch": 1
+  },
+  "frog": {
+    "on": true,
+    "gain": 0.8,
+    "rate": 1,
+    "pitch": 1
+  },
+  "crickets": {
+    "on": true,
+    "gain": 0.6,
+    "rate": 1,
+    "pitch": 1
+  },
+  "owl": {
+    "on": true,
+    "gain": 0.8,
+    "rate": 1,
+    "pitch": 1
+  },
+  "crow": {
+    "on": true,
+    "gain": 0.7,
+    "rate": 1,
+    "pitch": 1
+  },
+  "door": {
+    "on": true,
+    "gain": 0.7,
+    "rate": 1,
+    "pitch": 1
+  }
+}

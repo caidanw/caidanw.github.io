@@ -5,7 +5,18 @@
  * writes to the live settings, so changes show on the next frame.
  */
 import type { DarkForest } from '../index'
-import { LIGHT_KINDS, VIEWS, defaultLightTune, resetSettings, settings, type LightTune, type View } from '../settings'
+import {
+  LIGHT_KINDS,
+  SOUND_SOURCES,
+  VIEWS,
+  defaultLightTune,
+  defaultSoundTune,
+  resetSettings,
+  settings,
+  soundDefaults,
+  type LightTune,
+  type View,
+} from '../settings'
 import { DATA, FILES, applyData, changed, snapshot, type DataFile } from '../art'
 import { RELICS, type Relic } from '../world'
 import { createArtEditor } from './art-editor'
@@ -261,6 +272,7 @@ export function mountEditor(): Editor {
   const tabs = {
     inspect: h('div', { class: 'tab' }),
     lights: h('div', { class: 'tab' }),
+    sound: h('div', { class: 'tab' }),
     object: h('div', { class: 'tab' }),
     world: h('div', { class: 'tab' }),
     art: h('div', { class: 'tab' }),
@@ -448,6 +460,129 @@ export function mountEditor(): Editor {
     ...lightRows.map((r) => r.el),
   )
 
+  // ---------------------------------------------------------------- sound: every source on its own bus
+  const soundRows = SOUND_SOURCES.map(({ key, label, hint, rate, pitch }) => {
+    const T = () => settings.sound.sources[key]
+    const on = check(
+      '',
+      () => T().on,
+      (v) => (T().on = v),
+      'on / off',
+    )
+    const meter = h('span', { class: 'meter', title: 'how loud it is right now' }, h('i', {}))
+    const solo = h(
+      'button',
+      {
+        title: 'hear only this',
+        onclick: () => {
+          settings.sound.solo = settings.sound.solo === key ? null : key
+          refreshSound()
+        },
+      },
+      'solo',
+    )
+    const play = h('button', { title: 'play an example now', onclick: () => forest?.audition(key) }, '▶')
+    const sliders = [
+      slider(
+        'level',
+        () => T().gain,
+        (v) => (T().gain = v),
+        0,
+        3,
+      ),
+      rate &&
+        slider(
+          rate,
+          () => T().rate,
+          (v) => (T().rate = v),
+          0.1,
+          4,
+        ),
+      slider(
+        pitch,
+        () => T().pitch,
+        (v) => (T().pitch = v),
+        0.4,
+        2.5,
+      ),
+    ].filter((s): s is ReturnType<typeof slider> => !!s)
+    const body = h(
+      'div',
+      { class: 'body', hidden: true },
+      h('p', { class: 'dim' }, hint),
+      ...sliders,
+      h(
+        'button',
+        {
+          onclick: () => {
+            settings.sound.sources[key] = defaultSoundTune(key)
+            refreshSound()
+          },
+        },
+        'reset',
+      ),
+    )
+    const title = h(
+      'div',
+      {
+        class: 'title',
+        onclick: (e: Event) => {
+          const t = e.target as HTMLElement
+          if (t.tagName === 'INPUT' || t.tagName === 'BUTTON') return
+          body.hidden = !body.hidden
+          el.classList.toggle('open', !body.hidden)
+        },
+      },
+      on,
+      h('span', {}, label),
+      meter,
+      solo,
+      play,
+    )
+    const el = h('div', { class: 'light sound' }, title, body)
+    return {
+      el,
+      refresh() {
+        on.refresh()
+        solo.setAttribute('aria-pressed', String(settings.sound.solo === key))
+        el.classList.toggle('muted', !!settings.sound.solo && settings.sound.solo !== key)
+        ;(meter.firstChild as HTMLElement).style.width = `${Math.min(100, (forest?.soundLevel(key) ?? 0) * 600)}%`
+        if (!body.hidden) for (const s of sliders) s.refresh()
+      },
+    }
+  })
+  const refreshSound = () => soundRows.forEach((r) => r.refresh())
+  tabs.sound.append(
+    h('p', { class: 'dim' }, 'Every source on its own bus. ▶ plays an example; solo hears only that one.'),
+    h(
+      'div',
+      { class: 'row' },
+      h('button', { onclick: () => forest?.toggleSound() }, 'sound on / off'),
+      h(
+        'button',
+        {
+          onclick: () => {
+            settings.sound.solo = null
+            refreshSound()
+          },
+        },
+        'unsolo',
+      ),
+      h(
+        'button',
+        {
+          title: 'stage the current sound tuning as the defaults (data/sound.json)',
+          onclick: () => {
+            DATA.sound = structuredClone(settings.sound.sources) as unknown as typeof DATA.sound
+            edited('sound')
+          },
+        },
+        'save as defaults',
+      ),
+    ),
+    ...soundRows.map((r) => r.el),
+  )
+
   // ---------------------------------------------------------------- changes: staged edits
   // what's on disk, from when the editor opened: what staged edits are compared against
   const baseline = Object.fromEntries(FILES.map((f) => [f, snapshot(f)])) as Record<DataFile, unknown>
@@ -491,6 +626,7 @@ export function mountEditor(): Editor {
                 onclick: () =>
                   discardStaged(f, baseline[f]).then(() => {
                     if (f === 'lights') resetSettings('lights')
+                    if (f === 'sound') settings.sound.sources = soundDefaults()
                     art.refresh()
                     scene.refresh()
                     renderChanges()
@@ -517,6 +653,7 @@ export function mountEditor(): Editor {
     h('nav', { class: 'tabs seg' }, ...tabBtns),
     tabs.inspect,
     tabs.lights,
+    tabs.sound,
     tabs.object,
     tabs.world,
     tabs.art,
@@ -560,7 +697,7 @@ export function mountEditor(): Editor {
       centerArea.replaceChildren(art.center)
       art.refresh()
     } else centerArea.replaceChildren(stage)
-    for (const b of tabBtns) b.hidden = isArt ? ['inspect', 'lights', 'object', 'world'].includes(b.dataset.tab!) : b.dataset.tab === 'art'
+    for (const b of tabBtns) b.hidden = isArt ? ['inspect', 'lights', 'sound', 'object', 'world'].includes(b.dataset.tab!) : b.dataset.tab === 'art'
     showTab(isArt ? 'art' : 'inspect')
   }
   const root = h('div', { class: 'dfe' }, head, left, leftArt, centerArea, right, foot)
@@ -581,6 +718,7 @@ export function mountEditor(): Editor {
     relic.value = forest.relic()
     const all = forest.lights()
     for (const r of lightRows) r.refresh(all)
+    if (!tabs.sound.hidden) refreshSound()
     const st = forest.stats()
     const t = st.timings
     stats.replaceChildren(

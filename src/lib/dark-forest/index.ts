@@ -7,7 +7,7 @@ import { Renderer, type PixelInfo, type Timings } from './renderer'
 import { onArtChange } from './art'
 import { Soundscape } from './audio'
 import { forgetNormals } from './normals'
-import { resetSettings, settings } from './settings'
+import { resetSettings, settings, soundDefaults, type SoundKey } from './settings'
 import { createWorld, dropStick, isRaining, step, toggleRain, type World } from './sim'
 import { rebuildNav } from './sim/nav'
 import { createMush } from './sim/shroomfolk'
@@ -56,8 +56,10 @@ export interface DarkForest {
   /** Sound on or off (call from a click or a key: browsers require it). */
   toggleSound(): void
   setVolume(v: number): void
-  /** How loud it is right now (0..1). */
-  soundLevel(): number
+  /** How loud it is right now (0..1): all of it, or one source. */
+  soundLevel(key?: SoundKey): number
+  /** Play an example of one sound source now (turns sound on). */
+  audition(key: SoundKey): void
   toggleGlow(): void
   toggleDebug(): void
   toggleNormals(): void
@@ -132,6 +134,7 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
     forgetNormals()
     renderer.rebuildStatic()
     if (file === 'lights') resetSettings('lights')
+    if (file === 'sound') settings.sound.sources = soundDefaults()
     if (file === 'layout') rebuildNav()
   })
 
@@ -205,7 +208,7 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
     f()
     changed()
   }
-  return {
+  const api: DarkForest = {
     toggleRain() {
       toggleRain(world) // takes effect on the next tick; the loop reports the change
     },
@@ -218,7 +221,11 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
       settings.sound.volume = v
       sound.setVolume(v)
     },
-    soundLevel: () => sound.level(),
+    soundLevel: (key) => sound.level(key),
+    audition(key) {
+      if (!settings.sound.on) api.toggleSound()
+      sound.audition(key)
+    },
     toggleGlow: toggle(() => (settings.layers.bloom = !settings.layers.bloom)),
     toggleDebug: toggle(() => (settings.overlays.states = !settings.overlays.states)),
     toggleNormals: toggle(() => (settings.layers.normals = !settings.layers.normals)),
@@ -248,4 +255,5 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
       canvas.removeEventListener('pointerdown', onDown)
     },
   }
+  return api
 }

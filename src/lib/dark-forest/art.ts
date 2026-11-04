@@ -1,6 +1,6 @@
 /**
  * The art, live. Sprite and prop art, palettes, parts and light defaults live as JSON in
- * data/ (so the editor saves data, never code). This module loads them, resolves palettes
+ * data/ (so the editor saves data, never code; sound tuning too). This module loads them, resolves palettes
  * into colours, and keeps every object the renderer uses *the same object* the editor edits:
  * changing a row, a colour or a part shows on the next frame.
  *
@@ -11,6 +11,7 @@ import layoutData from './data/layout.json'
 import lightsData from './data/lights.json'
 import paletteData from './data/palette.json'
 import propsData from './data/props.json'
+import soundData from './data/sound.json'
 import spritesData from './data/sprites.json'
 import type { Part, PartKind } from './normals'
 import { hex, type Color } from './util'
@@ -71,6 +72,7 @@ export const DATA = {
   palette: paletteData as Record<keyof typeof paletteData, string>,
   lights: lightsData as Record<string, Record<string, unknown>>,
   layout: layoutData as Layout,
+  sound: soundData as Record<string, Record<string, unknown>>,
 }
 
 const MISSING: Color = [1, 0, 1]
@@ -145,7 +147,7 @@ syncProps()
 // ---------------------------------------------------------------- editing
 
 /** The data files the editor can edit and save (data/<file>.json). */
-export const FILES = ['sprites', 'props', 'palette', 'lights', 'layout'] as const
+export const FILES = ['sprites', 'props', 'palette', 'lights', 'layout', 'sound'] as const
 export type DataFile = (typeof FILES)[number]
 
 const listeners = new Set<(file: DataFile) => void>()
