@@ -208,3 +208,32 @@ Measurements of Freesound 75162 (five caws) against the current synth:
 - **Texture.** The synth's spectrogram shows separate click groups with silent gaps about every 13 ms, ringing two narrow fixed resonances. The reference is a continuous, wobbling harmonic tone with no gaps.
 
 Plot: `~/Projects/dark-forest-moodboard/shots/crow-onset.png` and `crow-f0-narrowband.png`.
+
+### Crow prototypes from the research (offline, not yet in the scene)
+
+A further narrowband check refines the f0 finding above. The energy halfway between the ~700 Hz harmonics is within −5 to +3 dB of the harmonics, and about 7 dB above the floor between them. The caw is therefore _period-doubled_: a ~700 Hz voice with a strong ~350 Hz subharmonic stack, whose lowest component is cut away below ~600 Hz. The old 300–340 Hz clock was close to the subharmonic. What was wrong was its sparse click clusters with silent gaps, not the clock rate alone.
+
+Prototype generator: `~/Projects/dark-forest-moodboard/tools/crow-proto.ts`. Measurement tools: `tools/crow_compare.py` and `tools/debug/crow_bands.py`. The prototype has:
+
+- **Source:** a continuous Farnell `vposc` pulse, `1/(1 + (pw·cos θ)²)` with the mean removed, at f0 ≈ 670–730 Hz. Every other pulse is weakened by 0.65–0.95, producing the subharmonic.
+- **Closure and onset:** the pulse width `pw` (sharpness, so brightness) runs from 5 to 22 and follows the loudness envelope raised to the power 1.5. Attack is ~0.13 s and release ~0.3 s (raised cosine). There is no noise burst, only a little high-passed breath while the closure is incomplete.
+- **Pitch and wobble:** the pitch arches, peaking at about 40% of the call. A linked pitch (±6%) and amplitude (depth 0.95) wobble runs at 55–75 Hz, with a wandering rate and uneven cycle depth, plus 2% per-cycle jitter.
+- **Tract:** a closed–open tube (negative-feedback comb, gain 0.7, loop lowpass 6 kHz) with f1 ≈ 2.05 kHz. The body takes a 12th-order 3.25 kHz Butterworth lowpass and a 4th-order 1.3 kHz highpass. The tube output's third resonance (3·f1) is band-passed (two Q-5 stages) to form the high band.
+- **Variants:** 1 _smooth_: the high band as above. 2 _trill_: the high band's level flickers independently. 3 _rasp_: one 40–90 ms episode of ±2.5-semitone period jitter mid-call (Terrade et al.'s chaos range).
+
+Measured medians, five caws each (reference / current scene crow / prototype 1):
+
+| Measure                          | Reference | Current   | Prototype 1 |
+| -------------------------------- | --------- | --------- | ----------- |
+| Rise, 10–90% (ms)                | 51        | 6         | 54          |
+| First 40 ms ÷ steady             | 0.76      | 1.57      | 0.62        |
+| Onset centroid (Hz)              | 1702      | 3796      | 1741        |
+| Steady centroid (Hz)             | 1931      | 1835      | 1832        |
+| Release (ms)                     | 106       | 31        | 95          |
+| Harmonics − half-harmonics (dB)  | −0.5      | 2.6       | 0.1         |
+| Half-harmonics − floor (dB)      | 6.8       | 4.8       | 7.7         |
+| High band ÷ body (dB)            | −26       | −22       | −23         |
+| High band ÷ 3.6–4.7 kHz gap (dB) | 16        | 8         | 11          |
+| Wobble rate (Hz) / depth         | 65 / 0.39 | 83 / 0.43 | 65 / 0.36   |
+
+The remaining measured differences are a slightly less steep cliff above 3.3 kHz and a main peak 1.66 kHz versus 1.79. Listening sheet: `~/Projects/dark-forest-moodboard/sounds/crow-proto-listening.html`; spectrograms: `shots/crow-prototypes.png`. These measurements do not establish perceptual likeness. The scene still uses the current crow until a prototype is chosen by ear.
