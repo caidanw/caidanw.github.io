@@ -133,20 +133,26 @@ function crow(ctx: BaseAudioContext) {
     }
     at += rnd(0.003, 0.005) // a missing opening: the longer closure makes the group audible
   }
-  const tract = bandpass(rnd(1550, 1750), rnd(12, 16), sr)
-  const upper = bandpass(rnd(2600, 2900), 7, sr)
-  const burst = bandpass(rnd(3200, 4200), 0.85, sr)
+  const chest = bandpass(rnd(700, 950), 1.3, sr)
+  const tract = bandpass(rnd(1550, 1750), rnd(9, 12), sr)
+  const upper = bandpass(rnd(2600, 2900), 4, sr)
+  const burst = bandpass(rnd(2800, 3600), 0.85, sr)
   const air = bandpass(2300, 0.7, sr)
+  const rounding = Math.exp((-TAU * 3900) / sr)
+  let rounded = 0
   let index = 0
   return render(ctx, duration + 0.045, (t) => {
     while (index + 1 < pulses.length && pulses[index + 1].at <= t) index++
     const p = pulses[index]
     const age = t - p.at
-    const pressure = age > 0 && age < p.width ? (1 - Math.exp(-age / 0.00004)) * Math.exp(-age / (p.width * 0.28)) * p.gain : 0
-    const voice = tract(pressure) * 3.2 + upper(pressure) * 2 + pressure * 0.12
+    // Smooth both edges of each opening; the previous hard truncation sounded crushed.
+    const close = Math.min(1, Math.max(0, (p.width - age) / 0.00015))
+    const pressure = age > 0 && age < p.width ? (1 - Math.exp(-age / 0.0001)) * Math.exp(-age / (p.width * 0.32)) * close * p.gain : 0
+    const voice = chest(pressure) * 0.8 + tract(pressure) * 3.2 + upper(pressure) * 1.5 + pressure * 0.025
     const breath = air(Math.random() * 2 - 1) * 0.015
-    const body = (voice + breath) * envelope(t - 0.006, duration - 0.006, 0.008, 0.07)
-    const ka = burst(Math.random() * 2 - 1) * 0.24 * envelope(t, 0.032, 0.002, 0.025)
+    rounded = rounding * rounded + (1 - rounding) * (voice + breath)
+    const body = rounded * envelope(t - 0.006, duration - 0.006, 0.045, 0.018)
+    const ka = burst(Math.random() * 2 - 1) * 0.17 * envelope(t, 0.048, 0.014, 0.025)
     return ka + body
   })
 }
@@ -154,31 +160,43 @@ function crow(ctx: BaseAudioContext) {
 /**
  * Force → near-periodic stick/slip releases → material modes → panel reflections.
  * The source becomes a pitched creak as releases bunch together, not random gravel
- * and not a drawn audio-frequency whistle. Based on the published synthesis approaches
- * in the research notes; this event model is lighter than an elasto-plastic contact solver.
+ * and not a drawn audio-frequency whistle. Motion rate is separate from pressure: a
+ * slow, continuous pull can speed up and strain without becoming two gated bass blips.
+ * This event model is lighter than an elasto-plastic contact solver.
  */
 function door(ctx: BaseAudioContext) {
   const sr = ctx.sampleRate
-  const duration = rnd(1.05, 1.25)
+  const duration = rnd(2.8, 3.3)
   const size = rnd(0.94, 1.06)
-  const wood = [125, 250, 395, 560, 790].map((f, i) => bandpass(f * size, 1.5 + i * 0.4, sr))
-  const hinge = [bandpass(1450 * size, 7, sr), bandpass(3100 * size, 9, sr)]
+  const wood = [175, 370, 620, 910, 1350].map((f, i) => bandpass(f * size, 2 + i * 0.5, sr))
+  const woodGains = [0.08, 0.14, 0.2, 0.3, 0.38]
+  const hinge = [bandpass(1850 * size, 9, sr), bandpass(3400 * size, 11, sr)]
   const panel = [4.7, 6.4, 8.3, 11.7].map((ms) => reflection(ms, sr))
   const force: [number, number][] = [
     [0, 0],
-    [0.05, 0.18],
-    [0.14, 0.82],
-    [0.22, 0.88],
-    [0.265, 0.7],
-    [0.29, 0],
-    [0.38, 0],
-    [0.43, 0.67],
-    [0.58, 0.61],
-    [0.76, 0.32],
-    [0.94, 0.08],
+    [0.06, 0.22],
+    [0.16, 0.72],
+    [0.3, 0.66],
+    [0.39, 0.35],
+    [0.5, 0.58],
+    [0.67, 0.63],
+    [0.83, 0.46],
+    [0.94, 0.2],
     [1, 0],
   ]
-  const smoothing = Math.exp(-1 / (sr * 0.009))
+  const rate: [number, number][] = [
+    [0, 70],
+    [0.09, 160],
+    [0.23, 620],
+    [0.34, 470],
+    [0.42, 210],
+    [0.56, 560],
+    [0.7, 410],
+    [0.84, 240],
+    [0.96, 85],
+    [1, 45],
+  ]
+  const smoothing = Math.exp(-1 / (sr * 0.025))
   let pressure = 0
   let clock = 0
   let lastSlip = 0
@@ -190,19 +208,21 @@ function door(ctx: BaseAudioContext) {
   let nextTarget = 0
   const wobbleSmoothing = Math.exp(-1 / (sr * 0.012))
   return render(ctx, duration + 0.12, (t) => {
-    pressure = smoothing * pressure + (1 - smoothing) * contour(Math.min(1, t / duration), force)
+    const u = Math.min(1, t / duration)
+    pressure = smoothing * pressure + (1 - smoothing) * contour(u, force)
     if (t >= nextTarget) {
-      target = rnd(0.88, 1.12)
-      nextTarget = t + rnd(0.012, 0.025)
+      target = rnd(0.94, 1.06)
+      nextTarget = t + rnd(0.035, 0.07)
     }
     irregularity = wobbleSmoothing * irregularity + (1 - wobbleSmoothing) * target
-    if (pressure > 0.1) {
-      clock += ((25 + 310 * pressure ** 1.3) * irregularity) / sr
+    const slipRate = contour(u, rate) * irregularity
+    if (pressure > 0.08) {
+      clock += slipRate / sr
       if (clock >= 1) {
         clock -= 1
         // Force accumulated while stuck: longer waits produce larger, longer releases.
-        slipGain = Math.min(0.55, Math.sqrt(Math.min(1, (t - lastSlip) / 0.08)))
-        slipLife = 0.001 + 0.007 * Math.sqrt(slipGain)
+        slipGain = Math.min(0.4, Math.sqrt(Math.min(1, (t - lastSlip) / 0.08))) * Math.sqrt(pressure)
+        slipLife = Math.min(0.001 + 0.003 * Math.sqrt(slipGain), 0.72 / slipRate)
         lastSlip = t
         slipAge = 0
       }
@@ -210,9 +230,9 @@ function door(ctx: BaseAudioContext) {
     const pulse = slipAge < slipLife ? slipGain * (1 - slipAge / slipLife) ** 2 * Math.min(1, (slipAge * sr) / 3) : 0
     slipAge += 1 / sr
     let body = 0
-    for (const mode of wood) body += mode(pulse)
-    const edge = hinge[0](pulse) * 0.8 + hinge[1](pulse) * 0.45
-    const material = body * 0.65 + edge + pulse * 0.13
+    for (let i = 0; i < wood.length; i++) body += wood[i](pulse) * woodGains[i]
+    const edge = hinge[0](pulse) * 2.4 + hinge[1](pulse) * 1.5
+    const material = body + edge + pulse * 0.04
     let reflected = 0
     for (const delay of panel) reflected += delay(material)
     return (material * 0.7 + reflected * 0.16) * envelope(t, duration + 0.1, 0.02, 0.15)

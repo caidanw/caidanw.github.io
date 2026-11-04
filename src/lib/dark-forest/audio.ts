@@ -145,7 +145,7 @@ export class Soundscape {
         this.crow(now, 0.4)
         break
       case 'door':
-        hold(1.8 / (T.pitch * 0.97))
+        hold(Math.max(...this.voices.door.map((voice) => voice.duration)) / (T.pitch * 0.97) + 0.1)
         this.door(now, 0, 1)
         break
     }
