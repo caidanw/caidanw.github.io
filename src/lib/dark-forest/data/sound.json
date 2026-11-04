@@ -29,6 +29,12 @@
     "rate": 1,
     "pitch": 1
   },
+  "pool": {
+    "on": true,
+    "gain": 0.65,
+    "rate": 1,
+    "pitch": 1
+  },
   "thunder": {
     "on": true,
     "gain": 0.9,

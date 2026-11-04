@@ -47,7 +47,7 @@ export class Soundscape {
   private last = { fuel: -1, croak: 0, crow: '', doors: [] as boolean[] }
   private heard = new Set<number>()
   private nextCrackle = 0
-  private nextDrip = 0
+  private nextDrop = { drips: 0, pool: 0 }
   private nextCricket = [0, 0.4, 0.9]
   private nextOwl = 20
   private scratch = new Float32Array(512)
@@ -113,9 +113,12 @@ export class Soundscape {
         hold(4, 0.7)
         break
       case 'drips':
-        hold(2.5)
-        for (let at = now; at < now + 2.2; at += wait(25 * 0.6 ** 0.8 * T.rate)) this.drip(at)
+      case 'pool': {
+        const seconds = key === 'pool' ? 4 : 2.2
+        hold(seconds + 0.3)
+        for (let at = now; at < now + seconds; at += wait(this.dropRate(key, 0.6))) this.drip(at, key)
         break
+      }
       case 'thunder':
         hold(7)
         this.thunder(now, 1)
@@ -192,7 +195,7 @@ export class Soundscape {
     this.flamesBed.connect(this.bus.flames)
     this.loop(pink, [this.filter('highpass', 120, 0.6), this.flamesTone], this.flamesBed)
     // Rain: independent, long left/right textures of unresolved impacts. No short shared
-    // noise loop; foreground leaf and pool drops keep a separate bus for editor balancing.
+    // noise loop; leaf taps and pool drips each have their own bus for editor balancing.
     this.drops = rainDrops(ctx)
     for (const [i, pan] of [-0.75, 0.75].entries()) {
       const lp = this.filter('lowpass', 5500, 0.55)
@@ -390,14 +393,18 @@ export class Soundscape {
     }
   }
 
-  /** Nearby drops: usually on leaves, occasionally on the pool, each a little different. */
-  private drip(at: number) {
-    const water = Math.random() < 0.12
+  private dropRate(key: 'drips' | 'pool', rain: number) {
+    // Pool drips stay sparse; the surrounding wash supplies the dense rainfall.
+    return (key === 'pool' ? 2 : 22) * rain ** 0.8 * settings.sound.sources[key].rate
+  }
+
+  /** Independent leaf taps and water drips; the water sounds come from the pool, not the canopy. */
+  private drip(at: number, key: 'drips' | 'pool') {
+    const water = key === 'pool'
     const bank = water ? this.drops.water : this.drops.leaves
-    const [pan, distance] = water ? this.place(POOL.x, 0, POOL.z) : [rnd(-0.95, 0.95), rnd(0.5, 1)]
-    // Many faint taps, fewer close splashes: less extreme than the fire's loudness spread.
-    const gain = (0.015 + 0.48 * Math.random() ** 3) * distance
-    this.grain(bank[(Math.random() * bank.length) | 0], at, gain, this.pitch('drips') * rnd(0.85, 1.15), pan, this.bus.drips)
+    const [pan, distance] = water ? this.place(POOL.x + rnd(-0.65, 0.65) * POOL.rx, 0, POOL.z + rnd(-0.5, 0.5) * POOL.rz) : [rnd(-0.95, 0.95), rnd(0.5, 1)]
+    const gain = (water ? rnd(0.12, 0.24) : 0.015 + 0.48 * Math.random() ** 3) * distance
+    this.grain(bank[(Math.random() * bank.length) | 0], at, gain, this.pitch(key) * rnd(0.85, 1.15), pan, this.bus[key])
   }
 
   /** A long low rumble (with a crack first, if it's close). */
@@ -503,13 +510,15 @@ export class Soundscape {
     if (this.last.fuel >= 0 && w.fire.fuel > this.last.fuel + 0.05) this.logLands(now)
     this.last.fuel = w.fire.fuel
 
-    // ---- rain: drops ticking on the pool and the leaves
-    if (this.nextDrip < now - 0.2) this.nextDrip = now
-    if (rain > 0.001)
-      while (this.nextDrip < now + 0.05) {
-        this.drip(Math.max(now, this.nextDrip))
-        this.nextDrip += wait(25 * rain ** 0.8 * S.drips.rate)
+    // ---- rain: each material has its own clock, rate, pitch and mute/solo bus
+    for (const key of ['drips', 'pool'] as const) {
+      if (this.nextDrop[key] < now - 0.2) this.nextDrop[key] = now
+      if (rain <= 0.001 || (!S[key].on && !held(key))) continue
+      while (this.nextDrop[key] < now + 0.05) {
+        this.drip(Math.max(now, this.nextDrop[key]), key)
+        this.nextDrop[key] += wait(this.dropRate(key, rain))
       }
+    }
     // ---- thunder, when it arrives
     for (const th of w.weather.thunder) {
       if (th.at > w.t || this.heard.has(th.at)) continue

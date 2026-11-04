@@ -54,14 +54,16 @@ export interface LightTune {
 }
 
 /** Every sound source, each on its own bus: on/off, solo, level, how often, pitch or tone. */
-export type SoundKey = 'crackle' | 'flames' | 'log' | 'rain' | 'drips' | 'thunder' | 'wind' | 'frog' | 'crickets' | 'owl' | 'crow' | 'door'
+export type SoundKey = 'crackle' | 'flames' | 'log' | 'rain' | 'drips' | 'pool' | 'thunder' | 'wind' | 'frog' | 'crickets' | 'owl' | 'crow' | 'door'
 
 export const SOUND_SOURCES: { key: SoundKey; label: string; hint: string; rate?: string; pitch: string }[] = [
   { key: 'crackle', label: 'fire crackle', hint: 'clicks and pops, busier the bigger the fire', rate: 'busyness', pitch: 'pitch' },
   { key: 'flames', label: 'flames', hint: 'the soft broadband breath under the crackling', pitch: 'brightness' },
   { key: 'log', label: 'log landing', hint: 'a thump and a burst of crackling when wood goes on', pitch: 'pitch' },
   { key: 'rain', label: 'rain', hint: 'a broad wash of distant rain, denser as the shower builds', pitch: 'brightness' },
-  { key: 'drips', label: 'leaf & pool drops', hint: 'soft nearby leaf taps and splashes; a few drops on the pool', rate: 'how many', pitch: 'pitch' },
+  // Keep the old 'drips' key for leaf taps so existing staged tuning still applies.
+  { key: 'drips', label: 'leaf drops', hint: 'nearby leaf taps and splashes; off by default', rate: 'how many', pitch: 'pitch' },
+  { key: 'pool', label: 'pool drips', hint: 'sparse, soft water drips from the pool, separate from the leaves', rate: 'how often', pitch: 'pitch' },
   { key: 'thunder', label: 'thunder', hint: 'a rumble arriving after each flash', pitch: 'depth' },
   { key: 'wind', label: 'wind', hint: 'in the trees; stronger with cloud and rain', rate: 'gustiness', pitch: 'tone' },
   { key: 'frog', label: 'frog', hint: 'a ribbit when the frog croaks', pitch: 'pitch' },

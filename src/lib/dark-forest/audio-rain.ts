@@ -31,28 +31,25 @@ export interface RainDrops {
   water: AudioBuffer[]
 }
 
-/** Nearby drops: soft leaf taps with splash tails; a small minority on the pool. */
+/** Separate materials: leaves patter; water makes a rounded drip with a short bubble tail. */
 export function rainDrops(ctx: BaseAudioContext): RainDrops {
   return {
-    leaves: Array.from({ length: 64 }, () => drop(ctx, false)),
-    water: Array.from({ length: 16 }, () => drop(ctx, true)),
+    leaves: Array.from({ length: 64 }, () => leafDrop(ctx)),
+    water: Array.from({ length: 32 }, () => poolDrip(ctx)),
   }
 }
 
-function drop(ctx: BaseAudioContext, water: boolean): AudioBuffer {
+function leafDrop(ctx: BaseAudioContext): AudioBuffer {
   const sr = ctx.sampleRate
   const contact = rnd(0.0005, 0.0025)
-  const tail = water ? rnd(0.006, 0.02) : rnd(0.006, 0.025)
+  const tail = rnd(0.006, 0.025)
   const len = Math.round((tail * 6 + 0.008) * sr)
   const buf = ctx.createBuffer(1, len, sr)
   const d = buf.getChannelData(0)
   const body = bandpass(rnd(350, 1400), rnd(0.65, 1.5), sr)
   const spray = bandpass(rnd(1200, 4200), rnd(0.8, 1.6), sr)
-  const bodyGain = water ? 0.12 : rnd(0.08, 0.25)
+  const bodyGain = rnd(0.08, 0.25)
   const splashGain = rnd(0.25, 0.65)
-  const bubbleHz = rnd(1100, 2600)
-  const bubbleTau = rnd(0.004, 0.012)
-  let phase = 0
   let peak = 0
   for (let i = 0; i < len; i++) {
     const t = i / sr
@@ -64,17 +61,43 @@ function drop(ctx: BaseAudioContext, water: boolean): AudioBuffer {
     const attack = 1 - Math.exp(-t / 0.0007)
     const splash = spray(w) * splashGain * attack * Math.exp(-t / tail)
     const leaf = body(hit * 1.5 + w * 0.3 * attack * Math.exp(-t / (tail * 0.5))) * bodyGain
-    // A little entrained-bubble tail on pool drops, not on every drop (no glassy chimes).
-    let bubble = 0
-    if (water && t > 0.003) {
-      const age = t - 0.003
-      phase += (2 * Math.PI * bubbleHz * (1 + 0.18 * (1 - Math.exp(-age / 0.008)))) / sr
-      bubble = Math.sin(phase) * 0.09 * (1 - Math.exp(-age / 0.001)) * Math.exp(-age / bubbleTau)
-    }
-    d[i] = (leaf + splash + bubble) * Math.min(1, (len - 1 - i) / (sr * 0.002))
+    d[i] = (leaf + splash) * Math.min(1, (len - 1 - i) / (sr * 0.002))
     peak = Math.max(peak, Math.abs(d[i]))
   }
   // Comparable peak scale across materials; variation in distance/size comes at playback.
+  for (let i = 0; i < len; i++) d[i] /= Math.max(peak, 0.01)
+  return buf
+}
+
+/**
+ * A water drip: a faint, rounded contact followed by a damp bubble chirp. In the pool
+ * recordings the resonant tail is the identifying cue, not a loud broadband crack.
+ * Inspired by Farnell's bubble/drip envelopes; no cave reverb or metallic ring.
+ */
+function poolDrip(ctx: BaseAudioContext): AudioBuffer {
+  const sr = ctx.sampleRate
+  const size = Math.random()
+  const hz = 2800 - 1400 * size
+  const tau = 0.01 + 0.014 * size
+  const delay = rnd(0.002, 0.005)
+  const rise = rnd(0.12, 0.3)
+  const len = Math.round((delay + tau * 7 + 0.006) * sr)
+  const buf = ctx.createBuffer(1, len, sr)
+  const d = buf.getChannelData(0)
+  const spray = bandpass(rnd(2800, 5500), 0.65, sr)
+  let phase = 0
+  let peak = 0
+  for (let i = 0; i < len; i++) {
+    const t = i / sr
+    const attack = 1 - Math.exp(-t / 0.0008)
+    const contact = spray(Math.random() * 2 - 1) * attack * Math.exp(-t / 0.003) * 0.12
+    const age = Math.max(0, t - delay)
+    phase += (2 * Math.PI * hz * (1 + rise * (1 - Math.exp(-age / 0.012)))) / sr
+    const env = (1 - Math.exp(-age / 0.0015)) * Math.exp(-age / tau)
+    const bubble = (Math.sin(phase) + 0.08 * Math.sin(2 * phase) * Math.exp(-age / 0.008)) * env
+    d[i] = (contact + bubble) * Math.min(1, (len - 1 - i) / (sr * 0.003))
+    peak = Math.max(peak, Math.abs(d[i]))
+  }
   for (let i = 0; i < len; i++) d[i] /= Math.max(peak, 0.01)
   return buf
 }
