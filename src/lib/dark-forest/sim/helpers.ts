@@ -42,8 +42,24 @@ export const countIn = <S extends string>(list: { fsm: Fsm<S> }[], ...states: S[
 export const hutOccupancy = (w: World, hut: number): number => w.mush.filter((m) => m.fsm.state === 'asleep' && m.hut === hut).length
 export const isMoving = (e: Walker): boolean => Math.hypot(e.tx - e.x, e.tz - e.z) > 0.6
 
-/** Shroomfolk states where they are walking somewhere. */
-export const WALKING: MushState[] = ['arriving', 'wander', 'fetch', 'haul', 'feed', 'stoke', 'toHut', 'entering', 'exiting', 'farewell', 'departing', 'wilting']
+/** Shroomfolk states where they are walking somewhere (those that sit once there walk first: tend, visit, keep). */
+export const WALKING: MushState[] = [
+  'arriving',
+  'wander',
+  'fetch',
+  'haul',
+  'feed',
+  'stoke',
+  'toHut',
+  'entering',
+  'exiting',
+  'farewell',
+  'departing',
+  'wilting',
+  'tend',
+  'visit',
+  'keep',
+]
 
 /** Is someone stepping through this hut's door right now? */
 export const doorOpen = (w: World, hut: number): boolean => w.mush.some((m) => m.hut === hut && (m.fsm.state === 'entering' || m.fsm.state === 'exiting'))
