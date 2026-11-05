@@ -11,6 +11,7 @@
 import { logLanding } from './audio-log'
 import { rainDrops, rainWash, type RainDrops } from './audio-rain'
 import { buildVoices, type VoiceBank, type VoiceKey } from './audio-voices'
+import { WindInTrees } from './audio-wind'
 import { doorOpen, isRaining, perchPos, type World } from './sim'
 import { SOUND_SOURCES, settings, type SoundKey } from './settings'
 import { vnoise } from './util'
@@ -43,8 +44,7 @@ export class Soundscape {
   private pending: { at: number; amp: number; pan: number }[] = []
   private rainLanes: GainNode[] = []
   private rainTone: BiquadFilterNode[] = []
-  private windBed!: GainNode
-  private windTone!: BiquadFilterNode
+  private wind!: WindInTrees
   private volume = 0.7
   /** Auditioning: a source plays (even if off or not soloed) until this time, beds at this level. */
   private hold = {} as Partial<Record<SoundKey, { until: number; level: number }>>
@@ -231,12 +231,8 @@ export class Soundscape {
       this.rainLanes.push(g)
       this.loop(rainWash(ctx, 17 + i * 2), [this.filter('highpass', 120, 0.5), lp, p], g)
     }
-    // wind in the trees: deep noise through a slowly wandering band
-    this.windTone = this.filter('bandpass', 420, 0.8)
-    this.windBed = ctx.createGain()
-    this.windBed.gain.value = 0
-    this.windBed.connect(this.bus.wind)
-    this.loop(this.brown, [this.windTone], this.windBed)
+    // wind in the trees: treetop roar and leaf rustle, in gusts that travel (audio-wind.ts)
+    this.wind = new WindInTrees(ctx, this.bus.wind)
     this.voices = buildVoices(ctx)
   }
 
@@ -594,11 +590,7 @@ export class Soundscape {
       lane.gain.setTargetAtTime(0.04 * rainLevel ** 1.2 * variation, now, 0.25)
     })
     for (const f of this.rainTone) f.frequency.setTargetAtTime(clamp(7000 * S.rain.pitch * (0.85 + 0.25 * rainLevel), 800, 18000), now, 0.5)
-    const g = w.t * S.wind.rate
-    const gust = 0.5 + 0.5 * Math.sin(g * 0.13) * Math.sin(g * 0.071 + 1)
-    const windLevel = Math.max(0.15 + 0.5 * cloud + 0.4 * rain, held('wind'))
-    this.windBed.gain.setTargetAtTime(0.2 * windLevel * (0.4 + gust), now, 1.2)
-    this.windTone.frequency.setTargetAtTime((300 + 260 * gust + 200 * rain) * S.wind.pitch, now, 1.5)
+    this.wind.update(now, cloud, rain, S.wind, held('wind'))
 
     // ---- the fire: crackling, busier the bigger it burns (fewer in the rain): ~2/s from
     // embers, ~9/s for a steady fire, ~20/s blazing (counting the follow-ups, which more
