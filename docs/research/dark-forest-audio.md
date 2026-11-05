@@ -316,3 +316,28 @@ Measured with `tools/thunder_measure.py`:
 Far strikes stay dull. Loudest A-weighted second over the heavy-rain bed: about +12 dB at 0.7 and 1.5 km, +5.5 dB at 3 km and +2.3 dB at 5 km (it varies a few dB between strikes).
 
 `tools/sound_render.ts … sim=1 storm=1` renders a storm with real strikes and logs their distances. Listening sheet: `~/Projects/dark-forest-moodboard/sounds/thunder-listening.html`. Awaiting operator review.
+
+### Thunder revision: no dropouts
+
+Operator review: the new thunder sounded worse, with "lots of blips and spikes that don't make any sense… like the audio is cutting out on a bad connection".
+
+Measured cause: brief dips in the clearly audible 300–1500 Hz band, ≥12 dB below the local 150 ms median and recovering within 60 ms (`tools/debug/thunder_dropouts.py`). The references have about 0/s, with 2.5–4 dB of mid-band fluctuation. The new thunder had 0.4–1.5/s and 3.5–4.7 dB. The causes were the flutter envelope (steps every 5–65 ms to targets as low as 0.15, smoothed over only 4 ms) and the very short (20 ms, 2 ms attack) crack bursts. (A plain 5 ms envelope-jump count did not separate them: low-frequency noise is equally jumpy in the references.)
+
+Changes:
+
+- **Flutter:** targets `0.6 + 1.1·r²` (mean-normalised), held for 30–200 ms, smoothed over 15 ms.
+- **Crack:** 3–5 overlapping bursts of 0.25–0.8 s, with 6–15 ms attacks, at 0.4–2.5 kHz and 0.6·near^1.5. This reads as one tearing crack.
+- **Distance lowpass:** capped at `500 + 4000·near²`. Close strikes had 13% of their early energy above 3 kHz, where the references have ≤0.1%.
+- **Strike gain:** `1.6/(1 + 0.25·(d − 0.5))`, restoring the loudness lost with the brighter crack.
+
+Results:
+
+| Measure              | Revised thunder                                        | References          |
+| -------------------- | ------------------------------------------------------ | ------------------- |
+| Dropouts             | 0/s at all distances, in the storm mix and in previews | about 0/s           |
+| Mid-band fluctuation | 1.6–2.2 dB                                             | 2.5–4 dB            |
+| Roll depth           | 6.3–6.6 dB                                             | 6–10 dB             |
+| Fade to −30 dB       | 5.5–6.8 s                                              | typically about 6 s |
+| Bands                | within range                                           |                     |
+
+Loudest A-weighted second over heavy rain: +14 dB at 0.7 and 1.5 km, +7 dB at 3 km, +3 dB at 5 km. Peaks are at most about 0.6 in the full mix.

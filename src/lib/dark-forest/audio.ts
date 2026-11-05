@@ -30,7 +30,7 @@ export class Soundscape {
   private meters = {} as Record<SoundKey, AnalyserNode>
   private white!: AudioBuffer
   private brown!: AudioBuffer
-  /** A positive, spiky random envelope (mean 1) that steps every few ms, for thunder's churning roll. */
+  /** A gentle random envelope (mean 1) that wanders every 30–200 ms, for thunder's churning roll. */
   private flutter!: AudioBuffer
   /** Crackle grains, quietest to loudest: a snap, then a noisy fizz (see buildCrackles). */
   private crackles: AudioBuffer[] = []
@@ -190,15 +190,16 @@ export class Soundscape {
     }
     this.flutter = ctx.createBuffer(1, ctx.sampleRate * 4, ctx.sampleRate)
     const fd = this.flutter.getChannelData(0)
-    const smooth = Math.exp(-1 / (ctx.sampleRate * 0.004))
+    const smooth = Math.exp(-1 / (ctx.sampleRate * 0.015))
     let level = 1
     let target = 1
     let next = 0
     let sum = 0
     for (let i = 0; i < fd.length; i++) {
       if (i >= next) {
-        target = 0.15 + 2.5 * Math.random() ** 3 // mostly low, now and then a spike
-        next = i + ctx.sampleRate * (0.005 + 0.06 * Math.random() ** 2)
+        // gentle and slow: deep, fast dips sounded like a connection dropping out
+        target = 0.6 + 1.1 * Math.random() ** 2
+        next = i + ctx.sampleRate * rnd(0.03, 0.2)
       }
       level = smooth * level + (1 - smooth) * target
       sum += fd[i] = level
@@ -444,17 +445,16 @@ export class Soundscape {
     const len = rnd(10, 14) + 4 * (1 - near)
     // distance: quieter and duller (air and ground absorb the highs first)
     const strike = ctx.createGain()
-    strike.gain.value = 1 / (1 + 0.3 * (distance - 0.5))
-    const muffle = this.filter('lowpass', (500 + 9000 * near ** 2) * deep, 0.7)
+    strike.gain.value = 1.6 / (1 + 0.25 * (distance - 0.5))
+    const muffle = this.filter('lowpass', (500 + 4000 * near ** 2) * deep, 0.7)
     strike.connect(muffle).connect(this.bus.thunder)
     const side = (spread: number) => clamp(pan + rnd(-spread, spread), -1, 1)
     const mid = 0.4 + 0.6 * near // near thunder keeps more of its audible mid band
-    // the strike: a tearing pattern of noise bursts over the first second or two, only when it's close
+    // the strike: a few overlapping tearing bursts that read as one crack, only when it's close
     if (near > 0.55) {
-      for (let t = 0, i = 0, n = 5 + ((Math.random() * 6) | 0); i < n; i++, t += rnd(0.02, 0.1) + 0.25 * Math.random() ** 3) {
-        const tear = clamp((Math.random() + 0.4) ** 5 * 0.2, 0.02, 0.6)
-        const gain = 1.6 * near ** 1.5 * (i === 0 ? 1 : rnd(0.25, 0.8))
-        this.burst(at + t, tear, (500 + 4500 * Math.random()) * deep, 1.2, gain, side(0.15), 'bandpass', this.white, strike, 0.002)
+      for (let t = 0, i = 0, n = 3 + ((Math.random() * 3) | 0); i < n; i++, t += rnd(0.04, 0.2)) {
+        const gain = 0.6 * near ** 1.5 * (i === 0 ? 1 : rnd(0.4, 0.8))
+        this.burst(at + t, rnd(0.25, 0.8), (400 + 2100 * Math.random()) * deep, 1, gain, side(0.15), 'bandpass', this.white, strike, rnd(0.006, 0.015))
       }
     }
     // the main peal: builds for ~0.3 s as the nearest parts of the channel arrive, then rolls on
