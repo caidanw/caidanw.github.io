@@ -101,9 +101,14 @@ const play = icon(['#.....', '###...', '#####.', '######', '######', '#####.', '
     --line: 24px;
   }
 
-  /* the top bar and the story line up with the scene: the same width, centred above and below
-     it (--scene-w is measured from the canvas); where the scene fills the screen, keep a margin */
-  .bar,
+  /* the top bar and the story line up with the scene (--scene-w is measured from the canvas);
+     where the scene fills the screen, keep a margin. The top bar's background runs the full width
+     and its padding lines its contents up; the story is a column the width of the scene. */
+  .bar {
+    box-sizing: border-box;
+    padding-inline: max(0.9rem, calc((100% - var(--scene-w, 100%)) / 2));
+  }
+
   .story {
     box-sizing: border-box;
     width: min(100%, var(--scene-w, 100%));
