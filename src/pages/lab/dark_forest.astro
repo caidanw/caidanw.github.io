@@ -101,6 +101,16 @@ const play = icon(['#.....', '###...', '#####.', '######', '######', '#####.', '
     --line: 24px;
   }
 
+  /* the top bar and the story line up with the scene: the same width, centred above and below
+     it (--scene-w is measured from the canvas); where the scene fills the screen, keep a margin */
+  .bar,
+  .story {
+    box-sizing: border-box;
+    width: min(100%, var(--scene-w, 100%));
+    margin-inline: auto;
+    padding-inline: max(0px, calc(0.9rem - (100% - var(--scene-w, 100%)) / 2));
+  }
+
   .bar {
     display: flex;
     flex-wrap: wrap;
@@ -108,7 +118,7 @@ const play = icon(['#.....', '###...', '#####.', '######', '######', '#####.', '
     justify-content: space-between;
     gap: 0.5rem 1rem;
     /* room above the controls, so reaching for them doesn't catch the header's logo */
-    padding: 1.1rem 0.9rem 0.5rem;
+    padding-block: 1.1rem 0.5rem;
     background: linear-gradient(var(--ink), #000);
     color: var(--parchment-dim);
   }
@@ -133,8 +143,8 @@ const play = icon(['#.....', '###...', '#####.', '######', '######', '#####.', '
      fade away (a mask, so it works however the lines wrap) */
   .story {
     list-style: none;
-    margin: 0;
-    padding: 0.5rem 0.9rem 0.75rem;
+    margin-block: 0;
+    padding-block: 0.5rem 0.75rem;
     height: calc(var(--line) * 5 + 1.25rem);
     overflow: hidden;
     position: relative;
@@ -422,6 +432,8 @@ const play = icon(['#.....', '###...', '#####.', '######', '######', '#####.', '
     onInspect: () => editor?.refresh(),
   })
   sync(forest.state())
+  // the bars line up with the scene, whatever size it fits to
+  new ResizeObserver(() => document.getElementById('app')!.style.setProperty('--scene-w', `${canvas.getBoundingClientRect().width}px`)).observe(canvas)
   editor?.attach(forest)
   if (params.has('debug') || editing) Object.assign(window, { forest }) // poke at it from the console
 
