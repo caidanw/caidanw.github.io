@@ -214,7 +214,7 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
     },
     toggleSound: toggle(() => {
       settings.sound.on = !settings.sound.on
-      if (settings.sound.on) sound.start()
+      if (settings.sound.on && !settings.paused) sound.start()
       else sound.stop()
     }),
     setVolume(v) {
@@ -229,7 +229,15 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
     toggleGlow: toggle(() => (settings.layers.bloom = !settings.layers.bloom)),
     toggleDebug: toggle(() => (settings.overlays.states = !settings.overlays.states)),
     toggleNormals: toggle(() => (settings.layers.normals = !settings.layers.normals)),
-    togglePause: toggle(() => (settings.paused = !settings.paused)),
+    togglePause: toggle(() => {
+      settings.paused = !settings.paused
+      // a paused world is a silent one: the audio is suspended with it, so every scheduled
+      // sound freezes where it is and carries on when it resumes
+      if (settings.sound.on) {
+        if (settings.paused) sound.stop()
+        else sound.start()
+      }
+    }),
     state,
     inspect: () => world,
     hovering: () => renderer.hovered,

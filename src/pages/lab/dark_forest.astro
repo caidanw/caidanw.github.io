@@ -1,5 +1,16 @@
 ---
 import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
+
+/** Pixel icons, drawn as grids ('#' is a pixel) and scaled up with crisp edges. */
+const icon = (rows: string[]) => ({
+  w: rows[0].length,
+  h: rows.length,
+  px: rows.flatMap((row, y) => [...row].flatMap((c, x) => (c === '#' ? [{ x, y }] : []))),
+})
+const speakerOn = icon(['....#.....', '...##..#..', '#####...#.', '#####.#..#', '#####.#..#', '#####...#.', '...##..#..', '....#.....'])
+const speakerOff = icon(['....#.....', '...##.....', '#####.#..#', '#####..##.', '#####..##.', '#####.#..#', '...##.....', '....#.....'])
+const pause = icon(['##..##', '##..##', '##..##', '##..##', '##..##', '##..##', '##..##', '##..##'])
+const play = icon(['#.....', '###...', '#####.', '######', '######', '#####.', '###...', '#.....'])
 ---
 
 <BreadcrumbLayout title="Dark Forest" description="A small firelit clearing with a primitive simulation." noindex>
@@ -12,24 +23,33 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
       <p class="story" aria-live="polite">
         <span id="story">hover to learn names · click the ground to drop a stick</span>
       </p>
-      <div class="toggles">
-        <button type="button" data-toggle="sound" aria-pressed="false">
-          <kbd>S</kbd> sound
-        </button>
-        <button type="button" data-toggle="rain" aria-pressed="false">
-          <kbd>R</kbd> rain
-        </button>
-        <button type="button" data-toggle="glow" aria-pressed="true">
-          <kbd>G</kbd> glow
-        </button>
-        <button type="button" data-toggle="normals" aria-pressed="true">
-          <kbd>N</kbd> normals
-        </button>
-        <button type="button" data-toggle="debug" aria-pressed="false">
-          <kbd>D</kbd> debug
-        </button>
-        <button type="button" data-toggle="paused" aria-pressed="false">
-          <kbd>␣</kbd> pause
+      <div class="controls">
+        <div class="sound">
+          <button type="button" class="control" data-toggle="sound" aria-pressed="false" aria-label="Sound" title="Sound (S)">
+            {[
+              ['on', speakerOn],
+              ['off', speakerOff],
+            ].map(([state, i]) => (
+              <svg class={`icon ${state}`} viewBox={`0 0 ${i.w} ${i.h}`} width={i.w * 2} height={i.h * 2} shape-rendering="crispEdges" aria-hidden="true">
+                {i.px.map((p) => (
+                  <rect x={p.x} y={p.y} width="1" height="1" />
+                ))}
+              </svg>
+            ))}
+          </button>
+          <input id="volume" type="range" min="0" max="1" step="0.05" value="0.7" aria-label="Volume" title="Volume" />
+        </div>
+        <button type="button" class="control" data-toggle="paused" aria-pressed="false" aria-label="Pause" title="Pause (space)">
+          {[
+            ['playing', pause],
+            ['paused', play],
+          ].map(([state, i]) => (
+            <svg class={`icon ${state}`} viewBox={`0 0 ${i.w} ${i.h}`} width={i.w * 2} height={i.h * 2} shape-rendering="crispEdges" aria-hidden="true">
+              {i.px.map((p) => (
+                <rect x={p.x} y={p.y} width="1" height="1" />
+              ))}
+            </svg>
+          ))}
         </button>
       </div>
     </div>
@@ -37,6 +57,14 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
 </BreadcrumbLayout>
 
 <style>
+  /* MEKZANTINE (alpha v1), a pixel font by Michael Alexander (MEK.txt), © 2026, self-hosted with
+     permission. One font pixel is 45 of its 800 units, so it is pixel-perfect at 800/45 ≈ 17.78px. */
+  @font-face {
+    font-family: 'Mekzantine';
+    src: url('/fonts/mekzantine-alpha-v1.woff2') format('woff2');
+    font-display: block;
+  }
+
   #app {
     position: relative;
     width: 100dvw;
@@ -62,56 +90,184 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     touch-action: manipulation;
   }
 
+  /* firelit: warm ink, carved wood edges, parchment text, an ember glow */
   .bar {
+    --ink: #0d0907;
+    --wood: #3a281b;
+    --wood-lit: #7a4423;
+    --parchment: #e6d3ad;
+    --parchment-dim: #8f7d63;
+    --ember: #f08a3c;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem 1rem;
-    padding: 0.5rem 0.75rem;
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
-    color: var(--theme-text-dim);
+    padding: 0.6rem 0.9rem;
+    background: linear-gradient(#000, var(--ink));
+    color: var(--parchment-dim);
   }
 
   .story {
     margin: 0;
     min-width: 0;
-    flex: 1;
+    /* on narrow screens the story takes its own line and the controls sit under it, on the right */
+    flex: 1 1 20rem;
+    font-family: 'Mekzantine', var(--font-mono);
+    font-size: calc(800px / 45);
+    line-height: 24px;
   }
 
   #story {
     display: inline-block;
-    transition: opacity 0.8s ease;
+    transition:
+      opacity 0.8s ease,
+      color 2s ease;
   }
 
   #story.fresh {
-    color: var(--theme-text-subtle);
+    color: var(--parchment);
   }
 
-  .toggles {
+  .controls,
+  .sound {
     display: flex;
-    gap: 0.4rem;
+    align-items: center;
+    gap: 0.75rem;
   }
 
-  button {
-    font: inherit;
-    color: var(--theme-text-subtle);
-    background: transparent;
-    border: 1px solid var(--theme-border);
-    border-radius: 0.25rem;
-    padding: 0.2rem 0.5rem;
+  .controls {
+    margin-left: auto;
+  }
+
+  .sound {
+    gap: 0.6rem;
+  }
+
+  /* pixel buttons: a two-pixel carved edge with notched corners (no border-radius) */
+  .control {
+    --edge: var(--wood);
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 32px;
+    margin: 2px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: #150e0a;
+    color: var(--parchment-dim);
     cursor: pointer;
+    box-shadow:
+      0 -2px 0 var(--edge),
+      0 2px 0 var(--edge),
+      -2px 0 0 var(--edge),
+      2px 0 0 var(--edge),
+      inset 0 2px 0 rgb(255 255 255 / 0.05),
+      inset 0 -2px 0 rgb(0 0 0 / 0.45);
+    transition:
+      color 0.2s ease,
+      box-shadow 0.2s ease,
+      filter 0.3s ease;
   }
 
-  button[aria-pressed='true'] {
-    color: #f08a3c;
-    border-color: color-mix(in srgb, #f08a3c 60%, transparent);
+  .control:hover {
+    --edge: var(--wood-lit);
+    color: #ffcf8e;
+    filter: drop-shadow(0 0 6px rgb(240 138 60 / 0.35));
   }
 
-  kbd {
-    font: inherit;
-    opacity: 0.6;
+  .control:active {
+    translate: 0 1px;
+  }
+
+  .control:focus-visible,
+  #volume:focus-visible {
+    outline: 2px dashed var(--ember);
+    outline-offset: 4px;
+  }
+
+  .control[data-toggle='sound'][aria-pressed='true'] {
+    --edge: #8a4b22;
+    color: #f4a259;
+    filter: drop-shadow(0 0 5px rgb(240 138 60 / 0.3));
+  }
+
+  .icon {
+    display: none;
+    fill: currentColor;
+  }
+
+  [data-toggle='sound'][aria-pressed='true'] .on,
+  [data-toggle='sound'][aria-pressed='false'] .off,
+  [data-toggle='paused'][aria-pressed='false'] .playing,
+  [data-toggle='paused'][aria-pressed='true'] .paused {
+    display: block;
+  }
+
+  /* the volume: an ember-filled groove and a small parchment block */
+  #volume {
+    --fill: 70%;
+    appearance: none;
+    width: 76px;
+    height: 18px;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+    transition: opacity 0.3s ease;
+  }
+
+  .sound[data-on='false'] #volume {
+    opacity: 0.45;
+  }
+
+  #volume::-webkit-slider-runnable-track {
+    height: 4px;
+    background: linear-gradient(to right, #c8692e var(--fill), #2b1d14 var(--fill));
+    box-shadow: 0 0 0 2px #150e0a;
+  }
+
+  #volume::-moz-range-track {
+    height: 4px;
+    background: #2b1d14;
+    box-shadow: 0 0 0 2px #150e0a;
+  }
+
+  #volume::-moz-range-progress {
+    height: 4px;
+    background: #c8692e;
+  }
+
+  #volume::-webkit-slider-thumb {
+    appearance: none;
+    width: 8px;
+    height: 14px;
+    margin-top: -5px;
+    border: 0;
+    border-radius: 0;
+    background: var(--parchment);
+    box-shadow:
+      0 -2px 0 var(--wood),
+      0 2px 0 var(--wood),
+      -2px 0 0 var(--wood),
+      2px 0 0 var(--wood);
+  }
+
+  #volume::-moz-range-thumb {
+    width: 8px;
+    height: 14px;
+    border: 0;
+    border-radius: 0;
+    background: var(--parchment);
+    box-shadow:
+      0 -2px 0 var(--wood),
+      0 2px 0 var(--wood),
+      -2px 0 0 var(--wood),
+      2px 0 0 var(--wood);
+  }
+
+  #volume:hover::-webkit-slider-thumb {
+    background: #ffcf8e;
   }
 </style>
 
@@ -148,8 +304,13 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     }, 400)
   }
 
+  const pauseButton = document.querySelector<HTMLButtonElement>('[data-toggle=paused]')!
+  const soundGroup = document.querySelector<HTMLElement>('.sound')!
   const sync = (s: DarkForestState) => {
     for (const b of buttons) b.setAttribute('aria-pressed', String(s[b.dataset.toggle as keyof DarkForestState]))
+    pauseButton.setAttribute('aria-label', s.paused ? 'Play' : 'Pause')
+    pauseButton.title = s.paused ? 'Play (space)' : 'Pause (space)'
+    soundGroup.dataset.on = String(s.sound)
   }
 
   // #edit on localhost: the editor's chrome goes around a smaller scene (loaded only then)
@@ -177,13 +338,26 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
   editor?.attach(forest)
   if (params.has('debug') || editing) Object.assign(window, { forest }) // poke at it from the console
 
+  // the volume, remembered between visits; moving it turns the sound on
+  const volume = document.getElementById('volume') as HTMLInputElement
+  const showVolume = () => volume.style.setProperty('--fill', `${Number(volume.value) * 100}%`)
+  volume.value = localStorage.getItem('dark-forest:volume') ?? volume.value
+  forest.setVolume(Number(volume.value))
+  showVolume()
+  volume.addEventListener('input', () => {
+    forest.setVolume(Number(volume.value))
+    localStorage.setItem('dark-forest:volume', volume.value)
+    showVolume()
+    if (!forest.state().sound && Number(volume.value) > 0) forest.toggleSound()
+  })
+
   const actions: Record<string, () => void> = {
     sound: forest.toggleSound,
+    paused: forest.togglePause,
     rain: forest.toggleRain,
     glow: forest.toggleGlow,
     debug: forest.toggleDebug,
     normals: forest.toggleNormals,
-    paused: forest.togglePause,
   }
   for (const b of buttons) {
     b.addEventListener('click', () => {
@@ -192,7 +366,9 @@ import BreadcrumbLayout from '../../layouts/BreadcrumbLayout.astro'
     })
   }
 
-  const keys: Record<string, string> = { s: 'sound', r: 'rain', g: 'glow', d: 'debug', n: 'normals', ' ': 'paused' }
+  // S and space for everyone; the rendering switches only when debugging or editing
+  const keys: Record<string, string> = { s: 'sound', ' ': 'paused' }
+  if (params.has('debug') || editing) Object.assign(keys, { r: 'rain', g: 'glow', d: 'debug', n: 'normals' })
   addEventListener('keydown', (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey) return
     const action = keys[e.key.toLowerCase()]
