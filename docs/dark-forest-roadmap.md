@@ -8,7 +8,8 @@ Ideas and open work for `/lab/dark_forest`, roughly in priority order. Research 
 
 ## Smoothness
 
-- **Storm stutter.** Every 0.035 rise in `w.poolLevel` during rain (about every 3.5 s at full rain) calls `renderer.buildStatic()`, which rebuilds the whole static layer: sky, all foliage, static shadow maps and reflections. That is a 74–109 ms main-thread stall (4–6 dropped frames); profiled in Chrome, it has nothing to do with sound. Fix: update only the pool's region (the ground and reflections inside its bounding box) when the level changes, and/or spread the work over frames. The nav mesh rebuild on `poolLevel` steps of 0.03 (`sim/index.ts`) has the same shape; check its cost too.
+- ~~**Storm stutter.**~~ Fixed: the rising pool used to rebuild the whole static layer (74–117 ms stalls every few seconds of rain). Reflections are now baked for the fullest pool once, a level change recolours only the pool's region (under 1 ms), and the edge tufts, reeds and lily pads are drawn per frame. Pixel-identical to before at every level; the worst frame while raining is now about 17 ms.
+
 - **Headroom.** Steady frames take about 5 ms on a fast desktop (18 cores, a 1× display). Measure with Chrome's CPU throttling (4×), on a high-DPI laptop and on a phone.
 - **Sound's one-off costs.** About 4–8 ms on the main thread per log landing and per close thunder crack, from rendering their buffers. They are fine for now; they could move to idle time or an AudioWorklet if they ever show up.
 - **GPU uploads.** Static planar buffers are re-uploaded every frame; upload them only when they change.

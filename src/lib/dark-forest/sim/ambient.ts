@@ -3,7 +3,7 @@
  * decisions to make. They read entity state but don't need a machine.
  */
 import { clamp, rand, vnoise } from '../util'
-import { H, HORIZON, PROPS, RES, W, inPool, project } from '../world'
+import { H, HORIZON, POOL_MAX, PROPS, RES, W, inPool, project } from '../world'
 import { NOTE_LIFE, burst, isRaining, lightRadius, rainAmount, stickSpot } from './helpers'
 import type { World } from './types'
 
@@ -13,7 +13,7 @@ export function stepAmbient(w: World, dt: number, isOpenWater: (sx: number, sy: 
 
   // the trigon stone's rune wakes in the rain; the pool rises with it (faster the harder it rains) and sinks slowly after
   w.rune = clamp(w.rune + dt * (raining ? 0.25 : -0.03))
-  w.poolLevel = Math.max(1, Math.min(1.28, w.poolLevel + dt * (rain > 0.05 ? 0.01 * rain : -0.0025)))
+  w.poolLevel = Math.max(1, Math.min(POOL_MAX, w.poolLevel + dt * (rain > 0.05 ? 0.01 * rain : -0.0025)))
 
   // the grove candles burn down
   for (const c of w.candles) {

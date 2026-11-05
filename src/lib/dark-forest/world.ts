@@ -53,6 +53,8 @@ export const poolMetric = (x: number, z: number): number => {
   const b = (z - POOL.z) / POOL.rz
   return a * a + b * b - (vnoise(x * 0.15, z * 0.15) - 0.5) * 0.35
 }
+/** How high the pool can rise in rain (its level is 1 when dry). */
+export const POOL_MAX = 1.28
 /** Is (x, z) under water when the pool is at `level` (1 = normal, grows in rain)? */
 export const inPool = (x: number, z: number, level: number): boolean => poolMetric(x, z) < level * level
 

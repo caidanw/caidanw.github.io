@@ -65,6 +65,8 @@ import {
   TUFTS,
   W,
   inPool,
+  POOL_MAX,
+  poolMetric,
   mistAt,
   project,
   unproject,
@@ -504,6 +506,13 @@ const LANTERN_PANES: [number, number, string][] = LANTERN_POST.rows.flatMap((row
 )
 
 /** A tiny z, drifting up from a sleeping hut's chimney. */
+/**
+ * The little things at the pool's edge that the rising water swallows (or, lily pads, that only
+ * float on it): drawn every frame for the current level, so the static layer needn't change.
+ */
+const EDGE_TUFTS = TUFTS.filter((t) => inPool(t.x, t.z, POOL_MAX * 1.2))
+const EDGE_REEDS = REEDS.filter((r) => inPool(r.x, r.z, POOL_MAX * 0.98))
+
 /** How many pixels a shroomfolk is off the ground: dancers hop in time, a singer bobs gently, and everyone skips a little in the rain. */
 function mushHop(st: string, moving: boolean, t: number, id: number, raining: boolean): number {
   if (st === 'dance') return Math.sin(t * 6 * Math.PI + id * 10) > 0 ? 1 : 0
@@ -701,7 +710,15 @@ export class Renderer {
   private fxC = document.createElement('canvas')
   private fxX: CanvasRenderingContext2D
   private fxImg: ImageData
-  private bakedLevel = -1
+  /** Whether the static layer is built (false: rebuild it next frame). */
+  private baked = false
+  /** The pool level the static layer is coloured for (it rises and falls with the rain). */
+  private poolLevel = -1
+  /**
+   * The ground pixels the pool can ever reach, shore included: their pool metric, whether
+   * something stands over them, and their dry colour. Changing the level recolours only these.
+   */
+  private poolZone = { idx: new Int32Array(0), metric: new Float32Array(0), covered: new Uint8Array(0), dry: new Float32Array(0) }
   /** Region id stamped on static pixels while building (0 = none). */
   private region = 0
   /** Hover tag stamped on everything drawn while it's set (see tagged()). */
@@ -757,7 +774,8 @@ export class Renderer {
 
   render(w: World) {
     const t0 = performance.now()
-    if (Math.abs(w.poolLevel - this.bakedLevel) > 0.035) this.buildStatic(w.poolLevel)
+    if (!this.baked) this.buildStatic()
+    if (Math.abs(w.poolLevel - this.poolLevel) > 0.004) this.fillPool(w.poolLevel)
     this.drawDynamic(w)
     this.resolveFx()
     const t1 = performance.now()
@@ -780,7 +798,7 @@ export class Renderer {
 
   /** Rebuild the static layer (after editing what's in it). */
   rebuildStatic() {
-    this.bakedLevel = -1
+    this.baked = false
   }
 
   // ---------------------------------------------------------------- drawing primitives
@@ -1004,10 +1022,9 @@ export class Renderer {
 
   // ---------------------------------------------------------------- static layer
 
-  private groundCol(x: number, z: number, lvl: number): Color {
+  /** The dry ground's colour (fillPool() puts the water and its shore over it). */
+  private groundCol(x: number, z: number): Color {
     const d = Math.hypot(x, z)
-    if (inPool(x, z, lvl)) return C.water
-    if (inPool(x, z, lvl * 1.16)) return C.shore
     const n = vnoise(x * 0.07, z * 0.09)
     const n2 = vnoise(x * 0.4 + 9, z * 0.4)
     let c = mix(C.grassA, C.grassB, n)
@@ -1638,11 +1655,12 @@ export class Renderer {
     }
   }
 
-  private buildStatic(lvl: number) {
+  private buildStatic() {
     const B = this.st
     const ridgeFar = C.ridgeFar
     const ridgeMid = C.ridgeMid
-    this.bakedLevel = lvl
+    this.baked = true
+    this.poolLevel = -1 // recolour the pool after
     for (const k in B) (B[k as keyof Buf] as Float32Array).fill(0)
     B.dep.fill(SKY_DEPTH)
     B.rdep.fill(SKY_DEPTH)
@@ -1704,7 +1722,7 @@ export class Renderer {
       for (let x = 0; x < W; x++) {
         const i = y * W + x
         const [gx, gz] = unproject(x, y)!
-        const c = this.groundCol(gx, gz, lvl)
+        const c = this.groundCol(gx, gz)
         B.r[i] = c[0]
         B.g[i] = c[1]
         B.b[i] = c[2]
@@ -1713,23 +1731,10 @@ export class Renderer {
         B.kz[i] = gz
         B.ky[i] = 0
         B.dep[i] = GROUND_DEPTH
-        if (inPool(gx, gz, lvl)) B.pool[i] = 1
+        // reflections are baked into everywhere the pool can ever reach; fillPool() then marks
+        // just what's under water at the moment
+        if (inPool(gx, gz, POOL_MAX)) B.pool[i] = 1
       }
-    }
-    // lily pads lie flat on the water: they block reflections and cast none
-    for (const [x, z] of PADS) {
-      if (!inPool(x, z, lvl)) continue
-      const [sx, sy] = project(x, 0, z)
-      disc(
-        (px, py, u, v) => {
-          if (u > 0.25 && Math.abs(v) < 0.5) return // the notch
-          this.put(B, px, py, v > 0.5 || u > 0.8 ? C.frogD : C.pad, x, z, 0.2, sy, z - 0.3, true)
-        },
-        sx,
-        sy - 1,
-        5,
-        2,
-      )
     }
     // everything that stands up, back to front
     const statics: { z: number; draw: () => void }[] = [
@@ -1748,32 +1753,8 @@ export class Renderer {
     for (const s of statics.sort((a, b) => a.z - b.z)) s.draw()
     // small things without normals of their own
     this.region = 0
-    for (const t of TUFTS) {
-      if (inPool(t.x, t.z, lvl * 1.2)) continue
-      const [sx, sy] = project(t.x, 0, t.z)
-      for (let k = 0; k < t.n; k++) {
-        const hgt = 1 + (((t.s * 7 + k) % 3) | 0)
-        for (let j = 0; j < hgt * RES; j++) this.put(B, sx + (k * 2 - t.n) * RES, sy - j, C.tuft, t.x, t.z, j / RES, sy, t.z)
-      }
-      if (t.flower) {
-        for (let j = 0; j < 5; j++) this.put(B, sx, sy - j, C.tuft, t.x, t.z, j / RES, sy, t.z)
-        for (const [dx, dy] of [
-          [0, -7],
-          [-1, -6],
-          [1, -6],
-          [0, -5],
-        ])
-          this.put(B, sx + dx, sy + dy, C.flower, t.x, t.z, 3, sy, t.z)
-      }
-    }
-    for (const rd of REEDS) {
-      if (inPool(rd.x, rd.z, lvl * 0.98)) continue
-      const [sx, sy] = project(rd.x, 0, rd.z)
-      for (let j = 0; j < rd.h * RES; j++) this.put(B, sx, sy - j, j >= (rd.h - 1) * RES ? C.reedHi : C.reed, rd.x, rd.z, j / RES, sy, rd.z)
-      if (rd.s < 0.4) {
-        for (let j = 1; j <= 5; j++) for (let k = 0; k < 2; k++) this.put(B, sx + k, sy - rd.h * RES + j, C.cattail, rd.x, rd.z, rd.h, sy, rd.z)
-      }
-    }
+    for (const t of TUFTS) if (!EDGE_TUFTS.includes(t)) this.drawTuft(B, t)
+    for (const rd of REEDS) if (!EDGE_REEDS.includes(rd)) this.drawReed(B, rd)
     // Normals for every static object. Most props were drawn from primitives that know their
     // own shape normal; anything that wasn't gets one from the relief generator (normals.ts).
     // Then the material layer bakes micro detail (grain, pits, grooves, carvings) on top.
@@ -1795,6 +1776,102 @@ export class Renderer {
       B.nz[i] = rz[i]
     }
     bakeMicroDetail(B)
+    this.findPoolZone()
+  }
+
+  /** A tuft of grass, now and then with a flower (no normals of its own). */
+  private drawTuft(B: Buf, t: (typeof TUFTS)[number]) {
+    const [sx, sy] = project(t.x, 0, t.z)
+    for (let k = 0; k < t.n; k++) {
+      const hgt = 1 + (((t.s * 7 + k) % 3) | 0)
+      for (let j = 0; j < hgt * RES; j++) this.put(B, sx + (k * 2 - t.n) * RES, sy - j, C.tuft, t.x, t.z, j / RES, sy, t.z)
+    }
+    if (t.flower) {
+      for (let j = 0; j < 5; j++) this.put(B, sx, sy - j, C.tuft, t.x, t.z, j / RES, sy, t.z)
+      for (const [dx, dy] of [
+        [0, -7],
+        [-1, -6],
+        [1, -6],
+        [0, -5],
+      ])
+        this.put(B, sx + dx, sy + dy, C.flower, t.x, t.z, 3, sy, t.z)
+    }
+  }
+
+  /** A reed at the pool's edge, some with a cattail. */
+  private drawReed(B: Buf, rd: (typeof REEDS)[number]) {
+    const [sx, sy] = project(rd.x, 0, rd.z)
+    for (let j = 0; j < rd.h * RES; j++) this.put(B, sx, sy - j, j >= (rd.h - 1) * RES ? C.reedHi : C.reed, rd.x, rd.z, j / RES, sy, rd.z)
+    if (rd.s < 0.4) {
+      for (let j = 1; j <= 5; j++) for (let k = 0; k < 2; k++) this.put(B, sx + k, sy - rd.h * RES + j, C.cattail, rd.x, rd.z, rd.h, sy, rd.z)
+    }
+  }
+
+  /** A lily pad lies flat on the water: it blocks reflections and casts none. */
+  private drawPad(B: Buf, x: number, z: number) {
+    const [sx, sy] = project(x, 0, z)
+    disc(
+      (px, py, u, v) => {
+        if (u > 0.25 && Math.abs(v) < 0.5) return // the notch
+        this.put(B, px, py, v > 0.5 || u > 0.8 ? C.frogD : C.pad, x, z, 0.2, sy, z - 0.3, true)
+      },
+      sx,
+      sy - 1,
+      5,
+      2,
+    )
+  }
+
+  /** The pool's edge at its current level: pads on the water, the tufts and reeds it hasn't swallowed. */
+  private drawPoolEdge(B: Buf, lvl: number) {
+    for (const [x, z] of PADS) if (inPool(x, z, lvl)) this.drawPad(B, x, z)
+    for (const t of EDGE_TUFTS) if (!inPool(t.x, t.z, lvl * 1.2)) this.drawTuft(B, t)
+    for (const rd of EDGE_REEDS) if (!inPool(rd.x, rd.z, lvl * 0.98)) this.drawReed(B, rd)
+  }
+
+  /**
+   * Fill the pool to `lvl`: which ground pixels are under water, which are its wet shore, and
+   * which are dry. Only the pool's region is touched, so the rain can raise it every frame.
+   */
+  private fillPool(lvl: number) {
+    const B = this.st
+    const Z = this.poolZone
+    const wet = lvl * lvl
+    const shore = (lvl * 1.16) ** 2
+    for (let k = 0; k < Z.idx.length; k++) {
+      const i = Z.idx[k]
+      const m = Z.metric[k]
+      B.pool[i] = m < wet ? 1 : 0
+      if (Z.covered[k]) continue
+      const c = m < wet ? C.water : m < shore ? C.shore : null
+      B.r[i] = c ? c[0] : Z.dry[k * 3]
+      B.g[i] = c ? c[1] : Z.dry[k * 3 + 1]
+      B.b[i] = c ? c[2] : Z.dry[k * 3 + 2]
+    }
+    this.poolLevel = lvl
+  }
+
+  /** Remember the ground the pool can reach (after the static layer is drawn). */
+  private findPoolZone() {
+    const B = this.st
+    const reach = (POOL_MAX * 1.16) ** 2
+    const idx: number[] = []
+    const metric: number[] = []
+    for (let i = (HORIZON + 1) * W; i < N; i++) {
+      const m = poolMetric(B.kx[i], B.kz[i])
+      if (m >= reach) continue
+      idx.push(i)
+      metric.push(m)
+    }
+    const Z = { idx: Int32Array.from(idx), metric: Float32Array.from(metric), covered: new Uint8Array(idx.length), dry: new Float32Array(idx.length * 3) }
+    idx.forEach((i, k) => {
+      // something stands over this pixel (its colour isn't the ground's): leave its colour alone
+      Z.covered[k] = B.dep[i] === GROUND_DEPTH ? 0 : 1
+      const [gx, gz] = unproject(i % W, (i / W) | 0)!
+      const c = this.groundCol(gx, gz)
+      Z.dry.set(c, k * 3)
+    })
+    this.poolZone = Z
   }
 
   // ---------------------------------------------------------------- dynamic layer
@@ -1947,6 +2024,7 @@ export class Renderer {
     this.labels.clear()
     this.tag = 0
     this.region = 0
+    this.drawPoolEdge(B, w.poolLevel)
 
     // names for the static props (their pixels were tagged when the static layer was built)
     PROPS.huts.forEach((_, i) => {
