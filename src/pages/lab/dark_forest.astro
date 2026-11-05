@@ -107,7 +107,8 @@ const play = icon(['#.....', '###...', '#####.', '######', '######', '#####.', '
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem 1rem;
-    padding: 0.5rem 0.9rem;
+    /* room above the controls, so reaching for them doesn't catch the header's logo */
+    padding: 1.1rem 0.9rem 0.5rem;
     background: linear-gradient(var(--ink), #000);
     color: var(--parchment-dim);
   }
@@ -320,6 +321,10 @@ const play = icon(['#.....', '###...', '#####.', '######', '######', '#####.', '
   /* fingers: bigger buttons, a longer slider and a knob that's easy to see under a fingertip
      (the whole slider is the touch target: tap or drag anywhere along it) */
   @media (pointer: coarse) {
+    .bar {
+      padding-top: 1.5rem;
+    }
+
     .control {
       width: 48px;
       height: 44px;
