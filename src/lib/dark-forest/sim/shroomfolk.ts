@@ -15,6 +15,9 @@
  *   idle -> tend -> idle                                   (the grove candles are out or burning low)
  *   idle -> visit -> idle                                  (now and then, sit by a friend's glowcap)
  *   idle -> keep -> idle                                   (the keeper, once the knight has gone)
+ *   idle -> sing -> idle                                   (now and then, with others gathered by the fire)
+ *   (free) -> join -> offer -> dance -> idle               (a song started: bring a piece of wood, throw it
+ *                                                           on, dance round the fire until the song ends)
  *
  * Tending the fire is attention, not an alarm: each notices for themselves when the fire is
  * smaller than they'd like (if they're awake, close and not busy), sooner the more diligent
@@ -81,6 +84,7 @@ export function createMush(w: World, x: number, z: number, o: MushOptions = {}):
     hardy: rand(0, 1),
     likes: rand(0.25, 0.9),
     merry: 0,
+    ring: 0,
     home: o.home ?? (Math.random() * PROPS.huts.length) | 0,
     size,
     carrying: false,
@@ -103,7 +107,7 @@ export function createTraveler(w: World): Mush {
 
 const PILE_SPOT = [PROPS.woodpile.x - 3, PROPS.woodpile.z + 3] as const
 const MAX_FETCHERS = 3
-const WORKING: MushState[] = ['fetch', 'haul', 'feed', 'stoke']
+const WORKING: MushState[] = ['fetch', 'haul', 'feed', 'stoke', 'join', 'offer']
 const doorX = (hut: number) => PROPS.huts[hut].x + HUT.doorDx
 
 /** A hut with a free bed (counting those already on their way), preferring home. */
@@ -120,6 +124,14 @@ const feeders = (ctx: Ctx) => countIn(ctx.w.mush, 'feed', 'stoke')
 
 /** States in which they'd notice the fire (awake, not busy with a job). */
 const ATTENTIVE: MushState[] = ['idle', 'wander', 'keep', 'visit']
+
+/** Free to drop what they're doing for a song (awake, and not in the middle of a job). */
+export const JOINABLE: MushState[] = ['idle', 'wander', 'keep', 'visit']
+/** The singer's place and the dancers' ring, round the fire (further back from a blaze), as x and z radii. */
+const songRing = (w: World) => 13 + Math.max(0, w.fire.heat - 0.6) * 12
+const danceRing = (w: World) => 17 + Math.max(0, w.fire.heat - 0.6) * 14
+const RING_Z = 0.7
+const SONG_ENDS = ['The song ended, and the fire crackled on.', 'The last notes drifted up with the sparks.']
 
 /** The fire they'd like right now: their taste, more when cold (unless hardy) or in the rain, much more when merry. */
 export const fireWanted = (m: Mush, w: World) => Math.min(1.25, m.likes + (1 - m.warmth) * (1 - m.hardy) * 0.35 + (isRaining(w) ? 0.12 : 0) + m.merry * 0.75)
@@ -169,6 +181,8 @@ function decide(m: Mush, ctx: Ctx): MushState {
   const w = ctx.w
   // the end of a life: half set off down the road, half go back to the soil
   if (m.age > m.lifespan) return Math.random() < 0.5 ? 'farewell' : 'wilting'
+  // a song is going: those who were busy when it started come along once they're free
+  if (w.song && w.song.singer !== m.id && adult(m) && Math.hypot(m.x, m.z) < 70) return 'join'
   if (wantsToFeed(m, ctx) && Math.random() < 0.3 + m.diligence + m.merry) return 'feed'
   // tired: go home to rest (in the rain they'd rather stay out, unless exhausted)
   if (adult(m) && m.energy < 0.3 && (!isRaining(w) || m.energy < 0.1)) {
@@ -201,6 +215,13 @@ function decide(m: Mush, ctx: Ctx): MushState {
   return 'wander'
 }
 
+/** They start a song (they go on to 'sing'): the others hear it and come. */
+export function beginSong(m: Mush, ctx: Ctx) {
+  m.merry = Math.min(1, m.merry + 0.6)
+  ctx.w.song = { singer: m.id, until: Infinity }
+  ctx.emit('song:start')
+}
+
 const answerStick = (m: Mush, ctx: Ctx, s: Stick) => (adult(m) && !s.claimed && ctx.w.pile < 9 && fetchers(ctx) < MAX_FETCHERS ? claim(m, s) : undefined)
 
 export const mushMachine: Def<Mush, MushState> = {
@@ -226,10 +247,10 @@ export const mushMachine: Def<Mush, MushState> = {
         merriest = Math.max(merriest, o.merry)
       }
       if (merriest * 0.8 > m.merry) m.merry += (merriest * 0.8 - m.merry) * dt * 0.25
-      // now and then, with enough of them gathered, someone starts a song
-      if (around >= 2 && Math.random() < dt / 170) {
-        m.merry = Math.min(1, m.merry + 0.6)
-        if (Math.random() < 0.5) tell(w, `${m.name} started a song by the fire, and the others joined in.`)
+      // now and then, with enough of them gathered, someone starts a song, and the others come
+      if (around >= 2 && !w.song && adult(m) && JOINABLE.includes(m.fsm.state) && Math.random() < dt / 170) {
+        beginSong(m, ctx)
+        return 'sing'
       }
     }
     // noticing the fire: awake, not busy, close enough, and it's smaller than they'd like
@@ -415,6 +436,109 @@ export const mushMachine: Def<Mush, MushState> = {
       exit: (m) => (m.spot = null),
       on: { 'rain:start': () => 'idle' },
     },
+    sing: {
+      // to a place by the fire, then sing (notes drift up); the song lasts a while once they're there
+      enter: (m, ctx) => {
+        const a = Math.atan2(m.z / RING_Z, m.x)
+        m.tx = Math.cos(a) * songRing(ctx.w)
+        m.tz = Math.sin(a) * songRing(ctx.w) * RING_Z
+        m.wait = rand(15, 25)
+      },
+      update: (m, ctx, dt) => {
+        const song = ctx.w.song
+        if (!song || song.singer !== m.id) return 'idle'
+        if (!moveTo(m, 5 * pace(m), dt)) return
+        face(m, 0)
+        if (song.until === Infinity) {
+          // in place: the song begins (and the story tells whether anyone came)
+          song.until = ctx.w.t + m.wait
+          const came = countIn(ctx.w.mush, 'join', 'offer', 'dance')
+          tell(ctx.w, came ? `${m.name} started a song by the fire, and the others joined in.` : `${m.name} sang softly to the fire.`)
+        }
+        if (Math.random() < dt * 1.6) ctx.w.notes.push({ x: m.x, z: m.z, age: 0, sway: rand(0, 6) })
+        return ctx.w.t >= song.until ? 'idle' : undefined
+      },
+      exit: (m, ctx) => {
+        if (ctx.w.song?.singer !== m.id) return
+        ctx.w.song = null // the dancers notice, and drift off one by one
+        if (Math.random() < 0.4) tell(ctx.w, SONG_ENDS[(Math.random() * SONG_ENDS.length) | 0])
+      },
+    },
+    join: {
+      // bring a piece of wood for the song: from the pile or off the ground, whichever is nearer
+      enter: (m, ctx) => {
+        const w = ctx.w
+        m.merry = Math.min(1, m.merry + 0.3)
+        const far = (x: number, z: number) => Math.hypot(x - m.x, z - m.z)
+        const free = w.sticks.filter((s) => !s.claimed && s.landed)
+        const stick = free.length ? free.reduce((a, b) => (far(a.x, a.z) < far(b.x, b.z) ? a : b)) : null
+        if (stick && far(stick.x, stick.z) < (w.pile > 0 ? far(...PILE_SPOT) : Infinity)) {
+          stick.claimed = true
+          m.claim = stick
+          m.tx = stick.x
+          m.tz = stick.z
+        } else [m.tx, m.tz] = PILE_SPOT
+      },
+      update: (m, ctx, dt) => {
+        const w = ctx.w
+        if (!w.song) return 'idle'
+        if (m.claim && !w.sticks.includes(m.claim)) m.claim = null
+        if (!m.claim && w.pile <= 0) return 'dance' // nothing left to bring: just dance
+        if (!moveTo(m, 7 * pace(m), dt)) return
+        if (m.claim) {
+          w.sticks.splice(w.sticks.indexOf(m.claim), 1)
+          m.claim = null
+        } else w.pile--
+        return 'offer'
+      },
+      exit: (m) => {
+        if (m.claim) m.claim.claimed = false
+        m.claim = null
+      },
+    },
+    offer: {
+      // and throw it on the fire, from their side of it
+      enter: (m) => {
+        m.carrying = true
+        const a = Math.atan2(m.z, m.x)
+        m.tx = Math.cos(a) * 7
+        m.tz = Math.sin(a) * 4.5
+      },
+      update: (m, ctx, dt) => {
+        if (!moveTo(m, 6, dt)) return
+        ctx.emit('fire:fed', { amount: 0.22 })
+        return ctx.w.song ? 'dance' : 'idle'
+      },
+      exit: (m) => (m.carrying = false),
+    },
+    dance: {
+      // round the fire in a ring, stepping and turning, until the song ends; then drift off one by one
+      enter: (m) => {
+        m.ring = Math.atan2(m.z / RING_Z, m.x)
+        m.wait = rand(0.5, 5)
+      },
+      update: (m, ctx, dt) => {
+        const w = ctx.w
+        if (!w.song && (m.wait -= dt) <= 0) return 'idle'
+        // the fire dying right down: the most diligent breaks off to feed it
+        if (w.fire.fuel < 0.15 && w.pile > 0 && feeders(ctx) === 0 && Math.random() < dt * m.diligence) return 'feed'
+        const r = danceRing(w)
+        const off = Math.abs(Math.hypot(m.x, m.z / RING_Z) - r)
+        if (off > 3) {
+          // find their way to the ring first (a fixed point on it, so the path is found once)
+          m.tx = Math.cos(m.ring) * r
+          m.tz = Math.sin(m.ring) * r * RING_Z
+          moveTo(m, 5, dt)
+          return
+        }
+        // then round it, stepping and turning (straight along the ring: it's open ground)
+        m.ring += dt * 0.25
+        m.tx = Math.cos(m.ring) * r
+        m.tz = Math.sin(m.ring) * r * RING_Z
+        moveTo(m, 4, dt, true)
+        m.flip = Math.sin(w.t * 1.8 + m.id * 9) > 0
+      },
+    },
     keep: {
       // the keeper sits where the knight sat, facing the fire
       enter: (m, ctx) => {
@@ -442,6 +566,13 @@ export const mushMachine: Def<Mush, MushState> = {
     // the rain's over: those by the fire are glad of it
     'rain:end': (m) => {
       if (Math.hypot(m.x, m.z) < 34) m.merry = Math.min(1, m.merry + 0.4)
+    },
+    // a song by the fire: anyone free and near enough to hear it comes, bringing wood (those
+    // already hauling a stick to the pile take it straight to the fire)
+    'song:start': (m, ctx) => {
+      if (m.id === ctx.w.song?.singer || !adult(m) || Math.hypot(m.x, m.z) > 70) return
+      if (m.fsm.state === 'haul') return 'offer'
+      return JOINABLE.includes(m.fsm.state) ? 'join' : undefined
     },
   },
 }

@@ -17,6 +17,7 @@ Ideas and open work for `/lab/dark_forest`, roughly in priority order. Research 
 
 - The full mix is judged good (an 8-minute night render with per-source levels is in `moodboard/sounds/night/`, tool `tools/night_render.ts`).
 - **Parked:** leaf drops and pool drips (off by default). They sounded like pops and animal squeaks; they could get the research-and-measure treatment that fixed the crow, log and thunder.
+- **A hummed melody for songs by the fire** (the song, dancing and floating notes exist; the sound doesn't yet).
 - **Creature sounds:** the shroomfolk, knight, deer, bats and moths are silent. Candidates: soft footsteps on leaves and moss, the knight's armour, shroomfolk murmurs or humming when merry, wingbeats as bats pass.
 
 ## Life that reads

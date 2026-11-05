@@ -8,7 +8,7 @@ import { onArtChange } from './art'
 import { Soundscape } from './audio'
 import { forgetNormals } from './normals'
 import { resetSettings, settings, soundDefaults, type SoundKey } from './settings'
-import { createWorld, dropStick, isRaining, step, toggleRain, type World } from './sim'
+import { createWorld, dropStick, isRaining, startSong, step, toggleRain, type World } from './sim'
 import { rebuildNav } from './sim/nav'
 import { createMush } from './sim/shroomfolk'
 import { H, RES, W, unproject, RELICS, type Relic } from './world'
@@ -79,6 +79,8 @@ export interface DarkForest {
   setRelic(r: Relic): void
   /** Someone new walks in, at the edge of the clearing. */
   spawnShroomfolk(): void
+  /** Someone free starts a song by the fire; the others bring wood and dance. False if nobody can. */
+  startSong(): boolean
   /** The knight's vigil ends now (he rises on the next good night). */
   endVigil(): void
   /** The hover tag key of the thing at this framebuffer pixel. */
@@ -246,6 +248,7 @@ export function startDarkForest(canvas: HTMLCanvasElement, options: DarkForestOp
     pixel: () => (settings.inspect ? renderer.inspectPixel(settings.inspect.x, settings.inspect.y) : null),
     relic: () => renderer.relic,
     setRelic: (r) => (renderer.relic = r),
+    startSong: () => startSong(world),
     spawnShroomfolk() {
       const a = Math.random() * Math.PI * 2
       world.mush.push(createMush(world, Math.cos(a) * 30, Math.sin(a) * 22))

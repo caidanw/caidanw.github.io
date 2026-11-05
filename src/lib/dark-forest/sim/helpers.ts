@@ -59,7 +59,13 @@ export const WALKING: MushState[] = [
   'tend',
   'visit',
   'keep',
+  'sing',
+  'join',
+  'offer',
 ]
+
+/** How long a sung note drifts up before it's gone (s). */
+export const NOTE_LIFE = 2.6
 
 /** Is someone stepping through this hut's door right now? */
 export const doorOpen = (w: World, hut: number): boolean => w.mush.some((m) => m.hut === hut && (m.fsm.state === 'entering' || m.fsm.state === 'exiting'))

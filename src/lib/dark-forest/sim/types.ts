@@ -9,6 +9,8 @@ export interface SimEvents {
   'fire:low': undefined
   'fire:fed': { amount: number }
   'stick:dropped': Stick
+  /** Someone has started a song by the fire: those free come, bringing wood, and dance. */
+  'song:start': undefined
   /** The cursor is over the ground (sent every tick while it is). */
   cursor: Point
 }
@@ -103,6 +105,10 @@ export type MushState =
   | 'tend' // relight the candles at the grove
   | 'visit' // sit a while by a friend's glowcap
   | 'keep' // the keeper sits in the knight's place by the fire
+  | 'sing' // start a song by the fire...
+  | 'join' // ...the others fetch a piece of wood (the pile or a stick, whichever is nearer)...
+  | 'offer' // ...throw it on the fire...
+  | 'dance' // ...and dance round it until the song ends
 export interface Mush extends Walker {
   fsm: Fsm<MushState>
   id: number
@@ -142,6 +148,8 @@ export interface Mush extends Walker {
   hardy: number
   likes: number
   merry: number
+  /** Where they are round the fire while dancing (an angle). */
+  ring: number
 }
 
 export type DeerState = 'graze' | 'walk' | 'toPool' | 'drink' | 'flee'
@@ -214,6 +222,10 @@ export interface World {
   drops: { x: number; y: number; v: number; stop: number }[]
   ripples: { x: number; y: number; age: number }[]
   zs: { hut: number; age: number }[]
+  /** A song by the fire: who's singing, and when it ends (open until the singer is in place). */
+  song: { singer: number; until: number } | null
+  /** Notes drifting up from the singer. */
+  notes: { x: number; z: number; age: number; sway: number }[]
   /** Dust kicked up where something lands. */
   puffs: { x: number; z: number; age: number; seed: number }[]
   flies: { seed: number; x: number; y: number; z: number; a: number }[]

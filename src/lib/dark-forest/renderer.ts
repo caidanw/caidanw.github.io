@@ -110,7 +110,7 @@ import { settings, type View } from './settings'
 import { walkable } from './sim/nav'
 import { cullLights, gatherLight, groundGrain, prepareLights, type Light, type Prepared } from './lights'
 import { BUDGET, ShadowMaps, SilhouetteRecorder, shadowAt } from './shadows'
-import { WALKING, doorOpen, hutOccupancy, isElder, isMoving, isRaining, lightRadius, perchPos, rainAmount, type Mush, type World } from './sim'
+import { NOTE_LIFE, WALKING, doorOpen, hutOccupancy, isElder, isMoving, isRaining, lightRadius, perchPos, rainAmount, type Mush, type World } from './sim'
 
 /** What the small things are called on hover. */
 const DETAIL_NAMES: Record<DetailKind, [string, string]> = {
@@ -312,6 +312,7 @@ const GLOW = {
   eye: hex('#e8d78a'),
   firefly: hex('#d8f27a'),
   zzz: hex('#c9d6e8'),
+  note: hex('#f2d39a'),
   croak: hex('#e8e0b8'),
   star: hex('#e9e3d4'),
   ripple: hex('#aabed8'),
@@ -503,6 +504,19 @@ const LANTERN_PANES: [number, number, string][] = LANTERN_POST.rows.flatMap((row
 )
 
 /** A tiny z, drifting up from a sleeping hut's chimney. */
+/** How many pixels a shroomfolk is off the ground: dancers hop in time, a singer bobs gently, and everyone skips a little in the rain. */
+function mushHop(st: string, moving: boolean, t: number, id: number, raining: boolean): number {
+  if (st === 'dance') return Math.sin(t * 6 * Math.PI + id * 10) > 0 ? 1 : 0
+  if (st === 'sing' && !moving) return Math.sin(t * 3 + id * 10) > 0.4 ? 1 : 0
+  return raining && moving && Math.sin(t * 12 + id * 10) > 0.6 ? 1 : 0
+}
+
+/** Sung notes drifting up from a singer: a quaver and a pair of beamed quavers. */
+const NOTES: [number, number][][] = [
+  ['..##', '..#.', '..#.', '###.', '##..'],
+  ['.####', '.#..#', '.#..#', '##.##', '##.##'],
+].map((rows) => rows.flatMap((row, y) => [...row].flatMap((c, x) => (c === '#' ? [[x, y] as [number, number]] : []))))
+
 const ZED: [number, number][] = [
   [0, 0],
   [1, 0],
@@ -621,6 +635,10 @@ const STATE_WORDS: Record<string, string> = {
   tend: 'relighting the grove candles',
   visit: 'sitting with an old friend',
   keep: "keeping the fire, in the knight's place",
+  sing: 'singing by the fire',
+  join: 'bringing wood for the song',
+  offer: 'throwing wood on the fire',
+  dance: 'dancing round the fire',
 }
 
 /** How long each stage of the last frame took, in ms. */
@@ -1913,6 +1931,7 @@ export class Renderer {
     const st = m.fsm.state
     const moving = WALKING.includes(st) && isMoving(m)
     if (moving) return set.walk[((w.t * (isElder(m) ? 5 : 7)) % 2) | 0]
+    if (st === 'dance') return set.walk[((w.t * 6 + m.id * 3) % 2) | 0] // stepping in time
     if (SITTING.includes(st)) return (w.t * 0.8 + m.id * 7) % 3.5 < 0.15 ? set.sitBlink : set.sit
     return set.walk[0]
   }
@@ -2009,7 +2028,7 @@ export class Renderer {
       }
       const keeper = w.keeperId === m.id
       const moving = WALKING.includes(st) && isMoving(m)
-      const hop = isRaining(w) && moving && Math.sin(t * 12 + m.id * 10) > 0.6 ? 1 : 0
+      const hop = mushHop(st, moving, t, m.id, isRaining(w))
       const elder = isElder(m)
       const [, by] = project(m.x, 0, m.z)
       const sink = st === 'wilting' ? Math.round(m.sink * 10) : 0
@@ -2337,6 +2356,12 @@ export class Renderer {
       const zx = Math.round(hx + (cx + z.age * 3) * RES)
       const zy = Math.round(hy - (cy + z.age * 6) * RES)
       for (const [dx, dy] of ZED) this.putFx(zx + dx, zy + dy, GLOW.zzz, 0.7 * (1 - z.age / 1.8), undefined, hut.z + 0.05, 0.4)
+    }
+    for (const n of w.notes) {
+      // up from the singer's head, swaying a little, fading as they go
+      const [nx, ny] = project(n.x + Math.sin(n.age * 2.5 + n.sway) * 1.6, 13 + n.age * 4.5, n.z)
+      const a = 0.85 * Math.min(1, n.age * 4) * (1 - n.age / NOTE_LIFE)
+      for (const [dx, dy] of NOTES[((n.sway * 10) % 2) | 0]) this.putFx(Math.round(nx) + dx, Math.round(ny) + dy, GLOW.note, a, undefined, n.z - 0.1, 0.5)
     }
     for (const f of w.flies) {
       if (f.a <= 0.02) continue

@@ -4,7 +4,7 @@
  */
 import { clamp, rand, vnoise } from '../util'
 import { H, HORIZON, PROPS, RES, W, inPool, project } from '../world'
-import { burst, isRaining, lightRadius, rainAmount, stickSpot } from './helpers'
+import { NOTE_LIFE, burst, isRaining, lightRadius, rainAmount, stickSpot } from './helpers'
 import type { World } from './types'
 
 export function stepAmbient(w: World, dt: number, isOpenWater: (sx: number, sy: number) => boolean) {
@@ -39,6 +39,7 @@ export function stepAmbient(w: World, dt: number, isOpenWater: (sx: number, sy: 
     return e.age < e.life
   })
   w.zs = w.zs.filter((z) => (z.age += dt) < 1.8)
+  w.notes = w.notes.filter((n) => (n.age += dt) < NOTE_LIFE)
   w.puffs = w.puffs.filter((p) => (p.age += dt) < 0.9)
   stepFallingSticks(w, dt)
 

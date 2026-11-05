@@ -8,7 +8,7 @@
  */
 import { H, HORIZON, PROPS, RES, W, type Point } from '../world'
 import { rand } from '../util'
-import { send, tick, type Fsm, type MachineDef } from './fsm'
+import { send, tick, transition, type Fsm, type MachineDef } from './fsm'
 import { stepAmbient } from './ambient'
 import { nav } from './nav'
 import { fireMachine, createFire } from './fire'
@@ -16,12 +16,12 @@ import { createCrow, createFrog, crowMachine, frogMachine } from './critters'
 import { createDeer, deerMachine } from './deer'
 import { freeSpotNear, stickSpot, tell } from './helpers'
 import { createKnight, knightMachine } from './knight'
-import { createMush, createTraveler, mushMachine } from './shroomfolk'
+import { JOINABLE, beginSong, createMush, createTraveler, mushMachine } from './shroomfolk'
 import type { Ctx, SimEvents, World } from './types'
 import { createWeather, weatherMachine } from './weather'
 
 export * from './types'
-export { doorOpen, hutOccupancy, isElder, isMoving, isRaining, lightRadius, perchPos, rainAmount, WALKING } from './helpers'
+export { doorOpen, hutOccupancy, isElder, isMoving, isRaining, lightRadius, NOTE_LIFE, perchPos, rainAmount, WALKING } from './helpers'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Agent = [MachineDef<any, Ctx, string, SimEvents>, { fsm: Fsm<string> }]
@@ -68,6 +68,8 @@ export function createWorld(): World {
     drops: Array.from({ length: 220 }, () => ({ x: Math.random() * W, y: Math.random() * H, v: rand(170, 240) * RES, stop: rand(HORIZON, H) })),
     ripples: [],
     zs: [],
+    song: null,
+    notes: [],
     puffs: [],
     flies: Array.from({ length: 12 }, (_, i) => ({ seed: i * 13.7, x: 0, y: 0, z: 0, a: 0 })),
     shooting: null,
@@ -128,6 +130,17 @@ export function step(w: World, dt: number, isOpenWater: (sx: number, sy: number)
   w.mush = w.mush.filter((m) => !m.gone)
   welcomeTravelers(w, dt)
   chooseKeeper(w)
+}
+
+/** Someone free starts a song by the fire now (the debug console): the one nearest the fire. */
+export function startSong(w: World): boolean {
+  const free = w.mush.filter((m) => m.size >= 1 && JOINABLE.includes(m.fsm.state))
+  if (w.song || !free.length) return false
+  const m = free.reduce((a, b) => (Math.hypot(a.x, a.z) < Math.hypot(b.x, b.z) ? a : b))
+  const ctx = ctxFor(w)
+  beginSong(m, ctx)
+  transition(mushMachine, m, ctx, 'sing')
+  return true
 }
 
 /** Once the knight has gone to rest, the oldest of the village takes his place by the fire. */
