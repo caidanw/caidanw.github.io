@@ -99,6 +99,10 @@ export function createWorld(): World {
     [-40, -20],
   ]
   start.forEach(([x, z], i) => w.mush.push(createMush(w, x, z, { home: i % 2, aged: Math.random() * 0.8 })))
+  // how the story begins (in the same voice as everything that happens after)
+  tell(w, 'Deep in the dark forest, a small village kept a fire burning against the night.')
+  tell(w, 'Beside it sat the last knight, keeping his long vigil.')
+  tell(w, 'In the quiet grove beyond, candles burned for those who came before.')
   return w
 }
 
