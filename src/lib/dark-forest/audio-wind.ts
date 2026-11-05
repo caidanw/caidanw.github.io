@@ -134,7 +134,7 @@ export class WindInTrees {
   /** Follow the weather (call every frame). `held` > 0 while the editor auditions the wind. */
   update(now: number, cloud: number, rain: number, tune: SoundTune, held: number) {
     // calm on a clear night, stronger with cloud and rain
-    const weather = Math.max(0.12 + 0.15 * cloud + 0.1 * rain, AUDITION_WIND * held)
+    const weather = Math.max(0.12 + 0.3 * cloud + 0.15 * rain, AUDITION_WIND * held)
     if (this.clock < 0 || now - this.clock > 1) {
       this.clock = now
       this.history.fill(this.speed(weather, tune.rate))

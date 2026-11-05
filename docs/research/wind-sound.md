@@ -55,3 +55,7 @@ The level swings are a little gentler than the references, which suits ambience 
 A-weighted level, old against new: clear night +2.6 dB, cloudy −2.4 dB, storm −4.4 dB. The new wind's energy is brighter; it sits under the fire, crickets and rain. The thunder, fire and other sources are unchanged.
 
 This was built by a subagent that timed out before finishing. The parent integrated it into the main branch, re-rendered the comparisons, measured them as above, and confirmed the strict typecheck and the build. Listening sheet: `~/Projects/dark-forest-moodboard/sounds/wind-listening.html`. Awaiting operator review.
+
+## Revision: audible when cloudy
+
+Operator review: the wind sounds great, but the cloudy wind was so quiet it could not be heard at scene level. Over the first 30 s, cloudy wind measured −56 to −61.5 dB (A-weighted), 6–9 dB under the old wind and about 10 dB under the cloudy mix of fire and crickets, so it was masked. The weather base is now `0.12 + 0.3·cloud + 0.15·rain`, up from `0.12 + 0.15·cloud + 0.1·rain`. Clear nights are unchanged. Cloudy averages −52.3 dB (old −53.5), and storm −46.2 dB (old −48.1); stormy wind now crosses Farnell's squall threshold.
