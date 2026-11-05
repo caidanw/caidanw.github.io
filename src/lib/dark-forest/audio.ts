@@ -9,6 +9,7 @@
  * fire. Browsers only allow sound after a click or a key, so it starts off (see start()).
  */
 import { logLanding } from './audio-log'
+import { thunderCrack } from './audio-thunder'
 import { rainDrops, rainWash, type RainDrops } from './audio-rain'
 import { buildVoices, type VoiceBank, type VoiceKey } from './audio-voices'
 import { WindInTrees } from './audio-wind'
@@ -434,29 +435,39 @@ export class Soundscape {
     // distance: quieter and duller (air and ground absorb the highs first)
     const strike = ctx.createGain()
     strike.gain.value = 1.6 / (1 + 0.25 * (distance - 0.5))
-    const muffle = this.filter('lowpass', (500 + 4000 * near ** 2) * deep, 0.7)
-    strike.connect(muffle).connect(this.bus.thunder)
+    strike.connect(this.bus.thunder)
+    // the rumble is dark above ~2 kHz even close by (the references are nearly empty up there
+    // apart from the crack's shocks); the crack keeps its own, brighter lowpass
+    const cut = (400 + 1600 * near ** 2) * deep
+    const body = this.filter('lowpass', cut, 0.6)
+    body.connect(this.filter('lowpass', cut * 1.3, 0.6)).connect(strike)
     const side = (spread: number) => clamp(pan + rnd(-spread, spread), -1, 1)
     const mid = 0.4 + 0.6 * near // near thunder keeps more of its audible mid band
-    // the strike: a few overlapping tearing bursts that read as one crack, only when it's close
+    // the strike: a train of sharp shocks from the channel's kinks over a tear bed, only when it's close (audio-thunder.ts)
     if (near > 0.55) {
-      for (let t = 0, i = 0, n = 3 + ((Math.random() * 3) | 0); i < n; i++, t += rnd(0.04, 0.2)) {
-        const gain = 0.6 * near ** 1.5 * (i === 0 ? 1 : rnd(0.4, 0.8))
-        this.burst(at + t, rnd(0.25, 0.8), (400 + 2100 * Math.random()) * deep, 1, gain, side(0.15), 'bandpass', this.white, strike, rnd(0.006, 0.015))
-      }
+      const src = ctx.createBufferSource()
+      src.buffer = thunderCrack(ctx, distance, pan)
+      src.playbackRate.value = 1 / deep
+      const g = ctx.createGain()
+      g.gain.value = 0.65 * near ** 1.2
+      src
+        .connect(g)
+        .connect(this.filter('lowpass', (800 + 7000 * near ** 2) * deep, 0.7))
+        .connect(strike)
+      src.start(at)
     }
     // the main peal: builds for ~0.3 s as the nearest parts of the channel arrive, then rolls on
     const start = at + rnd(0.1, 0.2)
-    this.rumble(start, len * 0.9, rnd(180, 300) * deep, 0.7, 0.8, side(0.2), 'lowpass', this.brown, strike, 0.3)
-    this.rumble(start, len * 0.75, rnd(250, 500) * deep, 0.8, 0.8 * mid, side(0.2), 'bandpass', this.white, strike, 0.3)
+    this.rumble(start, len * 0.9, rnd(180, 300) * deep, 0.7, 0.8, side(0.2), 'lowpass', this.brown, body, 0.3)
+    this.rumble(start, len * 0.75, rnd(250, 500) * deep, 0.8, 0.8 * mid, side(0.2), 'bandpass', this.white, body, 0.3)
     // swells on top: arrivals from farther parts of the channel, a little later and weaker
     const tau = rnd(3, 5) + 2 * (1 - near)
     for (let t = rnd(0.6, 1.4); t < len * 0.7; t += rnd(0.5, 1.8)) {
       const swell = rnd(0.3, 0.9) * Math.exp(-t / tau)
-      const body = rnd(1.5, 3.5)
+      const length = rnd(1.5, 3.5)
       const attack = rnd(0.08, 0.4)
-      this.rumble(at + t, body, rnd(120, 400) * deep, 0.7, 0.8 * swell, side(0.3), 'lowpass', this.brown, strike, attack)
-      this.rumble(at + t, body * 0.8, rnd(200, 700) * deep, 0.8, 0.7 * swell * mid, side(0.3), 'bandpass', this.white, strike, attack)
+      this.rumble(at + t, length, rnd(120, 400) * deep, 0.7, 0.8 * swell, side(0.3), 'lowpass', this.brown, body, attack)
+      this.rumble(at + t, length * 0.8, rnd(200, 700) * deep, 0.8, 0.7 * swell * mid, side(0.3), 'bandpass', this.white, body, attack)
     }
     // reflections from the hills and trees around: later, scattered, in the mid band
     for (let i = 0, n = 14 + ((Math.random() * 10) | 0); i < n; i++) {
@@ -470,12 +481,12 @@ export class Soundscape {
         rnd(-0.8, 0.8),
         'bandpass',
         this.white,
-        strike,
+        body,
         rnd(0.05, 0.2),
       )
     }
     // the deep boom: late, slow and long
-    this.burst(at + 0.6, len, 80 * deep, 0.7, 0.5, pan * 0.5, 'lowpass', this.brown, strike, 1.5, 0.001)
+    this.burst(at + 0.6, len, 80 * deep, 0.7, 0.5, pan * 0.5, 'lowpass', this.brown, body, 1.5, 0.001)
     return len + 0.6
   }
 

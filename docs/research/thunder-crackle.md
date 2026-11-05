@@ -504,3 +504,34 @@ Keep 2–3 of the existing 0.4–2.5 kHz, 0.25–0.8 s band-passed noise bursts 
   "manualNotes": "The run was restricted to the artifact path, so the file was NOT written to docs/research/thunder-crackle.md; copy it there if desired. Saksela's code is GPL: reimplement, don't copy."
 }
 ```
+
+---
+
+## Implementation and results (two models, for listening)
+
+`src/lib/dark-forest/audio-thunder.ts` renders one stereo buffer per close strike (near > 0.55, about ≤ 3 km), at the moment of the flash; this takes about 5–8 ms of CPU. `crack.model` selects the model. Both models share the following:
+
+- **Shocks:** N-waves with a 0.1–0.3 ms rise, a linear fall over `len`, and a 0.3–0.8 ms return.
+- **Repeat strokes:** 1–4 strokes down the same channel, 20–150 ms apart, each 0.5–1× as loud, with 25% of the shocks shuffled by ±4 ms.
+- **Tear bed:** band-passed noise (0.7–1.4 kHz, Q 1.2) with a 10 ms rise and τ = 0.3–0.5 s, _added_ under the shocks so the band never empties.
+- **Weight:** Brookes' asymmetric soft clip at drive 2.
+
+The two models:
+
+- **A, `pattern`:** Farnell's strike-pattern timing. The accumulator x grows by U(0, 9.9) ms, and each event fires 1–4 shocks. Early events are short (0.5 ms) and bright; later ones are long (up to 3 ms) and weaker, with log-normal (σ 8 dB) sizes. The output is scaled ×0.5 to match B's crack energy.
+- **B, `channel`:** a random channel. Steps of 5–70 m with 8–24° turns run up to 1.5 km and are cut into about 3 m pieces with a ±0.08 m wiggle. The listener is at the strike distance, at a random azimuth. Each step's kink sends a shock with amplitude kink·length/r × log-normal; the pieces give a faint texture (0.01·length/r). Arrival is r/c. Pulse length is 1.2 ms·√k (the Ribner–Roy stretch). Pan comes from each point's position across the listener's view. Output ×0.55.
+
+In `Soundscape.thunder()`, the crack plays at gain 0.65·near^1.2 through its own lowpass, `800 + 7000·near²` Hz. The rumble layers now share a darker lowpass pair, `(400 + 1600·near²)`·{1, 1.3} Hz. The references are nearly empty above about 2 kHz apart from the crack's shocks; previously, one `500 + 4000·near²` lowpass left a continuous hiss up to about 4.5 kHz.
+
+Measured above 800 Hz in the first 1.5 s (`tools/debug/crackle_stats.py`), as the median over six strikes:
+
+|                      | Kurtosis   | Crest | Pulses/s | Width      |
+| -------------------- | ---------- | ----- | -------- | ---------- |
+| References           | 9–213      | 9–39  | 5–79     | 0.5–0.9 ms |
+| Previous noise crack | 5.5        | 7.7   | 175      | 0.43 ms    |
+| A, 1 km / 2 km       | 7.7 / 8.9  | 11    | 50 / 26  | 0.9–1.1 ms |
+| B, 1 km / 2 km       | 7.2 / 10.2 | 10–11 | 55 / 44  | 0.5 ms     |
+
+Single strikes vary: some come out dense, up to about 150–200/s. There are no dropouts (0/s) in either model or the storm mix. Loudness over heavy rain is about +16–19 dB at 0.7 km and +11–17 dB at 1.5 km. Peaks are at most about 0.65–0.8 for a single strike, and 0.73 in the full storm mix.
+
+Plot: `moodboard/shots/thunder-crack-models.png`. Listening sheet: `moodboard/sounds/thunder-crack-listening.html`. The scene uses B until the operator chooses; then the other model and the `crack.model` switch should be removed.
