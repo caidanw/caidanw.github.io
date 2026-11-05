@@ -386,9 +386,15 @@ const play = icon(['#.....', '###...', '#####.', '######', '######', '#####.', '
   const story = document.getElementById('story')!
   const storyQueue: string[] = []
   let telling = false
+  // the scene appears first, then the story begins
+  let begun = false
+  window.setTimeout(() => {
+    begun = true
+    if (!telling) showNext()
+  }, 1200)
   function tellStory(line: string) {
     storyQueue.push(line)
-    if (!telling) showNext()
+    if (begun && !telling) showNext()
   }
   function showNext() {
     const line = storyQueue.shift()
@@ -400,7 +406,8 @@ const play = icon(['#.....', '###...', '#####.', '######', '######', '#####.', '
     item.textContent = line
     story.prepend(item)
     requestAnimationFrame(() => requestAnimationFrame(() => item.classList.add('shown')))
-    window.setTimeout(showNext, storyQueue.length ? 1800 : 700)
+    // lines waiting their turn get time to be read (about 50 ms a character, 2.5 s at least)
+    window.setTimeout(showNext, storyQueue.length ? Math.max(2500, line.length * 50) : 700)
   }
 
   const pauseButton = document.querySelector<HTMLButtonElement>('[data-toggle=paused]')!
