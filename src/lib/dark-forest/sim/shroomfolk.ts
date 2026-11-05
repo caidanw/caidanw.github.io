@@ -248,7 +248,7 @@ export const mushMachine: Def<Mush, MushState> = {
       }
       if (merriest * 0.8 > m.merry) m.merry += (merriest * 0.8 - m.merry) * dt * 0.25
       // now and then, with enough of them gathered, someone starts a song, and the others come
-      if (around >= 2 && !w.song && adult(m) && JOINABLE.includes(m.fsm.state) && Math.random() < dt / 170) {
+      if (around >= 2 && !w.song && adult(m) && JOINABLE.includes(m.fsm.state) && Math.random() < dt / 500) {
         beginSong(m, ctx)
         return 'sing'
       }
@@ -442,7 +442,7 @@ export const mushMachine: Def<Mush, MushState> = {
         const a = Math.atan2(m.z / RING_Z, m.x)
         m.tx = Math.cos(a) * songRing(ctx.w)
         m.tz = Math.sin(a) * songRing(ctx.w) * RING_Z
-        m.wait = rand(15, 25)
+        m.wait = rand(45, 70) // long enough for the dancers to go round the fire a time or two
       },
       update: (m, ctx, dt) => {
         const song = ctx.w.song
