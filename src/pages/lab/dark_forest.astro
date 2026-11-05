@@ -171,6 +171,19 @@ const play = icon(['#.....', '###...', '#####.', '######', '######', '#####.', '
     opacity: 1;
   }
 
+  .story :global(.rest) {
+    visibility: hidden;
+  }
+
+  .story :global(.heard) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
   /* the newest line arrives bright; the older ones dim as they're pushed down */
   .story :global(li.shown:not(:first-child)) {
     color: var(--parchment-dim);
@@ -382,9 +395,11 @@ const play = icon(['#.....', '###...', '#####.', '######', '######', '#####.', '
   const params = new URLSearchParams(location.hash.slice(1))
 
   // the village's story: the newest line arrives at the top of the log and pushes the older ones
-  // down, where the last two fade away; lines that arrive together queue up, each gets a moment
+  // down, where the last two fade away. Each line is spelled out a letter at a time; lines that
+  // arrive together wait their turn, so the typing itself sets the pace.
   const story = document.getElementById('story')!
   const storyQueue: string[] = []
+  const still = matchMedia('(prefers-reduced-motion: reduce)')
   let telling = false
   // the scene appears first, then the story begins
   let begun = false
@@ -402,12 +417,25 @@ const play = icon(['#.....', '###...', '#####.', '######', '######', '#####.', '
     if (line === undefined) return
     // lines pushed past the bottom (through the fade) are gone
     for (const old of [...story.children] as HTMLElement[]) if (old.offsetTop >= story.clientHeight) old.remove()
+    // the whole line is laid out from the start (the untyped part invisible), so words don't jump
+    // between rows as it types; screen readers get the line once, whole
     const item = document.createElement('li')
-    item.textContent = line
+    const heard = Object.assign(document.createElement('span'), { className: 'heard', textContent: line })
+    const typed = document.createElement('span')
+    const rest = Object.assign(document.createElement('span'), { className: 'rest', textContent: line })
+    typed.ariaHidden = rest.ariaHidden = 'true'
+    item.append(heard, typed, rest)
     story.prepend(item)
     requestAnimationFrame(() => requestAnimationFrame(() => item.classList.add('shown')))
-    // lines waiting their turn get time to be read (about 50 ms a character, 2.5 s at least)
-    window.setTimeout(showNext, storyQueue.length ? Math.max(2500, line.length * 50) : 700)
+    let i = still.matches ? line.length : 0
+    const type = () => {
+      typed.textContent = line.slice(0, i)
+      rest.textContent = line.slice(i)
+      if (i >= line.length) return void window.setTimeout(showNext, 900)
+      const c = line[i++]
+      window.setTimeout(type, 32 + (c === ',' ? 160 : c === '.' && i < line.length ? 320 : 0))
+    }
+    type()
   }
 
   const pauseButton = document.querySelector<HTMLButtonElement>('[data-toggle=paused]')!
