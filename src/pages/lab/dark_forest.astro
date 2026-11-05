@@ -15,14 +15,8 @@ const play = icon(['#.....', '###...', '#####.', '######', '######', '#####.', '
 
 <BreadcrumbLayout title="Dark Forest" description="A small firelit clearing with a primitive simulation." noindex>
   <div id="app">
-    <div class="stage">
-      <canvas id="canvas" aria-label="A pixel-art forest clearing at night: a campfire, a resting knight, shroomfolk, a deer and a rain pool."></canvas>
-    </div>
-
     <div class="bar">
-      <p class="story" aria-live="polite">
-        <span id="story">hover to learn names · click the ground to drop a stick</span>
-      </p>
+      <p class="hint">hover to learn names · click the ground to drop a stick</p>
       <div class="controls">
         <div class="sound">
           <button type="button" class="control" data-toggle="sound" aria-pressed="false" aria-label="Sound" title="Sound (S)">
@@ -53,6 +47,12 @@ const play = icon(['#.....', '###...', '#####.', '######', '######', '#####.', '
         </button>
       </div>
     </div>
+
+    <div class="stage">
+      <canvas id="canvas" aria-label="A pixel-art forest clearing at night: a campfire, a resting knight, shroomfolk, a deer and a rain pool."></canvas>
+    </div>
+
+    <ol id="story" class="story" role="log" aria-live="polite" aria-label="What happens in the clearing"></ol>
   </div>
 </BreadcrumbLayout>
 
@@ -91,42 +91,89 @@ const play = icon(['#.....', '###...', '#####.', '######', '######', '#####.', '
   }
 
   /* firelit: warm ink, carved wood edges, parchment text, an ember glow */
-  .bar {
+  #app {
     --ink: #0d0907;
     --wood: #3a281b;
     --wood-lit: #7a4423;
     --parchment: #e6d3ad;
     --parchment-dim: #8f7d63;
     --ember: #f08a3c;
+    --line: 24px;
+  }
+
+  .bar {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem 1rem;
-    padding: 0.6rem 0.9rem;
-    background: linear-gradient(#000, var(--ink));
+    padding: 0.5rem 0.9rem;
+    background: linear-gradient(var(--ink), #000);
     color: var(--parchment-dim);
   }
 
+  /* MEKZANTINE at its pixel-perfect size */
+  .hint,
   .story {
-    margin: 0;
-    min-width: 0;
-    /* on narrow screens the story takes its own line and the controls sit under it, on the right */
-    flex: 1 1 20rem;
     font-family: 'Mekzantine', var(--font-mono);
     font-size: calc(800px / 45);
-    line-height: 24px;
+    line-height: var(--line);
+    letter-spacing: 1px; /* one font pixel between letters: easier to read */
   }
 
-  #story {
-    display: inline-block;
-    transition:
-      opacity 0.8s ease,
-      color 2s ease;
+  .hint {
+    margin: 0;
+    min-width: 0;
+    /* on narrow screens the hint takes its own line and the controls sit under it, on the right */
+    flex: 1 1 20rem;
   }
 
-  #story.fresh {
+  /* the story log: newest at the top, older lines pushed down; the bottom two lines of the log
+     fade away (a mask, so it works however the lines wrap) */
+  .story {
+    list-style: none;
+    margin: 0;
+    padding: 0.5rem 0.9rem 0.75rem;
+    height: calc(var(--line) * 5 + 1.25rem);
+    overflow: hidden;
+    position: relative;
+    background: linear-gradient(#000, var(--ink));
+    mask-image: linear-gradient(#000 calc(100% - var(--line) * 2 - 0.75rem), transparent calc(100% - 0.75rem));
+  }
+
+  /* (the lines are added by the script, so they need :global to escape Astro's scoping) */
+  .story :global(li) {
+    max-height: 0;
+    opacity: 0;
     color: var(--parchment);
+    overflow: hidden;
+    transition:
+      max-height 0.6s ease,
+      opacity 0.9s ease,
+      color 3s ease;
+  }
+
+  .story :global(li.shown) {
+    max-height: calc(var(--line) * 4);
+    opacity: 1;
+  }
+
+  /* the newest line arrives bright; the older ones dim as they're pushed down */
+  .story :global(li.shown:not(:first-child)) {
+    color: var(--parchment-dim);
+  }
+
+  /* phones held upright: the scene takes its own height, the story fills the rest */
+  @media (orientation: portrait) {
+    .stage {
+      flex: 0 0 calc(100dvw * 9 / 16);
+    }
+
+    .story {
+      flex: 1;
+      height: auto;
+      min-height: calc(var(--line) * 5 + 1.25rem);
+    }
   }
 
   .controls,
@@ -209,8 +256,8 @@ const play = icon(['#.....', '###...', '#####.', '######', '######', '#####.', '
   #volume {
     --fill: 70%;
     appearance: none;
-    width: 76px;
-    height: 18px;
+    width: 84px;
+    height: 28px;
     margin: 0;
     background: transparent;
     cursor: pointer;
@@ -266,6 +313,44 @@ const play = icon(['#.....', '###...', '#####.', '######', '######', '#####.', '
       2px 0 0 var(--wood);
   }
 
+  #volume {
+    touch-action: none;
+  }
+
+  /* fingers: bigger buttons, a longer slider and a knob that's easy to see under a fingertip
+     (the whole slider is the touch target: tap or drag anywhere along it) */
+  @media (pointer: coarse) {
+    .control {
+      width: 48px;
+      height: 44px;
+    }
+
+    #volume {
+      width: 132px;
+      height: 44px;
+    }
+
+    #volume::-webkit-slider-runnable-track {
+      height: 6px;
+    }
+
+    #volume::-moz-range-track,
+    #volume::-moz-range-progress {
+      height: 6px;
+    }
+
+    #volume::-webkit-slider-thumb {
+      width: 14px;
+      height: 26px;
+      margin-top: -10px;
+    }
+
+    #volume::-moz-range-thumb {
+      width: 14px;
+      height: 26px;
+    }
+  }
+
   #volume:hover::-webkit-slider-thumb {
     background: #ffcf8e;
   }
@@ -279,8 +364,9 @@ const play = icon(['#.....', '###...', '#####.', '######', '######', '#####.', '
   const buttons = document.querySelectorAll<HTMLButtonElement>('[data-toggle]')
   const params = new URLSearchParams(location.hash.slice(1))
 
-  // the village's story, one line at a time: lines that arrive together queue up, each gets a moment
-  const storyEl = document.getElementById('story')!
+  // the village's story: the newest line arrives at the top of the log and pushes the older ones
+  // down, where the last two fade away; lines that arrive together queue up, each gets a moment
+  const story = document.getElementById('story')!
   const storyQueue: string[] = []
   let telling = false
   function tellStory(line: string) {
@@ -289,19 +375,15 @@ const play = icon(['#.....', '###...', '#####.', '######', '######', '#####.', '
   }
   function showNext() {
     const line = storyQueue.shift()
-    if (line === undefined) {
-      telling = false
-      window.setTimeout(() => !telling && storyEl.classList.remove('fresh'), 8000)
-      return
-    }
-    telling = true
-    storyEl.style.opacity = '0'
-    window.setTimeout(() => {
-      storyEl.textContent = line
-      storyEl.classList.add('fresh')
-      storyEl.style.opacity = '1'
-      window.setTimeout(showNext, storyQueue.length ? 4500 : 1500)
-    }, 400)
+    telling = line !== undefined
+    if (line === undefined) return
+    // lines pushed past the bottom (through the fade) are gone
+    for (const old of [...story.children] as HTMLElement[]) if (old.offsetTop >= story.clientHeight) old.remove()
+    const item = document.createElement('li')
+    item.textContent = line
+    story.prepend(item)
+    requestAnimationFrame(() => requestAnimationFrame(() => item.classList.add('shown')))
+    window.setTimeout(showNext, storyQueue.length ? 1800 : 700)
   }
 
   const pauseButton = document.querySelector<HTMLButtonElement>('[data-toggle=paused]')!
@@ -341,6 +423,20 @@ const play = icon(['#.....', '###...', '#####.', '######', '######', '#####.', '
   // the volume, remembered between visits; moving it turns the sound on
   const volume = document.getElementById('volume') as HTMLInputElement
   const showVolume = () => volume.style.setProperty('--fill', `${Number(volume.value) * 100}%`)
+  // tap or drag anywhere along it (a finger needn't find the knob, and the page won't scroll)
+  const fromPointer = (e: PointerEvent) => {
+    const box = volume.getBoundingClientRect()
+    const u = Math.min(1, Math.max(0, (e.clientX - box.left) / box.width))
+    volume.value = String(Math.round(u * 20) / 20)
+    volume.dispatchEvent(new Event('input'))
+  }
+  volume.addEventListener('pointerdown', (e) => {
+    e.preventDefault()
+    volume.focus({ preventScroll: true })
+    volume.setPointerCapture(e.pointerId)
+    fromPointer(e)
+  })
+  volume.addEventListener('pointermove', (e) => volume.hasPointerCapture(e.pointerId) && fromPointer(e))
   volume.value = localStorage.getItem('dark-forest:volume') ?? volume.value
   forest.setVolume(Number(volume.value))
   showVolume()
