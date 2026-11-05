@@ -65,3 +65,42 @@ Ten rendered landings, measured the same way. Values are median (range):
 The old sound had a single 80 Hz peak about 30 dB above everything else.
 
 This was built by a subagent that timed out before finishing. The parent reviewed the code and confirmed it against the main branch: the impact measurements above, a strict typecheck and the build. Listening sheet: `~/Projects/dark-forest-moodboard/sounds/log-listening.html`. Awaiting operator review.
+
+## Revision: woodblock tok
+
+Operator review: the first rebuild sounded "incredibly bit crushed" and lacked a wood-knock quality. Soloing the layers ([`wood-knock.md`](./wood-knock.md)) showed two causes:
+
+- The ×12 raw low-passed noise "knock" turned the wood layer into a 20–50 ms grit burst.
+- The PhISEM crunch fired about 350–700 single-sample clicks per second and was mixed at a fixed −5 dB. Every layer was also normalised on its own.
+
+Three offline variants (`moodboard/tools/log/knock-proto.ts`) all used band-limited strikes, noise only through resonators, and real-level mixing:
+
+- **A:** beam-mode wood after STK ModalBar Wood1.
+- **B:** A plus a diffuse resonator after Menzies.
+- **D:** a woodblock tok.
+
+The operator found A and B comical and chose **D**.
+
+`contact()` now has these layers:
+
+- **Strikes:** a main strike of 0.35–1 ms (×0.6, at least 0.3 ms), 2–4 micro-impacts within about 12 ms at −6 to −18 dB (FoleyAutomatic), and one or two settles.
+- **Wood (the tok):** f0 = 650–1300 Hz·size^−0.3·pitch, Q 15–40, T60 = min(0.2 s, 2.2·Q/(π·f0)). Beside it:
+  - a matched "cavity" mode at 0.95–1.05·f0, ×1.3 T60, 0.5 gain;
+  - an upper mode at 2.3–3.3·f0, ½ T60, 0.25 gain;
+  - the log it lands on, at 1.2–1.9·f0, 0.7 T60, 0.4 gain.
+- **Bed:** a 6–15 ms raised cosine into 90–140 Hz and 150–210 Hz resonators, at −20 dB re the wood peak.
+- **Crunch:** 4–12·√size soft heavy-tailed cracks (0.3–0.8 ms strikes into 900–3000 Hz modes, T60 8–25 ms), at −20 dB + 3·log₂(size).
+- **Puff:** at −20 dB.
+
+Contact gain is 0.95·√size, up from 0.68, to match the previous version's A-weighted level; a short tok carries less energy than a grit burst. Flare and catch are unchanged.
+
+Measured over ten landings:
+
+| Measure                                    | Value                                       |
+| ------------------------------------------ | ------------------------------------------- |
+| Bands <150 / 150–500 / 0.5–2k / 2–8k / >8k | 14 / 9 / 75 / 2 / 0 %                       |
+| Centroid, 0–30 ms                          | 748 Hz                                      |
+| Time to −10 / −20 dB                       | 9 / 16 ms (a short knock)                   |
+| Flatness, 0–30 ms                          | 0.03 (tonal, like the clean-drop reference) |
+
+Listening sheet: `moodboard/sounds/log-tok-listening.html`.
