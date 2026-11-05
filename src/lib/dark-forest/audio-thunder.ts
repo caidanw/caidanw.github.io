@@ -6,10 +6,10 @@
  * strokes down the same channel repeat it 20–150 ms apart. The shocks are added over a quiet,
  * continuous tear bed (never gated out of one), so the band never empties.
  *
- * Two models, for listening (the scene uses `crack.model`):
+ * Two models, picked at random per strike (the operator liked both; B more):
  * - 'pattern': Farnell's strike pattern (Designing Sound, Practical 17): ~20 events in ~1 s whose
- *   gaps grow from ~1 to ~100 ms, early ones short and bright, later ones long and dark; each
- *   event fires a few N-waves and Farnell's band-passed burst;
+ *   gaps grow from ~1 to ~100 ms; each event fires a few N-waves, early ones short, bright and
+ *   clustered, later ones longer and weaker;
  * - 'channel': a random lightning channel (5–70 m steps, ~16° kinks, 3 m pieces), its
  *   arrival times, kink-weighted amplitudes, pulse lengths and pans from the geometry.
  *
@@ -21,7 +21,7 @@ const TAU = Math.PI * 2
 /** Speed of sound (m/s). */
 const C = 343
 
-export const crack = { model: 'channel' as 'pattern' | 'channel' }
+export type CrackModel = 'pattern' | 'channel'
 
 interface Shock {
   /** Arrival (s from the first). */
@@ -33,14 +33,19 @@ interface Shock {
 }
 
 /** A close strike's crack at `distance` km, its pan centred on `pan`; returns a stereo buffer starting at the first arrival. */
-export function thunderCrack(ctx: BaseAudioContext, distance: number, pan: number): AudioBuffer {
+export function thunderCrack(
+  ctx: BaseAudioContext,
+  distance: number,
+  pan: number,
+  model: CrackModel = Math.random() < 2 / 3 ? 'channel' : 'pattern',
+): AudioBuffer {
   const sr = ctx.sampleRate
   const seconds = 1.8
   const buf = ctx.createBuffer(2, Math.ceil(seconds * sr), sr)
   const L = buf.getChannelData(0)
   const R = buf.getChannelData(1)
   const n = L.length
-  const shocks = crack.model === 'pattern' ? pattern(pan) : channel(distance * 1000, pan)
+  const shocks = model === 'pattern' ? pattern(pan) : channel(distance * 1000, pan)
   // the flash's repeat strokes down the same channel: the same shocks again, a little shuffled
   const strokes = 1 + ((Math.random() * 4) | 0)
   const all: Shock[] = [...shocks]
@@ -66,7 +71,7 @@ export function thunderCrack(ctx: BaseAudioContext, distance: number, pan: numbe
   for (let i = 0; i < n; i++) top = Math.max(top, Math.abs(L[i]), Math.abs(R[i]))
   const drive = 2
   // the pattern fires many strong shocks; bring it to about the same crack energy as the channel
-  const level = crack.model === 'pattern' ? 0.5 : 0.55
+  const level = model === 'pattern' ? 0.5 : 0.55
   const fade = Math.round(sr * 0.3)
   for (const d of [L, R]) for (let i = 0; i < n; i++) d[i] = ((level * shape((d[i] / top) * drive)) / shape(drive)) * Math.min(1, (n - 1 - i) / fade)
   return buf

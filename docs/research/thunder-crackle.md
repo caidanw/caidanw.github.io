@@ -535,3 +535,7 @@ Measured above 800 Hz in the first 1.5 s (`tools/debug/crackle_stats.py`), as th
 Single strikes vary: some come out dense, up to about 150–200/s. There are no dropouts (0/s) in either model or the storm mix. Loudness over heavy rain is about +16–19 dB at 0.7 km and +11–17 dB at 1.5 km. Peaks are at most about 0.65–0.8 for a single strike, and 0.73 in the full storm mix.
 
 Plot: `moodboard/shots/thunder-crack-models.png`. Listening sheet: `moodboard/sounds/thunder-crack-listening.html`. The scene uses B until the operator chooses; then the other model and the `crack.model` switch should be removed.
+
+### Decision
+
+The operator liked B a lot and A too. Each close strike now picks its crack at random: B (channel) two-thirds of the time, A (pattern) otherwise. The `crack.model` switch is gone; `thunderCrack()` takes the model as an optional argument.
