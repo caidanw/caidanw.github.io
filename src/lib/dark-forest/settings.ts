@@ -59,7 +59,13 @@ export type SoundKey = 'crackle' | 'flames' | 'log' | 'rain' | 'drips' | 'pool' 
 export const SOUND_SOURCES: { key: SoundKey; label: string; hint: string; rate?: string; pitch: string }[] = [
   { key: 'crackle', label: 'fire crackle', hint: 'clicks and pops, busier the bigger the fire', rate: 'busyness', pitch: 'pitch' },
   { key: 'flames', label: 'flames', hint: 'the soft broadband breath under the crackling', pitch: 'brightness' },
-  { key: 'log', label: 'log landing', hint: 'a thump and a burst of crackling when wood goes on', pitch: 'pitch' },
+  {
+    key: 'log',
+    label: 'log landing',
+    hint: 'a wooden knock and a crunch of embers when wood goes on, then crackling that builds over several seconds as it catches',
+    rate: 'catching',
+    pitch: 'pitch',
+  },
   { key: 'rain', label: 'rain', hint: 'a broad wash of distant rain, denser as the shower builds', pitch: 'brightness' },
   // Keep the old 'drips' key for leaf taps so existing staged tuning still applies.
   { key: 'drips', label: 'leaf drops', hint: 'nearby leaf taps and splashes; off by default', rate: 'how many', pitch: 'pitch' },

@@ -8,6 +8,7 @@
  * Sounds are panned by where they are on screen and quieter the further they are from the
  * fire. Browsers only allow sound after a click or a key, so it starts off (see start()).
  */
+import { logLanding } from './audio-log'
 import { rainDrops, rainWash, type RainDrops } from './audio-rain'
 import { buildVoices, type VoiceBank, type VoiceKey } from './audio-voices'
 import { doorOpen, isRaining, perchPos, type World } from './sim'
@@ -113,8 +114,7 @@ export class Soundscape {
         hold(4, 1)
         break
       case 'log':
-        hold(2.5)
-        this.logLands(now)
+        hold(this.logLands(now, 0.2) + 0.2)
         break
       case 'rain':
         hold(4, 0.7)
@@ -346,7 +346,7 @@ export class Soundscape {
     src.start(at, Math.random() * 2, len + 0.05)
   }
 
-  /** A pitched voice with an envelope and glide, for log thumps and crickets. */
+  /** A pitched voice with an envelope and glide, for crickets. */
   private voice(
     at: number,
     len: number,
@@ -402,18 +402,10 @@ export class Soundscape {
       this.pending.push({ at: at + 0.01 + -Math.log(1 - Math.random()) * 0.045, amp: amp * rnd(0.25, 0.9), pan: pan + rnd(-0.08, 0.08) })
   }
 
-  /** A log lands on the fire: a soft thump, then a flurry of crackling as it catches. */
-  private logLands(at: number) {
-    const out = this.bus.log
-    const pitch = this.pitch('log')
-    this.voice(at, 0.3, 'sine', 80 * pitch, 42 * pitch, 0.4, 0.05, out, ['lowpass', 200 * pitch, 0.7])
-    this.burst(at, 0.09, 700 * pitch, 0.7, 0.1, 0, 'lowpass', this.brown, out)
-    for (let i = 0; i < 22; i++) {
-      const t = at + 0.1 + Math.random() ** 1.6 * 2
-      const amp = 10 ** (-Math.min(30, -Math.log(1 - Math.random()) * 8) / 20)
-      const k = Math.floor(amp ** 0.6 * (this.crackles.length - 1))
-      this.grain(this.crackles[k], t, 0.6 * amp, pitch * rnd(0.9, 1.1), rnd(-0.25, 0.25), out)
-    }
+  /** A log (`fuel` added) lands on the fire: wood knocking, embers crunching, then it catches (audio-log.ts). Returns how long it sounds (s). */
+  private logLands(at: number, fuel: number) {
+    const T = settings.sound.sources.log
+    return logLanding(this.ctx!, at, { fuel, pitch: T.pitch, rate: T.rate, crackles: this.crackles, out: this.bus.log })
   }
 
   private dropRate(key: 'drips' | 'pool', rain: number) {
@@ -628,7 +620,7 @@ export class Soundscape {
     this.flamesBed.gain.setTargetAtTime(Math.max((0.001 + 0.01 * heat ** 1.5) * lap, held('flames') * 0.012), now, 0.12)
     this.flamesTone.frequency.setTargetAtTime(clamp(7000 * S.flames.pitch, 500, 20000), now, 0.3)
     // a log lands on the fire
-    if (this.last.fuel >= 0 && w.fire.fuel > this.last.fuel + 0.05) this.logLands(now)
+    if (this.last.fuel >= 0 && w.fire.fuel > this.last.fuel + 0.05) this.logLands(now, w.fire.fuel - this.last.fuel)
     this.last.fuel = w.fire.fuel
 
     // ---- rain: each material has its own clock, rate, pitch and mute/solo bus
