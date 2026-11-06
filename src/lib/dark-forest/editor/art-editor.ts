@@ -100,6 +100,8 @@ export function createArtEditor(edited: (file: DataFile) => void): ArtEditor {
   const all = targets()
   let target = all[0]
   let paletteName = 'default'
+  /** The variant last picked by hand (gold, crimson...), returned to after a frame-group palette like elder. */
+  let variant = 'default'
   let brush = ''
   let tool: Tool = 'pencil'
   let zoom = 12
@@ -117,6 +119,21 @@ export function createArtEditor(edited: (file: DataFile) => void): ArtEditor {
     if (!v) return null
     if (!v.startsWith('$')) return v
     return (DATA.palette as Record<string, string>)[v.slice(1)] ?? '#ff00ff'
+  }
+  /**
+   * The palette the scene draws this art with: one named after the frame (elderWalk0 → elder);
+   * otherwise not one of those frame-group palettes, but the current one if it has every colour
+   * the frame uses, else the first that does.
+   */
+  const choosePalette = () => {
+    const pals = Object.keys(target.palettes())
+    const frames = all.filter((t) => t.group === target.group).map((t) => t.label.toLowerCase())
+    const grouped = pals.filter((k) => k !== 'default' && frames.some((f) => f.startsWith(k.toLowerCase())))
+    const named = grouped.find((k) => target.label.toLowerCase().startsWith(k.toLowerCase()))
+    if (named) return (paletteName = named)
+    const used = [...new Set(rows().join('').replace(/\./g, ''))]
+    const fits = (k: string) => pals.includes(k) && !grouped.includes(k) && used.every((ch) => ch in target.palettes()[k])
+    paletteName = [variant, paletteName, ...pals].find(fits) ?? pals.find((k) => !grouped.includes(k)) ?? pals[0]
   }
   /** Live while painting (the scene follows), staged when the stroke ends. */
   let liveTimer = 0
@@ -396,7 +413,12 @@ export function createArtEditor(edited: (file: DataFile) => void): ArtEditor {
   })
 
   // ---------------------------------------------------------------- palette and parts
-  const paletteSelect = h('select', { onchange: (e: Event) => ((paletteName = (e.target as HTMLSelectElement).value), draw()) })
+  const paletteSelect = h('select', {
+    onchange: (e: Event) => {
+      paletteName = variant = (e.target as HTMLSelectElement).value
+      draw()
+    },
+  })
   const paletteList = h('div', { class: 'pal' })
   const setBrush = (ch: string) => {
     brush = ch
@@ -411,7 +433,9 @@ export function createArtEditor(edited: (file: DataFile) => void): ArtEditor {
     const used = new Set(rows().join('').replace(/\./g, ''))
     const shine = target.shine()
     const chars = [...new Set([...Object.keys(pal), ...used])].sort()
+    const missing = chars.filter((ch) => pal[ch] === undefined)
     paletteList.replaceChildren(
+      ...(missing.length ? [h('p', { class: 'warn' }, `not in the ${paletteName} palette (shown magenta): ${missing.join(' ')}`)] : []),
       ...chars.map((ch) => {
         const v = pal[ch]
         const missing = v === undefined
@@ -556,7 +580,7 @@ export function createArtEditor(edited: (file: DataFile) => void): ArtEditor {
                 'data-id': t.id,
                 onclick: () => {
                   target = t
-                  if (!(paletteName in t.palettes())) paletteName = 'default'
+                  choosePalette()
                   brush = rows().join('').replace(/\./g, '')[0] ?? Object.keys(palette())[0] ?? ''
                   for (const b of left.querySelectorAll<HTMLButtonElement>('.asset')) b.setAttribute('aria-pressed', String(b.dataset.id === t.id))
                   draw()
@@ -593,6 +617,7 @@ export function createArtEditor(edited: (file: DataFile) => void): ArtEditor {
     ),
   )
   setTool('pencil')
+  choosePalette()
   brush = rows().join('').replace(/\./g, '')[0] ?? ''
   new ResizeObserver(() => center.isConnected && draw()).observe(center)
   return { center, left, right, pip, refresh: draw }
